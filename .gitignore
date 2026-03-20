@@ -1,0 +1,24 @@
+# Secrets / local config
+.env
+.env.backup
+*.local
+
+# Runtime / state / journals
+.runtime_state.json
+run_journal.jsonl
+trade_journal.jsonl
+trade_journal_reconciled.jsonl
+
+# Python
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/
+
+# Generated reports / sims
+sim_*.json
+reports/
+artifacts/
+
+# OS / editor
+.DS_Store
