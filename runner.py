@@ -61,6 +61,7 @@ class OpenPos:
     max_adverse_value_usd: float = 0.0
     max_favorable_pnl_usd: float = 0.0
     max_adverse_pnl_usd: float = 0.0
+    has_scaled_out: bool = False
 
     @property
     def avg_cost_per_share(self) -> float:
@@ -73,6 +74,23 @@ class RuntimeFlags:
     last_loss_side: str
     close_fail_streak: int
     panic_exit_mode: bool
+
+
+def realistic_exit_value(pos: OpenPos, up: float | None, down: float | None, ob_up: dict | None, ob_down: dict | None) -> float | None:
+    mark = up if pos.side == "UP" else down
+    if mark is None:
+        return None
+    best_bid = None
+    if pos.side == "UP" and ob_up:
+        best_bid = ob_up.get("best_bid")
+    elif pos.side == "DOWN" and ob_down:
+        best_bid = ob_down.get("best_bid")
+    
+    if best_bid is not None and float(best_bid) > 0:
+        return pos.shares * float(best_bid)
+    
+    # Penalty if orderbook bid is unavailable
+    return pos.shares * max(0.0, float(mark) - 0.03)
 
 
 def observed_mark_value(pos: OpenPos, up: float | None, down: float | None) -> float | None:
@@ -587,14 +605,14 @@ def main():
                         if mark is None:
                             keep_positions.append(p)
                             continue
-                        observed_value = observed_mark_value(p, up, down)
+                        observed_value = realistic_exit_value(p, up, down, ob_up, ob_down)
                         if observed_value is None:
                             keep_positions.append(p)
                             continue
                         update_position_excursions(p, observed_value)
                         pnl_pct = (observed_value - p.cost_usd) / max(p.cost_usd, 1e-9)
                         hold_sec = time.time() - p.opened_ts
-                        exit_decision = decide_exit(pnl_pct=pnl_pct, hold_sec=hold_sec)
+                        exit_decision = decide_exit(pnl_pct=pnl_pct, hold_sec=hold_sec, secs_left=secs_left, has_scaled_out=getattr(p, "has_scaled_out", False))
                         stop_warn = pnl_pct <= -SETTINGS.stop_loss_warn_pct
                         urgent_exit = pnl_pct <= -SETTINGS.stop_loss_pct
 
@@ -612,6 +630,25 @@ def main():
                             log(f"stop-loss warning | side={p.side} observed_return={pnl_pct:.2%} hold={hold_sec:.0f}s")
 
                         if exit_decision.should_close:
+                            if exit_decision.reason == "scale-out":
+                                sell_fraction = min(0.99, p.cost_usd / max(observed_value, 1e-9))
+                                sell_shares = p.shares * sell_fraction
+                                try:
+                                    close_resp = ex.close_position(p.token_id, sell_shares)
+                                    if close_resp.get("ok"):
+                                        sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), sell_shares)
+                                        if sold_shares > 0:
+                                            actual_fraction = sold_shares / p.shares
+                                            p.shares -= sold_shares
+                                            p.cost_usd *= max(0.0, 1.0 - actual_fraction)
+                                            p.has_scaled_out = True
+                                            log(f"SCALED OUT! Sold {sold_shares:.2f} shares to lock in cost. Moonbag active.")
+                                            maybe_record_cycle_label(state, "scale-out", slug=p.slug, side=p.side)
+                                except Exception as e:
+                                    log(f"Scale-out error: {e}")
+                                keep_positions.append(p)
+                                continue
+
                             try:
                                 close_resp = ex.close_position(p.token_id, p.shares)
                                 if close_resp.get("ok"):
@@ -638,8 +675,18 @@ def main():
                                         close_response_value = close_resp.get("close_response_value")
                                         close_response_value_source = str(close_resp.get("close_response_value_source") or "")
                                         close_response_amount_fields = close_resp.get("close_response_amount_fields") or {}
+                                        
+                                        cash_before = float(close_resp.get("cash_before") or 0.0)
+                                        cash_after = float(close_resp.get("cash_after") or 0.0)
 
-                                        if actual_exit_value_usd > 0 and actual_exit_value_source == "cash_balance_delta":
+                                        if cash_before > 0 and cash_after > 0:
+                                            actual_exit_value_usd = cash_after - cash_before
+                                            actual_exit_value_source = "cash_balance_delta_strict"
+                                            actual_realized_pnl_usd = actual_exit_value_usd - realized_cost
+                                            actual_realized_return_pct = actual_realized_pnl_usd / max(realized_cost, 1e-9)
+                                            pnl_source = "actual_cash_recovered_strict"
+                                            risk.daily_pnl += actual_realized_pnl_usd
+                                        elif actual_exit_value_usd > 0 and actual_exit_value_source == "cash_balance_delta":
                                             actual_realized_pnl_usd = actual_exit_value_usd - realized_cost
                                             actual_realized_return_pct = actual_realized_pnl_usd / max(realized_cost, 1e-9)
                                             pnl_source = "actual_cash_recovered"

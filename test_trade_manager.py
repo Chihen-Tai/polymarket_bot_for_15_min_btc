@@ -77,7 +77,7 @@ def main():
 
     cases = [
         ("stop_loss", decide_exit(pnl_pct=-0.21, hold_sec=5).reason == "stop-loss"),
-        ("take_profit_soft", decide_exit(pnl_pct=0.60, hold_sec=25).reason == "take-profit-soft"),
+        ("take_profit_soft", decide_exit(pnl_pct=0.25, hold_sec=25, has_scaled_out=True).reason == "take-profit-soft"),
         ("take_profit_hard", decide_exit(pnl_pct=1.20, hold_sec=5).reason == "take-profit-hard"),
         ("max_hold", decide_exit(pnl_pct=0.01, hold_sec=120).reason == "max-hold"),
         (

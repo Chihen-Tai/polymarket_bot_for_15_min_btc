@@ -58,10 +58,10 @@ class Settings:
     # Integrated decision rules (from prior paper simulations)
     edge_threshold: float = _f("EDGE_THRESHOLD", 0.02)
     fee_buffer: float = _f("FEE_BUFFER", 0.01)
-    zscore_window: int = _i("ZSCORE_WINDOW", 10)
+    zscore_window: int = _i("ZSCORE_WINDOW", 20)
     zscore_threshold: float = _f("ZSCORE_THRESHOLD", 2.0)
-    entry_window_min_sec: float = _f("ENTRY_WINDOW_MIN_SEC", 35.0)
-    entry_window_max_sec: float = _f("ENTRY_WINDOW_MAX_SEC", 80.0)
+    entry_window_min_sec: float = _f("ENTRY_WINDOW_MIN_SEC", 60.0)
+    entry_window_max_sec: float = _f("ENTRY_WINDOW_MAX_SEC", 150.0)
     min_entry_price: float = _f("MIN_ENTRY_PRICE", 0.3)
     max_entry_price: float = _f("MAX_ENTRY_PRICE", 0.8)
 
@@ -69,13 +69,14 @@ class Settings:
     max_idle_minutes: int = _i("MAX_IDLE_MINUTES", 120)
 
     # Dump+hedge integration
-    dump_move_threshold: float = _f("DUMP_MOVE_THRESHOLD", 0.08)
+    dump_move_threshold: float = _f("DUMP_MOVE_THRESHOLD", 0.25)
     hedge_sum_target: float = _f("HEDGE_SUM_TARGET", 0.95)
     hedge_max_wait_sec: int = _i("HEDGE_MAX_WAIT_SEC", 90)
-    stop_loss_pct: float = _f("STOP_LOSS_PCT", 0.30)
-    max_hold_seconds: int = _i("MAX_HOLD_SECONDS", 90)
-    take_profit_soft_pct: float = _f("TAKE_PROFIT_SOFT_PCT", 0.35)
-    take_profit_hard_pct: float = _f("TAKE_PROFIT_HARD_PCT", 0.60)
+    stop_loss_pct: float = _f("STOP_LOSS_PCT", 0.20)
+    max_hold_seconds: int = _i("MAX_HOLD_SECONDS", 60)
+    take_profit_scaleout_pct: float = _f("TAKE_PROFIT_SCALEOUT_PCT", 0.15)
+    take_profit_soft_pct: float = _f("TAKE_PROFIT_SOFT_PCT", 0.20)
+    take_profit_hard_pct: float = _f("TAKE_PROFIT_HARD_PCT", 0.35)
     momentum_ticks: int = _i("MOMENTUM_TICKS", 3)
     momentum_min_move: float = _f("MOMENTUM_MIN_MOVE", 0.01)
     exit_deadline_sec: int = _i("EXIT_DEADLINE_SEC", 20)
@@ -95,6 +96,11 @@ class Settings:
     # Strategy 4: Orderbook Imbalance
     use_ob_imbalance: bool = _b("USE_OB_IMBALANCE", True)
     imbalance_threshold: float = _f("IMBALANCE_THRESHOLD", 0.70)
+
+    # Market Maker Settings
+    mm_spread: float = _f("MM_SPREAD", 0.05)
+    mm_order_size: float = _f("MM_ORDER_SIZE", 1.0)
+    mm_safety_halt: float = _f("MM_SAFETY_HALT", 30.0)
 
 
 SETTINGS = Settings()
