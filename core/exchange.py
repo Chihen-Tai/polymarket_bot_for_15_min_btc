@@ -41,6 +41,8 @@ class PolymarketExchange:
     """
 
     def __init__(self, dry_run: bool = True):
+        self._cash: float = 100.0
+        self._equity: float = 100.0
         self.dry_run = dry_run
         
         self.paper_balance_file = os.path.join(SETTINGS.data_dir, "paper_balance.json")

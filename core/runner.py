@@ -250,6 +250,7 @@ def sync_open_positions(ex, open_positions: list[OpenPos]) -> tuple[list[OpenPos
                 continue
             notes.append(f"sync_drop token={p.token_id} slug={p.slug} reason=missing-live-position age_sec={age_sec:.1f} miss_count={miss_count}")
             continue
+        assert ap is not None
         row_notes, flags = inspect_open_position(p, ap)
         if flags["worthless"] or flags["stale"]:
             notes.append(
@@ -412,7 +413,7 @@ def perform_startup_sanity_check(ex: PolymarketExchange, state: dict) -> tuple[l
     notes: list[str] = []
     recovery_restart = False
 
-    runtime_positions = [OpenPos(**p) for p in state.get("open_positions", [])]
+    runtime_positions = [OpenPos(**dict(p)) for p in state.get("open_positions", []) if isinstance(p, dict)]
     runtime_positions, runtime_notes = sanitize_open_positions(runtime_positions, source="runtime-state")
     notes.extend(runtime_notes)
 
@@ -643,9 +644,10 @@ def main():
                             keep_positions.append(p)
                             continue
                         effective_exit_value = observed_value if observed_value is not None else mark_value
-                        hard_stop_value = min(
-                            v for v in (observed_value, mark_value) if v is not None
-                        )
+                        hard_stop_value = float(min(
+                            [v for v in (observed_value, mark_value) if v is not None] or [0.0]
+                        ))
+                        effective_exit_value = float(effective_exit_value or 0.0)
                         update_position_excursions(p, effective_exit_value)
                         pnl_pct = (effective_exit_value - p.cost_usd) / max(p.cost_usd, 1e-9)
                         hard_stop_pnl_pct = (hard_stop_value - p.cost_usd) / max(p.cost_usd, 1e-9)
@@ -654,7 +656,7 @@ def main():
                         if getattr(SETTINGS, "smart_stop_loss_enabled", False) and hard_stop_pnl_pct < -0.10:
                             if signal_side and signal_side != p.side:
                                 recovery_chance_low = True
-                            elif hold_sec >= 90.0 and secs_left is not None and secs_left <= 60.0:
+                            elif hold_sec >= 90.0 and (secs_left or 1000.0) <= 60.0:
                                 recovery_chance_low = True
 
                         exit_decision = decide_exit(
