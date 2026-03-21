@@ -156,18 +156,6 @@ def explain_choose_side(
             r.update({"ok": True, "side": "DOWN", "reason": "model-cex_oracle_dump", "entry_price": down})
             candidates["cex_oracle_dump"] = r
 
-    # Strategy 4: Orderbook Imbalance
-    if SETTINGS.use_ob_imbalance and ob_up and ob_down:
-        up_bid_ratio = _check_imbalance(ob_up)
-        down_bid_ratio = _check_imbalance(ob_down)
-        if up_bid_ratio >= SETTINGS.imbalance_threshold and valid_up:
-            r = base_result.copy()
-            r.update({"ok": True, "side": "UP", "reason": "model-orderbook_imbalance_up", "entry_price": up})
-            candidates["orderbook_imbalance_up"] = r
-        elif down_bid_ratio >= SETTINGS.imbalance_threshold and valid_down:
-            r = base_result.copy()
-            r.update({"ok": True, "side": "DOWN", "reason": "model-orderbook_imbalance_down", "entry_price": down})
-            candidates["orderbook_imbalance_down"] = r
 
     # Strategy 5: Zhihu ZLSMA + ATR Scalper
     if binance_5m and len(binance_5m) >= 99:

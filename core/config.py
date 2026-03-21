@@ -102,10 +102,6 @@ class Settings:
     # Strategy 3: Dynamic Volatility
     use_dynamic_thresholds: bool = _b("USE_DYNAMIC_THRESHOLDS", True)
 
-    # Strategy 4: Orderbook Imbalance
-    use_ob_imbalance: bool = _b("USE_OB_IMBALANCE", True)
-    imbalance_threshold: float = _f("IMBALANCE_THRESHOLD", 0.70)
-
     # Advanced Risk
     use_kelly_sizing: bool = _b("USE_KELLY_SIZING", True)
     max_bet_cap_usd: float = _f("MAX_BET_CAP_USD", 50.0)
