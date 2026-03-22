@@ -26,9 +26,10 @@ class Settings:
     min_equity: float = _f("MIN_EQUITY", 1.0)
     max_order_usd: float = _f("MAX_ORDER_USD", 1.0)
     max_exposure_usd: float = _f("MAX_EXPOSURE_USD", 1.0)
-    max_orders_per_5min: int = _i("MAX_ORDERS_PER_5MIN", 1)
-    max_consec_loss: int = _i("MAX_CONSEC_LOSS", 2)
-    daily_max_loss: float = _f("DAILY_MAX_LOSS", 2.0)
+    max_orders_per_5min: int = _i("MAX_ORDERS_PER_5MIN", 2)
+    max_consec_loss: int = _i("MAX_CONSEC_LOSS", 3)
+    daily_max_loss: float = _f("DAILY_MAX_LOSS", 3.0)
+    ofi_bypass_threshold: float = _f("OFI_BYPASS_THRESHOLD", 0.65)
 
     poll_seconds: int = _i("POLL_SECONDS", 15)
 
@@ -86,7 +87,7 @@ class Settings:
     take_profit_soft_pct: float = _f("TAKE_PROFIT_SOFT_PCT", 0.30)
     take_profit_hard_pct: float = _f("TAKE_PROFIT_HARD_PCT", 0.35)
     momentum_ticks: int = _i("MOMENTUM_TICKS", 3)
-    momentum_min_move: float = _f("MOMENTUM_MIN_MOVE", 0.01)
+    momentum_min_move: float = _f("MOMENTUM_MIN_MOVE", 0.005)
     exit_deadline_sec: int = _i("EXIT_DEADLINE_SEC", 20)
     stop_loss_warn_pct: float = _f("STOP_LOSS_WARN_PCT", 0.12)
 

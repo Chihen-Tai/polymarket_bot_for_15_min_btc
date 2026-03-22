@@ -1,0 +1,73 @@
+[2026-03-22 08:02:49] bot started | dry_run=True
+[2026-03-22 08:02:49] market switched => btc-updown-5m-1774137600
+[2026-03-22 08:02:50] no entry | slug=btc-updown-5m-1774137600 reason=flow_too_weak_235677 secs_left=130.503932 up=0.525 down=0.475
+[2026-03-22 08:02:50] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:02:50] EVENT INTERRUPT: OFI=0.72 Vol=$235677 -> forcing fast poll
+[2026-03-22 08:02:53] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.561 secs_left=127.496116 up=0.525 down=0.475
+[2026-03-22 08:02:53] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:02:57] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.567 secs_left=123.577224 up=0.525 down=0.475
+[2026-03-22 08:02:57] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:01] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.550 secs_left=119.640117 up=0.525 down=0.475
+[2026-03-22 08:03:01] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:04] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.583 secs_left=115.703165 up=0.525 down=0.475
+[2026-03-22 08:03:04] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:08] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.621 secs_left=111.764401 up=0.525 down=0.475
+[2026-03-22 08:03:08] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:12] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.549 secs_left=107.80805 up=0.525 down=0.475
+[2026-03-22 08:03:12] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:16] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.571 secs_left=103.867479 up=0.525 down=0.475
+[2026-03-22 08:03:16] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:20] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.586 secs_left=99.834411 up=0.525 down=0.475
+[2026-03-22 08:03:20] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:24] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.612 secs_left=95.904252 up=0.525 down=0.475
+[2026-03-22 08:03:24] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:28] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.635 secs_left=91.894655 up=0.525 down=0.475
+[2026-03-22 08:03:28] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:32] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.542 secs_left=87.979793 up=0.525 down=0.475
+[2026-03-22 08:03:32] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:36] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.543 secs_left=84.056718 up=0.525 down=0.475
+[2026-03-22 08:03:36] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:40] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.560 secs_left=80.121942 up=0.525 down=0.475
+[2026-03-22 08:03:40] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:44] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.564 secs_left=76.193616 up=0.525 down=0.475
+[2026-03-22 08:03:44] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:48] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.538 secs_left=72.27786 up=0.525 down=0.475
+[2026-03-22 08:03:48] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:52] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.542 secs_left=68.32484 up=0.525 down=0.475
+[2026-03-22 08:03:52] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:03:56] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.561 secs_left=64.396602 up=0.525 down=0.475
+[2026-03-22 08:03:56] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:00] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.553 secs_left=60.443241 up=0.525 down=0.475
+[2026-03-22 08:04:00] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:04] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.535 secs_left=56.499164 up=0.525 down=0.475
+[2026-03-22 08:04:04] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:08] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.521 secs_left=52.563319 up=0.525 down=0.475
+[2026-03-22 08:04:08] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:12] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.541 secs_left=48.647031 up=0.525 down=0.475
+[2026-03-22 08:04:12] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:15] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.575 secs_left=44.72037 up=0.525 down=0.475
+[2026-03-22 08:04:15] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:19] no entry | slug=btc-updown-5m-1774137600 reason=ofi_not_extreme_0.593 secs_left=40.798071 up=0.525 down=0.475
+[2026-03-22 08:04:19] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:23] no entry | slug=btc-updown-5m-1774137600 reason=too_late_in_market secs_left=36.841754 up=0.525 down=0.475
+[2026-03-22 08:04:23] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:27] no entry | slug=btc-updown-5m-1774137600 reason=too_late_in_market secs_left=32.892091 up=0.525 down=0.475
+[2026-03-22 08:04:27] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:31] no entry | slug=btc-updown-5m-1774137600 reason=too_late_in_market secs_left=28.87843 up=0.525 down=0.475
+[2026-03-22 08:04:31] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:35] no entry | slug=btc-updown-5m-1774137600 reason=too_late_in_market secs_left=24.946471 up=0.525 down=0.475
+[2026-03-22 08:04:35] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:39] no entry | slug=btc-updown-5m-1774137600 reason=too_late_in_market secs_left=21.028862 up=0.525 down=0.475
+[2026-03-22 08:04:39] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:43] no entry | slug=btc-updown-5m-1774137600 reason=too_late_in_market secs_left=17.111407 up=0.525 down=0.475
+[2026-03-22 08:04:43] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:04:47] no entry | slug=btc-updown-5m-1774137600 reason=too_late_in_market secs_left=13.195054 up=0.525 down=0.475
+[2026-03-22 08:04:47] no signal | equity=100.00 cash=100.00
+No trade rows found.
+
+================= RUN REPORT =================
+Generating post-run summary report...
+Report also saved to: /home/allen/.openclaw/workspace/polymarket-bot-by_openclaw/data/latest_run_report.txt
+==============================================
+
+received signal 15

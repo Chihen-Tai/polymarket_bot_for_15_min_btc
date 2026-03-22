@@ -606,10 +606,11 @@ def main():
             signal_origin = ""
             no_entry_reason = ""
 
-            if risk.daily_pnl <= -SETTINGS.daily_max_loss:
-                log(f"CIRCUIT BREAKER: Daily loss (-${abs(risk.daily_pnl):.2f}) reached limit (-${SETTINGS.daily_max_loss:.2f}). Pausing new entries.")
-                smart_sleep(SETTINGS.poll_seconds)
-                continue
+            # Daily loss circuit breaker disabled
+            # if risk.daily_pnl <= -SETTINGS.daily_max_loss:
+            #     log(f"CIRCUIT BREAKER: Daily loss (-${abs(risk.daily_pnl):.2f}) reached limit (-${SETTINGS.daily_max_loss:.2f}). Pausing new entries.")
+            #     smart_sleep(SETTINGS.poll_seconds)
+            #     continue
 
             if SETTINGS.auto_market_selection:
                 try:
@@ -652,17 +653,21 @@ def main():
                     from core.decision_engine import check_arbitrage
                     if check_arbitrage(up, down):
                         log(f"ARBITRAGE DETECTED! up={up} down={down} sum={up+down}")
-                        res_up = ex.place_order("UP", 1.0, market.get("token_up"))
-                        res_down = ex.place_order("DOWN", 1.0, market.get("token_down"))
+                        res_up = ex.place_order("UP", 1.0, market.get("token_up"), simulated_price=float(up) if up is not None else None)
+                        res_down = ex.place_order("DOWN", 1.0, market.get("token_down"), simulated_price=float(down) if down is not None else None)
                         log(f"Arbitrage execution: UP={res_up} DOWN={res_down}")
                         maybe_record_cycle_label(state, "arbitrage-execution", slug=market["slug"], up=up, down=down)
                         arbitrage_triggered = True
+
+                    poly_ob_up = ex.get_full_orderbook(market.get("token_up", ""))
+                    poly_ob_down = ex.get_full_orderbook(market.get("token_down", ""))
 
                     if not arbitrage_triggered:
                         model_decision = explain_choose_side(
                             market, yes_price_window, up_price_window, down_price_window,
                             binance_1m=binance_1m, binance_5m=binance_5m,
-                            ws_bba=ws_bba, ws_trades=ws_trades
+                            ws_bba=ws_bba, ws_trades=ws_trades,
+                            poly_ob_up=poly_ob_up, poly_ob_down=poly_ob_down
                         )
                         signal_side = model_decision.get("side") if model_decision.get("ok") else None
                         no_entry_reason = model_decision.get("reason")
@@ -741,7 +746,7 @@ def main():
                                 sell_fraction = min(0.99, p.cost_usd / max(observed_value, 1e-9))
                                 sell_shares = p.shares * sell_fraction
                                 try:
-                                    close_resp = ex.close_position(p.token_id, sell_shares)
+                                    close_resp = ex.close_position(p.token_id, sell_shares, simulated_price=float(mark) if mark is not None else None)
                                     if close_resp.get("ok"):
                                         sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), sell_shares)
                                         if sold_shares > 0:
@@ -760,7 +765,7 @@ def main():
                                 sell_fraction = getattr(SETTINGS, "stop_loss_partial_fraction", 0.50)
                                 sell_shares = p.shares * sell_fraction
                                 try:
-                                    close_resp = ex.close_position(p.token_id, sell_shares)
+                                    close_resp = ex.close_position(p.token_id, sell_shares, simulated_price=float(mark) if mark is not None else None)
                                     if close_resp.get("ok"):
                                         sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), sell_shares)
                                         if sold_shares > 0:
@@ -780,7 +785,7 @@ def main():
                                 sell_fraction = min(0.99, p.cost_usd / current_value)
                                 sell_shares = p.shares * sell_fraction
                                 try:
-                                    close_resp = ex.close_position(p.token_id, sell_shares)
+                                    close_resp = ex.close_position(p.token_id, sell_shares, simulated_price=float(mark) if mark is not None else None)
                                     if close_resp.get("ok"):
                                         sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), sell_shares)
                                         if sold_shares > 0:
@@ -799,7 +804,7 @@ def main():
                                 sell_fraction = 0.30
                                 sell_shares = p.shares * sell_fraction
                                 try:
-                                    close_resp = ex.close_position(p.token_id, sell_shares)
+                                    close_resp = ex.close_position(p.token_id, sell_shares, simulated_price=float(mark) if mark is not None else None)
                                     if close_resp.get("ok"):
                                         sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), sell_shares)
                                         if sold_shares > 0:
@@ -815,7 +820,7 @@ def main():
                                 continue
 
                             try:
-                                close_resp = ex.close_position(p.token_id, p.shares)
+                                close_resp = ex.close_position(p.token_id, p.shares, simulated_price=float(mark) if mark is not None else None)
                                 if close_resp.get("ok"):
                                     sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), p.shares)
                                     remaining_hint = max(0.0, float(close_resp.get("remaining_shares", p.shares - sold_shares) or 0.0))
@@ -1157,6 +1162,15 @@ def main():
                 smart_sleep(SETTINGS.poll_seconds)
                 continue
 
+            # 計算當前 OFI 供風控判斷（與 decision_engine 共用 ws_trades 資料）
+            current_ofi = 0.0
+            if ws_trades:
+                from core.indicators import compute_buy_sell_pressure
+                _bv, _sv = compute_buy_sell_pressure(ws_trades)
+                _total = _bv + _sv
+                if _total > 0:
+                    current_ofi = _bv / _total
+
             ok, reason = can_place_order(
                 equity=acct.equity,
                 open_exposure=acct.open_exposure,
@@ -1169,6 +1183,8 @@ def main():
                 daily_pnl=risk.daily_pnl,
                 daily_max_loss=SETTINGS.daily_max_loss,
                 orders_this_window=risk.orders_this_window,
+                current_ofi=current_ofi,
+                ofi_bypass_threshold=SETTINGS.ofi_bypass_threshold,
             )
 
             if not ok:
@@ -1179,7 +1195,8 @@ def main():
                 continue
 
             try:
-                resp = ex.place_order(signal_side, order_usd, token_id_override=token_override)
+                sim_price = (float(up) if up is not None else None) if signal_side == "UP" else (float(down) if down is not None else None)
+                resp = ex.place_order(signal_side, order_usd, token_id_override=token_override, simulated_price=sim_price)
                 risk.orders_this_window += 1
                 last_trade_ts = time.time()
                 risk.consec_losses = flags.live_consec_losses
@@ -1192,7 +1209,8 @@ def main():
                     hedge_token_id = market.get("token_down") if signal_side == "UP" else market.get("token_up")
                     if hedge_token_id and hedge_usd >= 0.5:
                         log(f"executing structured hedge | side={hedge_side} cost=${hedge_usd:.4f}")
-                        h_res = ex.place_order(hedge_side, hedge_usd, token_id_override=hedge_token_id)
+                        h_sim_price = (float(down) if down is not None else None) if signal_side == "UP" else (float(up) if up is not None else None)
+                        h_res = ex.place_order(hedge_side, hedge_usd, token_id_override=hedge_token_id, simulated_price=h_sim_price)
                         try:
                             hr = h_res.get("response", {}) if isinstance(h_res, dict) else {}
                             h_shares = float(hr.get("takingAmount", 0) or 0)
@@ -1316,7 +1334,10 @@ def main():
                 risk.consec_losses = risk.consec_losses + 1 if pnl < 0 else 0
                 log(f"mock settle pnl={pnl:+.2f} daily_pnl={risk.daily_pnl:+.2f} consec_losses={risk.consec_losses}")
 
-            smart_sleep(SETTINGS.poll_seconds)
+            if "secs_left" in locals() and secs_left is not None and 200 <= secs_left <= 260:
+                smart_sleep(1.0)
+            else:
+                smart_sleep(SETTINGS.poll_seconds)
     except GracefulStop:
         reason = "manual-stop" if STOP_REQUEST["signal"] == signal.SIGINT else "timeout-or-sigterm"
         run_journal.finalize(status="terminated", reason=reason, notes=["graceful signal stop"])
@@ -1336,16 +1357,26 @@ def main():
             import sys
             from pathlib import Path
             script_path = Path(__file__).parent.parent / "scripts" / "trade_pair_ledger.py"
-            report_path = Path(__file__).parent.parent / "data" / "latest_run_report.txt"
+            data_dir = Path(__file__).parent.parent / "data"
+            # 以啟動時間作為報告檔名
+            _ts = run_journal.started_at.replace(":", "-")
+            mode_tag = "dryrun" if SETTINGS.dry_run else "live"
+            timestamped_path = data_dir / f"report-{mode_tag}-{_ts}.txt"
+            latest_path = data_dir / "latest_run_report.txt"
             if script_path.exists():
                 print("\n================= RUN REPORT =================")
                 print("Generating post-run summary report...")
-                # Also save to file for easy review later
-                with open(report_path, "w", encoding="utf-8") as f:
-                    subprocess.run([sys.executable, str(script_path), "--limit", "30", "--summary"], stdout=f, check=False)
-                # Print to console
-                subprocess.run([sys.executable, str(script_path), "--limit", "30", "--summary"], check=False)
-                print(f"Report also saved to: {report_path}")
+                report_args = [sys.executable, str(script_path), "--limit", "30", "--summary"]
+                # 儲存帶時間戳的報告（實戰和模擬都執行）
+                with open(timestamped_path, "w", encoding="utf-8") as f:
+                    subprocess.run(report_args, stdout=f, check=False)
+                # 同時更新 latest_run_report.txt 方便快速查看
+                import shutil
+                shutil.copy2(timestamped_path, latest_path)
+                # 印到 console
+                subprocess.run(report_args, check=False)
+                print(f"Report saved to: {timestamped_path}")
+                print(f"Also copied to:  {latest_path}")
                 print("==============================================\n")
         except Exception as report_err:
             log(f"Failed to generate run report: {report_err}")

@@ -101,3 +101,50 @@ def compute_buy_sell_pressure(trades: list[dict]) -> tuple[float, float]:
     buy_vol = sum(t['p'] * t['q'] for t in trades if not t['m'])
     sell_vol = sum(t['p'] * t['q'] for t in trades if t['m'])
     return buy_vol, sell_vol
+
+def calc_rsi(prices: list[float], period: int = 14) -> float | None:
+    if len(prices) < period + 1:
+        return None
+    gains = []
+    losses = []
+    for i in range(1, len(prices)):
+        diff = prices[i] - prices[i-1]
+        if diff > 0:
+            gains.append(diff)
+            losses.append(0.0)
+        else:
+            gains.append(0.0)
+            losses.append(abs(diff))
+    
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+    
+    for i in range(period, len(gains)):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+        
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    return 100.0 - (100.0 / (1.0 + rs))
+
+def calc_ema(prices: list[float], period: int) -> list[float]:
+    if not prices:
+        return []
+    k = 2 / (period + 1)
+    ema = [prices[0]]
+    for p in prices[1:]:
+        ema.append(p * k + ema[-1] * (1 - k))
+    return ema
+
+def calc_macd(prices: list[float], fast: int = 12, slow: int = 26, signal: int = 9):
+    if len(prices) < slow + signal:
+        return None
+    ema_fast = calc_ema(prices, fast)
+    ema_slow = calc_ema(prices, slow)
+    macd_line = [f - s for f, s in zip(ema_fast, ema_slow)]
+    signal_line = calc_ema(macd_line, signal)
+    if not macd_line or not signal_line:
+        return None
+    histogram = macd_line[-1] - signal_line[-1]
+    return macd_line[-1], signal_line[-1], histogram

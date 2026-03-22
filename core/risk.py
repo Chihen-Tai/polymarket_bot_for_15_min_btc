@@ -34,6 +34,8 @@ def can_place_order(
     daily_pnl: float,
     daily_max_loss: float,
     orders_this_window: int,
+    current_ofi: float = 0.0,
+    ofi_bypass_threshold: float = 0.65,
 ) -> tuple[bool, str]:
     if equity < min_equity:
         return False, f"equity {equity:.2f} < min {min_equity:.2f}"
@@ -46,12 +48,21 @@ def can_place_order(
         return False, "exposure limit exceeded"
 
     if orders_this_window >= max_orders_per_5min:
-        return False, "order frequency limit exceeded"
+        # 高 OFI 豁免：當 OFI 強度超過閾值，且本 window 只下過 1 單，允許多下 1 單
+        ofi_bypass_slots = 1  # 每個 window 最多豁免 1 次
+        if (
+            current_ofi >= ofi_bypass_threshold
+            and orders_this_window < max_orders_per_5min + ofi_bypass_slots
+        ):
+            pass  # 豁免通過，繼續其他風控檢查
+        else:
+            return False, "order frequency limit exceeded"
 
     if consec_losses >= max_consec_loss:
         return False, "consecutive loss circuit breaker"
 
-    if abs(daily_pnl) >= daily_max_loss and daily_pnl < 0:
-        return False, "daily max loss reached"
+    # Daily max loss check disabled
+    # if abs(daily_pnl) >= daily_max_loss and daily_pnl < 0:
+    #     return False, "daily max loss reached"
 
     return True, "ok"

@@ -325,17 +325,20 @@ class PolymarketExchange:
         except Exception:
             return []
 
-    def place_order(self, side: str, amount_usd: float, token_id_override: str | None = None) -> dict:
+    def place_order(self, side: str, amount_usd: float, token_id_override: str | None = None, simulated_price: float | None = None) -> dict:
         token_id = token_id_override or (SETTINGS.token_id_up if side == "UP" else SETTINGS.token_id_down)
         if not token_id:
             raise ValueError("TOKEN_ID_UP / TOKEN_ID_DOWN is required")
 
         if self.dry_run:
-            book = self.get_full_orderbook(token_id)
-            if not book or book.get("best_ask", 0.0) == 0.0:
-                book = {"best_ask": 0.5}
-            
-            best_ask = book.get("best_ask", 0.5)
+            if simulated_price and simulated_price > 0:
+                best_ask = simulated_price
+            else:
+                book = self.get_full_orderbook(token_id)
+                if not book or book.get("best_ask", 0.0) == 0.0:
+                    book = {"best_ask": 0.5}
+                best_ask = book.get("best_ask", 0.5)
+                
             filled_shares = amount_usd / best_ask
             
             self._cash -= amount_usd
@@ -346,6 +349,8 @@ class PolymarketExchange:
                 "orderID": "paper-order-" + str(int(time.time())),
                 "originalQuantity": str(filled_shares),
                 "fillAmount": str(filled_shares),
+                "takingAmount": str(filled_shares), # 讓 runner 能計算到 shares
+                "makingAmount": str(amount_usd),    # 模擬買單支出
                 "status": "MATCHED",
             }
             return {
@@ -356,18 +361,23 @@ class PolymarketExchange:
                 "response": mock_resp,
             }
 
-        from py_clob_client.clob_types import MarketOrderArgs, OrderType
+        from py_clob_client.clob_types import OrderArgs, OrderType
         from py_clob_client.order_builder.constants import BUY
 
-        order = self.client.create_market_order(
-            MarketOrderArgs(
+        # Use simulated_price (which refers to the real observed price passed from runner)
+        price = simulated_price if simulated_price and simulated_price > 0 else 0.5
+        price_rounded = round(price, 3) 
+        size_rounded = round(amount_usd / price_rounded, 2)
+
+        order = self.client.create_order(
+            OrderArgs(
                 token_id=token_id,
-                amount=float(amount_usd),
+                price=float(price_rounded),
+                size=float(size_rounded),
                 side=BUY,
-                order_type=OrderType.FOK,
             )
         )
-        resp = self.client.post_order(order, OrderType.FOK)
+        resp = self.client.post_order(order, OrderType.POST_ONLY)
 
         return {
             "ok": True,
@@ -432,13 +442,16 @@ class PolymarketExchange:
         except Exception:
             return True
 
-    def close_position(self, token_id: str, shares: float) -> dict:
+    def close_position(self, token_id: str, shares: float, simulated_price: float | None = None) -> dict:
         if self.dry_run:
-            book = self.get_full_orderbook(token_id)
-            if not book or book.get("best_bid", 0.0) == 0.0:
-                book = {"best_bid": 0.5}
+            if simulated_price and simulated_price > 0:
+                best_bid = simulated_price
+            else:
+                book = self.get_full_orderbook(token_id)
+                if not book or book.get("best_bid", 0.0) == 0.0:
+                    book = {"best_bid": 0.5}
+                best_bid = book.get("best_bid", 0.5)
 
-            best_bid = book.get("best_bid", 0.5)
             value_received = shares * best_bid
             
             self._cash += value_received

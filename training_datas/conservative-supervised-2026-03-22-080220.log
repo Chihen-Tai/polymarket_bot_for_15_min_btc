@@ -1,0 +1,19 @@
+[2026-03-22 08:02:22] journal reconcile note | remaining_shares hint differed from reconstructed lot; journal used execution hint | token=39464393369382274883677983506591309039796228553322371496844940978196283986575
+[2026-03-22 08:02:22] startup sanity | journal reconcile note | remaining_shares hint differed from reconstructed lot; journal used execution hint | token=39464393369382274883677983506591309039796228553322371496844940978196283986575
+[2026-03-22 08:02:22] bot started | dry_run=True
+[2026-03-22 08:02:22] startup sanity persisted runtime state | open_positions=5
+[2026-03-22 08:02:22] market switched => btc-updown-5m-1774137600
+[2026-03-22 08:02:23] no entry | slug=btc-updown-5m-1774137600 reason=too_early_in_market secs_left=157.484831 up=0.525 down=0.475
+[2026-03-22 08:02:23] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:02:27] no entry | slug=btc-updown-5m-1774137600 reason=too_early_in_market secs_left=153.438431 up=0.525 down=0.475
+[2026-03-22 08:02:27] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:02:31] no entry | slug=btc-updown-5m-1774137600 reason=too_early_in_market secs_left=149.499325 up=0.525 down=0.475
+[2026-03-22 08:02:31] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:02:35] no entry | slug=btc-updown-5m-1774137600 reason=too_early_in_market secs_left=145.554627 up=0.525 down=0.475
+[2026-03-22 08:02:35] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:02:39] no entry | slug=btc-updown-5m-1774137600 reason=too_early_in_market secs_left=141.597038 up=0.525 down=0.475
+[2026-03-22 08:02:39] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:02:43] no entry | slug=btc-updown-5m-1774137600 reason=too_early_in_market secs_left=137.620436 up=0.525 down=0.475
+[2026-03-22 08:02:43] no signal | equity=100.00 cash=100.00
+[2026-03-22 08:02:46] no entry | slug=btc-updown-5m-1774137600 reason=too_early_in_market secs_left=133.693295 up=0.525 down=0.475
+[2026-03-22 08:02:46] no signal | equity=100.00 cash=100.00

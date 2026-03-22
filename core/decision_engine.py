@@ -87,10 +87,15 @@ def mean_reversion_side(yes_price: Optional[float], yes_window: deque) -> Option
 _MOMENTUM_EXEMPT = frozenset([
     "ws_order_flow_up", "ws_order_flow_down",
     "ws_flash_snipe_up", "ws_flash_snipe_down",
+    "poly_ob_imbalance_up", "poly_ob_imbalance_down",
+    "time_snipe_up", "time_snipe_down",
+    "binance_macd_rsi_up", "binance_macd_rsi_down",
 ])
 
 
-def _has_momentum(side: str, up_window: deque, down_window: deque, min_move: float = 0.002) -> bool:
+def _has_momentum(side: str, up_window: deque, down_window: deque, min_move: float | None = None) -> bool:
+    if min_move is None:
+        min_move = SETTINGS.momentum_min_move
     ticks = max(2, SETTINGS.momentum_ticks)
     target = list(up_window if side == "UP" else down_window)
     if len(target) < ticks:
@@ -108,7 +113,9 @@ def explain_choose_side(
     binance_1m: Optional[dict] = None,
     binance_5m: Optional[list[dict]] = None,
     ws_bba: Optional[dict] = None,
-    ws_trades: Optional[list[dict]] = None
+    ws_trades: Optional[list[dict]] = None,
+    poly_ob_up: Optional[dict] = None,
+    poly_ob_down: Optional[dict] = None
 ) -> dict:
     prices = get_outcome_prices(market)
     up = prices.get("up") or prices.get("漲")
@@ -211,6 +218,58 @@ def explain_choose_side(
         except Exception:
             pass
 
+    # Strategy 8: Polymarket Orderbook Imbalance
+    if poly_ob_up and poly_ob_down:
+        imbalance_up = _check_imbalance(poly_ob_up)
+        imbalance_down = _check_imbalance(poly_ob_down)
+        
+        # If bids dominate asks heavily
+        if imbalance_up > 0.85 and valid_up:
+            r = base_result.copy()
+            r.update({"ok": True, "side": "UP", "reason": "model-poly_ob_imbalance_up", "entry_price": up})
+            candidates["poly_ob_imbalance_up"] = r
+        elif imbalance_down > 0.85 and valid_down:
+            r = base_result.copy()
+            r.update({"ok": True, "side": "DOWN", "reason": "model-poly_ob_imbalance_down", "entry_price": down})
+            candidates["poly_ob_imbalance_down"] = r
+
+    # Strategy 9: Time-Based Snipe (4 minutes before settlement)
+    # Automatically entering high-win-rate models 4 mins (240s) prior to end.
+    if secs_left is not None and 235 <= secs_left <= 245:
+        if up is not None and up > 0.60 and valid_up:
+            r = base_result.copy()
+            r.update({"ok": True, "side": "UP", "reason": "model-time_snipe_up", "entry_price": up})
+            candidates["time_snipe_up"] = r
+        elif down is not None and down > 0.60 and valid_down:
+            r = base_result.copy()
+            r.update({"ok": True, "side": "DOWN", "reason": "model-time_snipe_down", "entry_price": down})
+            candidates["time_snipe_down"] = r
+
+    # Strategy 10: Binance MACD & RSI Momentum
+    if binance_5m and len(binance_5m) >= 30:
+        try:
+            from core.indicators import calc_rsi, calc_macd
+            closes = [c['close'] for c in binance_5m]
+            rsi = calc_rsi(closes, period=14)
+            macd_res = calc_macd(closes)
+            
+            if rsi is not None and macd_res is not None:
+                macd_line, signal_line, hist = macd_res
+                
+                # Bullish momentum on Binance
+                if rsi < 70 and hist > 0 and valid_up:
+                    r = base_result.copy()
+                    r.update({"ok": True, "side": "UP", "reason": "model-binance_macd_rsi_up", "entry_price": up})
+                    candidates["binance_macd_rsi_up"] = r
+                
+                # Bearish momentum on Binance
+                elif rsi > 30 and hist < 0 and valid_down:
+                    r = base_result.copy()
+                    r.update({"ok": True, "side": "DOWN", "reason": "model-binance_macd_rsi_down", "entry_price": down})
+                    candidates["binance_macd_rsi_down"] = r
+        except Exception:
+            pass
+
     # Mean Reversion
     mr = mean_reversion_side(up, yes_window)
     base_result["mr_side"] = mr
@@ -262,9 +321,11 @@ def choose_side(
     binance_1m: Optional[dict] = None,
     binance_5m: Optional[list[dict]] = None,
     ws_bba: Optional[dict] = None,
-    ws_trades: Optional[list[dict]] = None
+    ws_trades: Optional[list[dict]] = None,
+    poly_ob_up: Optional[dict] = None,
+    poly_ob_down: Optional[dict] = None
 ) -> Optional[str]:
-    decision = explain_choose_side(market, yes_window, up_window, down_window, binance_1m, binance_5m, ws_bba, ws_trades)
+    decision = explain_choose_side(market, yes_window, up_window, down_window, binance_1m, binance_5m, ws_bba, ws_trades, poly_ob_up, poly_ob_down)
     if not decision.get("ok"):
         return None
     return decision.get("side")
