@@ -87,6 +87,7 @@ class OpenPos:
     has_scaled_out_loss: bool = False
     has_taken_partial: bool = False
     has_extracted_principal: bool = False
+    dust_retry_count: int = 0  # Number of times this residual lot has been kept for retry
 
     @property
     def avg_cost_per_share(self) -> float:
@@ -246,9 +247,17 @@ def merge_recovery_positions(runtime_positions: list[OpenPos], rebuilt_positions
 def sync_open_positions(ex, open_positions: list[OpenPos]) -> tuple[list[OpenPos], list[str]]:
     # Only reconcile positions already tracked by this bot.
     # This avoids importing unrelated legacy holdings from the wallet.
-    actual = {p.token_id: p for p in ex.get_positions()}
-    if not actual:
+    live_list = ex.get_positions()
+    actual = {p.token_id: p for p in live_list}
+    # Track whether data-api actually returned data (non-empty response)
+    # If empty, it could be an API hiccup — do NOT penalize positions with miss counts.
+    api_returned_data = bool(actual)
+
+    if not api_returned_data:
+        # Data API returned nothing — could be down or delayed.
+        # Hold all positions as-is but don't increment miss_count.
         sanitized, notes = sanitize_open_positions(open_positions, source="runtime-no-live")
+        notes.insert(0, "sync_hold_all: data-api returned empty (no positions), holding all without miss penalty")
         return sanitized, notes
 
     synced: list[OpenPos] = []
@@ -257,7 +266,7 @@ def sync_open_positions(ex, open_positions: list[OpenPos]) -> tuple[list[OpenPos
         ap = actual.get(p.token_id)
         if ap is None or ap.size <= 0:
             age_sec = max(0.0, time.time() - float(p.opened_ts or 0.0)) if p.opened_ts else 999999.0
-            miss_count = int(getattr(p, "live_miss_count", 0) or 0) + 1
+            miss_count = int(getattr(p, "live_miss_count", 0) or 0) + 1  # Only increment when API responded!
             # Give ALL missing positions a longer grace period to survive API delays/hiccups
             in_grace = age_sec <= 300 and miss_count <= 5
             if in_grace:
@@ -304,6 +313,7 @@ def sync_open_positions(ex, open_positions: list[OpenPos]) -> tuple[list[OpenPos
             has_extracted_principal=getattr(p, "has_extracted_principal", False),
         ))
     return synced, notes
+
 
 
 def rebuild_positions_from_journal() -> tuple[list[OpenPos], list[str]]:
@@ -957,25 +967,33 @@ def main():
                                                 timestamp=time.time()
                                             )
                                         if remaining_shares > LOT_EPS_SHARES and remaining_cost > LOT_EPS_COST_USD:
-                                            keep_positions.append(OpenPos(
-                                                slug=p.slug,
-                                                side=p.side,
-                                                token_id=p.token_id,
-                                                shares=remaining_shares,
-                                                cost_usd=remaining_cost,
-                                                opened_ts=p.opened_ts,
-                                                position_id=p.position_id,
-                                                entry_reason=p.entry_reason,
-                                                source=p.source,
-                                                max_favorable_value_usd=p.max_favorable_value_usd,
-                                                max_adverse_value_usd=p.max_adverse_value_usd,
-                                                max_favorable_pnl_usd=p.max_favorable_pnl_usd,
-                                                max_adverse_pnl_usd=p.max_adverse_pnl_usd,
-                                                has_scaled_out=getattr(p, "has_scaled_out", False),
-                                                has_scaled_out_loss=getattr(p, "has_scaled_out_loss", False),
-                                                has_taken_partial=getattr(p, "has_taken_partial", False),
-                                                has_extracted_principal=getattr(p, "has_extracted_principal", False),
-                                            ))
+                                            dust_retry = int(getattr(p, "dust_retry_count", 0)) + 1
+                                            if dust_retry > 3:  # DUST_MAX_RETRIES = 3
+                                                log(
+                                                    f"dust_abandoned | token={p.token_id} remaining_shares={remaining_shares:.6f} "
+                                                    f"after {dust_retry} retries — forcing drop to avoid zombie position"
+                                                )
+                                            else:
+                                                keep_positions.append(OpenPos(
+                                                    slug=p.slug,
+                                                    side=p.side,
+                                                    token_id=p.token_id,
+                                                    shares=remaining_shares,
+                                                    cost_usd=remaining_cost,
+                                                    opened_ts=p.opened_ts,
+                                                    position_id=p.position_id,
+                                                    entry_reason=p.entry_reason,
+                                                    source=p.source,
+                                                    max_favorable_value_usd=p.max_favorable_value_usd,
+                                                    max_adverse_value_usd=p.max_adverse_value_usd,
+                                                    max_favorable_pnl_usd=p.max_favorable_pnl_usd,
+                                                    max_adverse_pnl_usd=p.max_adverse_pnl_usd,
+                                                    has_scaled_out=getattr(p, "has_scaled_out", False),
+                                                    has_scaled_out_loss=getattr(p, "has_scaled_out_loss", False),
+                                                    has_taken_partial=getattr(p, "has_taken_partial", False),
+                                                    has_extracted_principal=getattr(p, "has_extracted_principal", False),
+                                                    dust_retry_count=dust_retry,
+                                                ))
                                         else:
                                             log(
                                                 f"drop residual after close | token={p.token_id} remaining_shares={remaining_shares:.6f} "

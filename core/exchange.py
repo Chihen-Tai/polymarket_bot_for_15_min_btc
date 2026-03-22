@@ -180,36 +180,26 @@ class PolymarketExchange:
         except Exception:
             return 0.0
 
-    def _extract_close_response_value(self, payload: Any) -> tuple[float | None, str, dict[str, float | None]]:
-        if not isinstance(payload, dict):
-            return None, "close_response_unavailable", {}
-
-        candidates = {
-            "takingAmount": _to_float(payload.get("takingAmount"), -1.0),
-            "makingAmount": _to_float(payload.get("makingAmount"), -1.0),
-        }
-        normalized = {k: (v if v >= 0 else None) for k, v in candidates.items()}
-
-        taking = normalized["takingAmount"]
-        if taking is not None and taking > 0:
-            return taking, "close_response_takingAmount", normalized
-
-        making = normalized["makingAmount"]
-        if making is not None and making > 0:
-            return making, "close_response_makingAmount", normalized
-
-        return None, "close_response_missing_amount", normalized
-
-    def _extract_close_response_filled_shares(self, payload: Any) -> tuple[float | None, str]:
+    def _extract_close_usdc_received(self, payload: Any) -> tuple[float | None, str]:
+        """Extract USDC received (cash in) from a close order response. Only takingAmount is USDC."""
         if not isinstance(payload, dict):
             return None, "close_response_unavailable"
+        taking = _to_float(payload.get("takingAmount"), -1.0)
+        if taking > 0:
+            return taking, "close_response_takingAmount"
+        return None, "close_response_missing_takingAmount"
 
+    def _extract_close_shares_sold(self, payload: Any) -> tuple[float | None, str]:
+        """Extract shares actually sold (filled) from a close order response."""
+        if not isinstance(payload, dict):
+            return None, "close_response_unavailable"
+        # makingAmount = shares sold in a SELL order, fallback to size/filledSize
         for key in ("makingAmount", "size", "filledSize", "filled_size", "matchedSize", "matched_size"):
             value = _to_float(payload.get(key), -1.0)
             if value > 0:
                 return value, f"close_response_{key}"
-
         return None, "close_response_missing_filled_shares"
+
 
     def get_account(self) -> Account:
         if self.dry_run:
@@ -474,9 +464,9 @@ class PolymarketExchange:
         last_resp = None
         last_error = None
         sold_total = 0.0
-        response_amount_value = None
-        response_amount_source = "close_response_unavailable"
-        response_amount_fields: dict[str, float | None] = {}
+        usdc_received_total: float | None = None  # Strictly USDC received (takingAmount sum)
+        usdc_received_source = "close_response_unavailable"
+        shares_sold_per_attempt: list[float] = []  # Shares filled per attempt (for debug)
         while remaining > 0.0001 and attempts < 8:
             attempts += 1
             # progressively smaller chunks on retries
@@ -501,18 +491,20 @@ class PolymarketExchange:
                     )
                 )
                 last_resp = self.client.post_order(order, OrderType.FAK)
-                amount_value, amount_source, amount_fields = self._extract_close_response_value(last_resp)
-                filled_shares, filled_source = self._extract_close_response_filled_shares(last_resp)
-                if amount_value is not None and amount_value > 0:
-                    response_amount_value = (response_amount_value or 0.0) + amount_value
-                response_amount_source = amount_source
-                response_amount_fields = {**amount_fields, "filled_shares": filled_shares, "filled_shares_source": filled_source}
+                # Strictly separate: USDC received vs shares filled
+                usdc_this, usdc_src = self._extract_close_usdc_received(last_resp)
+                filled_shares, _ = self._extract_close_shares_sold(last_resp)
+
+                if usdc_this is not None and usdc_this > 0:
+                    usdc_received_total = (usdc_received_total or 0.0) + usdc_this
+                    usdc_received_source = usdc_src
 
                 effective_filled = min(chunk, max(0.0, float(filled_shares or 0.0)))
                 if effective_filled <= 0:
                     time.sleep(2)
                     continue
 
+                shares_sold_per_attempt.append(effective_filled)
                 remaining -= effective_filled
                 sold_total += effective_filled
             except Exception as e:
@@ -538,6 +530,9 @@ class PolymarketExchange:
                 time.sleep(1)
 
         ok = sold_total > 0 and (last_resp is not None)
+        # Prefer USDC received from response (most accurate); fallback to cash delta
+        best_exit_value = usdc_received_total if (usdc_received_total and usdc_received_total > 0) else cash_delta
+        best_exit_source = usdc_received_source if (usdc_received_total and usdc_received_total > 0) else cash_delta_source
         return {
             "ok": ok,
             "mode": "live",
@@ -549,11 +544,11 @@ class PolymarketExchange:
             "error": None if ok else (last_error or "no fill"),
             "cash_before": cash_before,
             "cash_after": cash_after,
-            "actual_exit_value_usd": cash_delta,
-            "actual_exit_value_source": cash_delta_source,
-            "close_response_value": response_amount_value,
-            "close_response_value_source": response_amount_source,
-            "close_response_amount_fields": response_amount_fields,
+            "actual_exit_value_usd": best_exit_value,
+            "actual_exit_value_source": best_exit_source,
+            "close_response_value": usdc_received_total,
+            "close_response_value_source": usdc_received_source,
+            "close_response_amount_fields": {"shares_sold_per_attempt": str(shares_sold_per_attempt)},
         }
 
     def settle_mock(self, pnl: float):
