@@ -27,8 +27,8 @@ class Settings:
     max_order_usd: float = _f("MAX_ORDER_USD", 1.0)
     max_exposure_usd: float = _f("MAX_EXPOSURE_USD", 1.0)
     max_orders_per_5min: int = _i("MAX_ORDERS_PER_5MIN", 1)
-    max_consec_loss: int = _i("MAX_CONSEC_LOSS", 3)
-    daily_max_loss: float = _f("DAILY_MAX_LOSS", 3.0)
+    max_consec_loss: int = _i("MAX_CONSEC_LOSS", 2)
+    daily_max_loss: float = _f("DAILY_MAX_LOSS", 2.0)
 
     poll_seconds: int = _i("POLL_SECONDS", 15)
 
@@ -63,8 +63,8 @@ class Settings:
     zscore_window: int = _i("ZSCORE_WINDOW", 20)
     zscore_threshold: float = _f("ZSCORE_THRESHOLD", 2.0)
     entry_window_min_sec: float = _f("ENTRY_WINDOW_MIN_SEC", 60.0)
-    min_entry_price: float = _f("MIN_ENTRY_PRICE", 0.3)
-    max_entry_price: float = _f("MAX_ENTRY_PRICE", 0.8)
+    min_entry_price: float = _f("MIN_ENTRY_PRICE", 0.35)
+    max_entry_price: float = _f("MAX_ENTRY_PRICE", 0.75)
 
     # Cadence guard: avoid long no-trade stretches
     max_idle_minutes: int = _i("MAX_IDLE_MINUTES", 120)
@@ -77,11 +77,11 @@ class Settings:
     hedge_ratio: float = _f("HEDGE_RATIO", 0.0)
     ws_flash_snipe_threshold: float = _f("WS_FLASH_SNIPE_THRESHOLD", 0.003)
     hedge_max_wait_sec: int = _i("HEDGE_MAX_WAIT_SEC", 90)
-    stop_loss_pct: float = _f("STOP_LOSS_PCT", 0.35)
+    stop_loss_pct: float = _f("STOP_LOSS_PCT", 0.25)
     smart_stop_loss_enabled: bool = _b("SMART_STOP_LOSS_ENABLED", True)
-    stop_loss_partial_pct: float = _f("STOP_LOSS_PARTIAL_PCT", 0.20)
+    stop_loss_partial_pct: float = _f("STOP_LOSS_PARTIAL_PCT", 0.15)
     stop_loss_partial_fraction: float = _f("STOP_LOSS_PARTIAL_FRACTION", 0.50)
-    max_hold_seconds: int = _i("MAX_HOLD_SECONDS", 60)
+    max_hold_seconds: int = _i("MAX_HOLD_SECONDS", 90)
     take_profit_scaleout_pct: float = _f("TAKE_PROFIT_SCALEOUT_PCT", 0.15)
     take_profit_soft_pct: float = _f("TAKE_PROFIT_SOFT_PCT", 0.30)
     take_profit_hard_pct: float = _f("TAKE_PROFIT_HARD_PCT", 0.35)
