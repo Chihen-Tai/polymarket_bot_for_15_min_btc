@@ -90,6 +90,7 @@ _MOMENTUM_EXEMPT = frozenset([
     "poly_ob_imbalance_up", "poly_ob_imbalance_down",
     "time_snipe_up", "time_snipe_down",
     "binance_macd_rsi_up", "binance_macd_rsi_down",
+    "cex_oracle_pump", "cex_oracle_dump", # Exempt front-running to ensure early entry!
 ])
 
 
