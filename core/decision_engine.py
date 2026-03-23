@@ -233,17 +233,16 @@ def explain_choose_side(
             r.update({"ok": True, "side": "DOWN", "reason": "model-poly_ob_imbalance_down", "entry_price": down})
             candidates["poly_ob_imbalance_down"] = r
 
-    # Strategy 9: Time-Based Snipe (4 minutes before settlement)
-    # Automatically entering high-win-rate models 4 mins (240s) prior to end.
-    if secs_left is not None and 235 <= secs_left <= 245:
-        if up is not None and up > 0.60 and valid_up:
-            r = base_result.copy()
-            r.update({"ok": True, "side": "UP", "reason": "model-time_snipe_up", "entry_price": up})
-            candidates["time_snipe_up"] = r
-        elif down is not None and down > 0.60 and valid_down:
-            r = base_result.copy()
-            r.update({"ok": True, "side": "DOWN", "reason": "model-time_snipe_down", "entry_price": down})
-            candidates["time_snipe_down"] = r
+    # Strategy 9: Time-Based Snipe (disabled: leads to predictable naive entries and adverse selection)
+    # if secs_left is not None and 235 <= secs_left <= 245:
+    #     if up is not None and up > 0.60 and valid_up:
+    #         r = base_result.copy()
+    #         r.update({"ok": True, "side": "UP", "reason": "model-time_snipe_up", "entry_price": up})
+    #         candidates["time_snipe_up"] = r
+    #     elif down is not None and down > 0.60 and valid_down:
+    #         r = base_result.copy()
+    #         r.update({"ok": True, "side": "DOWN", "reason": "model-time_snipe_down", "entry_price": down})
+    #         candidates["time_snipe_down"] = r
 
     # Strategy 10: Binance MACD & RSI Momentum
     if binance_5m and len(binance_5m) >= 30:
