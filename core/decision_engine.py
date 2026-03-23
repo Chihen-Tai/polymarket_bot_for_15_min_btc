@@ -166,25 +166,25 @@ def explain_choose_side(
             candidates["cex_oracle_dump"] = r
 
 
-    # Strategy 5: Zhihu ZLSMA + ATR Scalper
-    if binance_5m and len(binance_5m) >= 99:
-        try:
-            closes = [c['close'] for c in binance_5m]
-            zlsma = calc_zlsma(closes, length=50)
-            chandelier_dir = calc_chandelier_exit(binance_5m, atr_period=1, mult=2.0)
-            
-            if zlsma is not None:
-                current_close = closes[-1]
-                if current_close > zlsma and chandelier_dir == 1 and valid_up:
-                    r = base_result.copy()
-                    r.update({"ok": True, "side": "UP", "reason": "model-zlsma_scalper_up", "entry_price": up})
-                    candidates["zlsma_scalper_up"] = r
-                elif current_close < zlsma and chandelier_dir == -1 and valid_down:
-                    r = base_result.copy()
-                    r.update({"ok": True, "side": "DOWN", "reason": "model-zlsma_scalper_down", "entry_price": down})
-                    candidates["zlsma_scalper_down"] = r
-        except Exception:
-            pass
+    # Strategy 5: Zhihu ZLSMA + ATR Scalper (disabled: continuous state trigger causes naive entries)
+    # if binance_5m and len(binance_5m) >= 99:
+    #     try:
+    #         closes = [c['close'] for c in binance_5m]
+    #         zlsma = calc_zlsma(closes, length=50)
+    #         chandelier_dir = calc_chandelier_exit(binance_5m, atr_period=1, mult=2.0)
+    #         
+    #         if zlsma is not None:
+    #             current_close = closes[-1]
+    #             if current_close > zlsma and chandelier_dir == 1 and valid_up:
+    #                 r = base_result.copy()
+    #                 r.update({"ok": True, "side": "UP", "reason": "model-zlsma_scalper_up", "entry_price": up})
+    #                 candidates["zlsma_scalper_up"] = r
+    #             elif current_close < zlsma and chandelier_dir == -1 and valid_down:
+    #                 r = base_result.copy()
+    #                 r.update({"ok": True, "side": "DOWN", "reason": "model-zlsma_scalper_down", "entry_price": down})
+    #                 candidates["zlsma_scalper_down"] = r
+    #     except Exception:
+    #         pass
 
     # Strategy 6: WebSocket Order Flow Imbalance (OFI)
     if ws_trades:
@@ -244,30 +244,30 @@ def explain_choose_side(
     #         r.update({"ok": True, "side": "DOWN", "reason": "model-time_snipe_down", "entry_price": down})
     #         candidates["time_snipe_down"] = r
 
-    # Strategy 10: Binance MACD & RSI Momentum
-    if binance_5m and len(binance_5m) >= 30:
-        try:
-            from core.indicators import calc_rsi, calc_macd
-            closes = [c['close'] for c in binance_5m]
-            rsi = calc_rsi(closes, period=14)
-            macd_res = calc_macd(closes)
-            
-            if rsi is not None and macd_res is not None:
-                macd_line, signal_line, hist = macd_res
-                
-                # Bullish momentum on Binance
-                if rsi < 70 and hist > 0 and valid_up:
-                    r = base_result.copy()
-                    r.update({"ok": True, "side": "UP", "reason": "model-binance_macd_rsi_up", "entry_price": up})
-                    candidates["binance_macd_rsi_up"] = r
-                
-                # Bearish momentum on Binance
-                elif rsi > 30 and hist < 0 and valid_down:
-                    r = base_result.copy()
-                    r.update({"ok": True, "side": "DOWN", "reason": "model-binance_macd_rsi_down", "entry_price": down})
-                    candidates["binance_macd_rsi_down"] = r
-        except Exception:
-            pass
+    # Strategy 10: Binance MACD & RSI Momentum (disabled: continuous state trigger causes naive entries)
+    # if binance_5m and len(binance_5m) >= 30:
+    #     try:
+    #         from core.indicators import calc_rsi, calc_macd
+    #         closes = [c['close'] for c in binance_5m]
+    #         rsi = calc_rsi(closes, period=14)
+    #         macd_res = calc_macd(closes)
+    #         
+    #         if rsi is not None and macd_res is not None:
+    #             macd_line, signal_line, hist = macd_res
+    #             
+    #             # Bullish momentum on Binance
+    #             if rsi < 70 and hist > 0 and valid_up:
+    #                 r = base_result.copy()
+    #                 r.update({"ok": True, "side": "UP", "reason": "model-binance_macd_rsi_up", "entry_price": up})
+    #                 candidates["binance_macd_rsi_up"] = r
+    #             
+    #             # Bearish momentum on Binance
+    #             elif rsi > 30 and hist < 0 and valid_down:
+    #                 r = base_result.copy()
+    #                 r.update({"ok": True, "side": "DOWN", "reason": "model-binance_macd_rsi_down", "entry_price": down})
+    #                 candidates["binance_macd_rsi_down"] = r
+    #     except Exception:
+    #         pass
 
     # Mean Reversion
     mr = mean_reversion_side(up, yes_window)
