@@ -1520,7 +1520,11 @@ def main():
                     last_cycle_label=state.get("last_cycle_label", ""),
                     panic_market_slug=panic_market_slug,
                 )
-                smart_sleep(SETTINGS.poll_seconds)
+                has_active = bool(open_positions) or (len(pending_orders) > 0 if 'pending_orders' in locals() else False)
+                if has_active:
+                    smart_sleep(1.5)
+                else:
+                    smart_sleep(SETTINGS.poll_seconds)
                 continue
 
             if SETTINGS.dry_run:
@@ -1530,7 +1534,10 @@ def main():
                 risk.consec_losses = risk.consec_losses + 1 if pnl < 0 else 0
                 log(f"mock settle pnl={pnl:+.2f} daily_pnl={risk.daily_pnl:+.2f} consec_losses={risk.consec_losses}")
 
-            if "secs_left" in locals() and secs_left is not None and 200 <= secs_left <= 260:
+            has_active = bool(open_positions) or (len(pending_orders) > 0 if 'pending_orders' in locals() else False)
+            if has_active:
+                smart_sleep(1.5)
+            elif "secs_left" in locals() and secs_left is not None and 200 <= secs_left <= 260:
                 smart_sleep(1.0)
             else:
                 smart_sleep(SETTINGS.poll_seconds)
