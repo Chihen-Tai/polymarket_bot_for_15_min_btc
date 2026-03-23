@@ -382,6 +382,17 @@ class PolymarketExchange:
             )
             resp = self.client.post_order(order, OrderType.FAK)
         else:
+            book = self.get_full_orderbook(token_id)
+            if book:
+                best_bid = float(book.get("best_bid", 0.01))
+                best_ask = float(book.get("best_ask", 0.99))
+                # Never cross the spread for POST_ONLY
+                safe_price = min(price_rounded, best_ask - 0.001)
+                safe_price = max(safe_price, best_bid + 0.001)
+                price_rounded = round(safe_price, 3)
+                # recalculate size if price changed
+                size_rounded = round(amount_usd / price_rounded, 2)
+
             order = self.client.create_order(
                 OrderArgs(
                     token_id=token_id,
@@ -535,7 +546,11 @@ class PolymarketExchange:
                 chunk = max(remaining * 0.35, 0.01)
 
             try:
-                self.cancel_all_orders() # Cancel open orders to free token balance
+                open_ords = self.get_open_orders(token_id)
+                for o in open_ords:
+                    oid = o.get("id") or o.get("orderID")
+                    if oid:
+                        self.cancel_order(oid)
                 
                 # Maker Exits for first 5 attempts, Taker Fallback for remaining
                 if not force_taker and attempts <= 5:
