@@ -95,6 +95,16 @@ class OpenPos:
 
 
 @dataclass
+class PendingOrder:
+    order_id: str
+    slug: str
+    side: str
+    token_id: str
+    placed_ts: float
+    order_usd: float
+
+
+@dataclass
 class RuntimeFlags:
     live_consec_losses: int
     last_loss_side: str
@@ -599,6 +609,57 @@ def main():
                 "panic_exit_mode": flags.panic_exit_mode,
                 "panic_market_slug": panic_market_slug,
             }, open_positions)
+
+            # --- PENDING ORDERS / KILL-SWITCH ---
+            if 'pending_orders' not in locals():
+                pending_orders = []
+            
+            if pending_orders:
+                try:
+                    open_clob_orders = ex.get_open_orders()
+                    open_order_ids = {o.get("orderID") for o in open_clob_orders} if isinstance(open_clob_orders, list) else set()
+                    
+                    ws_vel = 0.0
+                    try:
+                        ws_vel = BINANCE_WS.get_price_velocity(3.0)
+                    except Exception:
+                        pass
+                        
+                    for po in list(pending_orders):
+                        if po.order_id and po.order_id not in open_order_ids:
+                            log(f"Pending order {po.order_id} filled or cancelled on CLOB.")
+                            open_positions.append(OpenPos(
+                                slug=po.slug,
+                                side=po.side,
+                                token_id=po.token_id,
+                                shares=0.0001, # placeholder till next sync
+                                cost_usd=po.order_usd,
+                                opened_ts=time.time(),
+                                position_id=f"pos_{int(time.time())}_{po.token_id[-6:]}",
+                                entry_reason="maker-fill",
+                                source="live-order",
+                                pending_confirmation=True,
+                                max_favorable_value_usd=po.order_usd,
+                            ))
+                            pending_orders.remove(po)
+                            continue
+                            
+                        # Kill-Switch: Cancel if adverse velocity
+                        if (po.side == "UP" and ws_vel < -SETTINGS.cancel_on_reversal_velocity) or \
+                           (po.side == "DOWN" and ws_vel > SETTINGS.cancel_on_reversal_velocity):
+                            log(f"KILL-SWITCH TRIGGERED on {po.side} {po.order_id} (velocity: {ws_vel:.4f})")
+                            ex.cancel_order(po.order_id)
+                            pending_orders.remove(po)
+                            continue
+                            
+                        # Timeout
+                        if time.time() - po.placed_ts > getattr(SETTINGS, "maker_order_timeout_sec", 15):
+                            log(f"MAKER TIMEOUT on {po.side} {po.order_id}")
+                            ex.cancel_order(po.order_id)
+                            pending_orders.remove(po)
+                            continue
+                except Exception as e:
+                    log(f"Pending orders check error: {e}")
 
             market = None
             token_override = None
@@ -1189,7 +1250,7 @@ def main():
                                     signal_side = None
                     else:
                         maybe_record_cycle_label(state, "no-entry", slug=market["slug"], secs_left=secs_left, up=up, down=down, reason=no_entry_reason or "no_signal")
-                        log(f"no entry | slug={market["slug"]} reason={no_entry_reason or "no_signal"} secs_left={secs_left} up={up} down={down}")
+                        log(f"no entry | slug={market['slug']} reason={no_entry_reason or 'no_signal'} secs_left={secs_left} up={up} down={down}")
                 except MarketResolutionError as e:
                     if SETTINGS.token_id_up and SETTINGS.token_id_down:
                         log(f"market resolve failed: {e} | fallback to static token ids")
@@ -1390,16 +1451,29 @@ def main():
                         })
                         maybe_record_cycle_label(state, "good-entry", slug=market["slug"], side=signal_side, reason=signal_origin or "signal")
                     else:
-                        maybe_record_cycle_label(state, "signal-but-no-fill", slug=market["slug"], side=signal_side, reason="no-takingAmount")
-                        append_event({
-                            "kind": "entry_attempt",
-                            "slug": market["slug"],
-                            "side": signal_side,
-                            "token_id": token_id,
-                            "status": "signal-but-no-fill",
-                            "reason": "no-takingAmount",
-                            "response_mode": resp.get("mode") if isinstance(resp, dict) else "",
-                        })
+                        order_id = r.get("orderID")
+                        if order_id:
+                            pending_orders.append(PendingOrder(
+                                order_id=order_id,
+                                slug=market["slug"],
+                                side=signal_side,
+                                token_id=token_id,
+                                placed_ts=time.time(),
+                                order_usd=order_usd
+                            ))
+                            maybe_record_cycle_label(state, "maker-order-placed", slug=market["slug"], side=signal_side, reason="waiting-for-fill")
+                            log(f"Maker order placed on {signal_side}, awaiting fill: {order_id}")
+                        else:
+                            maybe_record_cycle_label(state, "signal-but-no-fill", slug=market["slug"], side=signal_side, reason="no-takingAmount-no-orderID")
+                            append_event({
+                                "kind": "entry_attempt",
+                                "slug": market["slug"],
+                                "side": signal_side,
+                                "token_id": token_id,
+                                "status": "signal-but-no-fill",
+                                "reason": "no-takingAmount-no-orderID",
+                                "response_mode": resp.get("mode") if isinstance(resp, dict) else "",
+                            })
                 except Exception:
                     pass
                 save_runtime_state(
