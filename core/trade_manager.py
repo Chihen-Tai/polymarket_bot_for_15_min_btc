@@ -20,7 +20,18 @@ class EntryDecision:
     reason: str = ""
 
 
-def decide_exit(*, pnl_pct: float, hold_sec: float, secs_left: Optional[float] = None, has_scaled_out: bool = False, recovery_chance_low: bool = False, has_scaled_out_loss: bool = False, has_taken_partial: bool = False, has_extracted_principal: bool = False) -> ExitDecision:
+def decide_exit(
+    *,
+    pnl_pct: float,
+    hold_sec: float,
+    secs_left: Optional[float] = None,
+    has_scaled_out: bool = False,
+    recovery_chance_low: bool = False,
+    has_scaled_out_loss: bool = False,
+    has_taken_partial: bool = False,
+    has_extracted_principal: bool = False,
+    mfe_pnl_pct: float = 0.0,
+) -> ExitDecision:
     # 1. Tiered Take Profit (Risk-Free Moonbag Strategy)
     if not has_extracted_principal and pnl_pct >= getattr(SETTINGS, "take_profit_hard_pct", 0.50):
         # Sell enough to recover principal -> guaranteed risk-free
@@ -29,6 +40,15 @@ def decide_exit(*, pnl_pct: float, hold_sec: float, secs_left: Optional[float] =
     if not has_taken_partial and not has_extracted_principal and pnl_pct >= getattr(SETTINGS, "take_profit_soft_pct", 0.30):
         # Sell 30% to lock in early profit and reduce anxiety
         return ExitDecision(True, "take-profit-partial", pnl_pct, hold_sec)
+
+    if (
+        hold_sec >= getattr(SETTINGS, "failed_follow_through_window_sec", 45)
+        and pnl_pct <= -getattr(SETTINGS, "failed_follow_through_loss_pct", 0.03)
+        and secs_left is not None
+        and secs_left >= getattr(SETTINGS, "failed_follow_through_min_secs_left", 90)
+        and mfe_pnl_pct <= getattr(SETTINGS, "failed_follow_through_max_mfe_pct", 0.02)
+    ):
+        return ExitDecision(True, "failed-follow-through", pnl_pct, hold_sec)
 
     # 2. Stop Loss Handling
     if getattr(SETTINGS, "smart_stop_loss_enabled", False):
@@ -58,8 +78,8 @@ def decide_exit(*, pnl_pct: float, hold_sec: float, secs_left: Optional[float] =
 
 
 def maybe_reverse_entry(*, signal_side: Optional[str], live_consec_losses: int, last_loss_side: str) -> EntryDecision:
-    if signal_side == "DOWN" and live_consec_losses >= 2 and last_loss_side == "DOWN":
-        return EntryDecision("UP", "loss-reversal")
+    if signal_side in {"UP", "DOWN"} and live_consec_losses >= 2 and last_loss_side == signal_side:
+        return EntryDecision("DOWN" if signal_side == "UP" else "UP", "loss-reversal")
     return EntryDecision(signal_side, "")
 
 

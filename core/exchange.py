@@ -44,13 +44,14 @@ class PolymarketExchange:
         self._cash: float = 100.0
         self._equity: float = 100.0
         self.dry_run = dry_run
-        
-        self.paper_balance_file = os.path.join(SETTINGS.data_dir, "paper_balance.json")
-        self._load_paper_balance()
-        
+
         self._open_exposure = 0.0
         self._last_price = 73933.39
         self._position_cost: dict[str, float] = {}  # token_id -> cost_usd (for exposure accounting)
+        self._position_shares: dict[str, float] = {}  # token_id -> shares (for dry-run cost-basis accounting)
+
+        self.paper_balance_file = os.path.join(SETTINGS.data_dir, "paper_balance.json")
+        self._load_paper_balance()
 
         self.client = None
         self._funder = SETTINGS.funder_address
@@ -60,6 +61,9 @@ class PolymarketExchange:
     def _load_paper_balance(self):
         self._cash = 100.0
         self._equity = 100.0
+        self._open_exposure = 0.0
+        self._position_cost = {}
+        self._position_shares = {}
         if not self.dry_run:
             return
         if os.path.exists(self.paper_balance_file):
@@ -68,7 +72,15 @@ class PolymarketExchange:
                     data = json.load(f)
                     self._cash = data.get("cash", 100.0)
                     self._equity = self._cash
-                    self._position_cost = data.get("position_cost", {})
+                    self._position_cost = {
+                        str(token_id): _to_float(cost, 0.0)
+                        for token_id, cost in (data.get("position_cost", {}) or {}).items()
+                    }
+                    self._position_shares = {
+                        str(token_id): _to_float(shares, 0.0)
+                        for token_id, shares in (data.get("position_shares", {}) or {}).items()
+                    }
+                    self._open_exposure = sum(max(0.0, cost) for cost in self._position_cost.values())
             except Exception:
                 pass
 
@@ -78,7 +90,14 @@ class PolymarketExchange:
         try:
             os.makedirs(os.path.dirname(self.paper_balance_file), exist_ok=True)
             with open(self.paper_balance_file, "w") as f:
-                json.dump({"cash": self._cash, "position_cost": self._position_cost}, f)
+                json.dump(
+                    {
+                        "cash": self._cash,
+                        "position_cost": self._position_cost,
+                        "position_shares": self._position_shares,
+                    },
+                    f,
+                )
         except Exception:
             pass
 
@@ -349,6 +368,7 @@ class PolymarketExchange:
             self._cash -= amount_usd
             self._open_exposure += amount_usd
             self._position_cost[token_id] = self._position_cost.get(token_id, 0.0) + amount_usd
+            self._position_shares[token_id] = self._position_shares.get(token_id, 0.0) + filled_shares
             self._save_paper_balance()
             
             mock_resp = {
@@ -498,7 +518,7 @@ class PolymarketExchange:
 
     def close_position(self, token_id: str, shares: float, simulated_price: float | None = None, force_taker: bool = False) -> dict:
         if self.dry_run:
-            if simulated_price and simulated_price > 0:
+            if simulated_price is not None and simulated_price >= 0:
                 best_bid = simulated_price
             else:
                 book = self.get_full_orderbook(token_id)
@@ -506,22 +526,34 @@ class PolymarketExchange:
                     book = {"best_bid": 0.5}
                 best_bid = book.get("best_bid", 0.5)
 
-            value_received = shares * best_bid
+            current_shares = max(0.0, _to_float(self._position_shares.get(token_id, 0.0), 0.0))
+            current_cost = max(0.0, _to_float(self._position_cost.get(token_id, 0.0), 0.0))
+            closed_shares = min(max(0.0, shares), current_shares if current_shares > 0 else max(0.0, shares))
+            avg_cost = (current_cost / current_shares) if current_shares > 0 else 0.0
+            realized_cost = min(current_cost, avg_cost * closed_shares)
+            remaining_shares = max(0.0, current_shares - closed_shares)
+            remaining_cost = max(0.0, current_cost - realized_cost)
+            value_received = closed_shares * best_bid
 
             self._cash += value_received
-            # Subtract original cost from exposure (not value_received which varies with price)
-            original_cost = self._position_cost.pop(token_id, value_received)
-            self._open_exposure = max(0.0, self._open_exposure - original_cost)
+            self._open_exposure = max(0.0, self._open_exposure - realized_cost)
+            if remaining_shares > 0 and remaining_cost > 0:
+                self._position_cost[token_id] = remaining_cost
+                self._position_shares[token_id] = remaining_shares
+            else:
+                self._position_cost.pop(token_id, None)
+                self._position_shares.pop(token_id, None)
             self._save_paper_balance()
 
             return {
                 "ok": True, 
                 "mode": "dry-run", 
-                "closed_shares": shares,
+                "closed_shares": closed_shares,
                 "actual_exit_value_usd": value_received,
                 "actual_exit_value_source": "paper_trade_simulation",
                 "close_response_value": value_received,
-                "remaining_shares": 0.0
+                "close_response_value_source": "paper_trade_simulation",
+                "remaining_shares": remaining_shares
             }
 
         from py_clob_client.clob_types import MarketOrderArgs, OrderArgs, OrderType

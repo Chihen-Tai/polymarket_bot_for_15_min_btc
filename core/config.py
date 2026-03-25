@@ -121,9 +121,17 @@ class Settings:
     tp_hold_velocity: float = _f("TP_HOLD_VELOCITY", 0.0004)
 
     # Phase 3: Entry & Exit Quality Guards
-    # hard_stop_shield_velocity: DISABLED (set to 0.0) — shield was blocking stop-loss
-    # when Binance showed same-direction momentum but Polymarket market dumped near resolution
+    # Hard-stop shield is explicit opt-in only. Historical runs showed it could delay
+    # stop-loss execution too much in fast 5m resolution markets.
+    enable_hard_stop_shield: bool = _b("ENABLE_HARD_STOP_SHIELD", False)
     hard_stop_shield_velocity: float = _f("HARD_STOP_SHIELD_VELOCITY", 0.0)
+    late_entry_edge_penalty: float = _f("LATE_ENTRY_EDGE_PENALTY", 0.015)
+    rich_price_edge_penalty: float = _f("RICH_PRICE_EDGE_PENALTY", 0.015)
+    binary_kelly_divisor: float = _f("BINARY_KELLY_DIVISOR", 4.0)
+    failed_follow_through_window_sec: int = _i("FAILED_FOLLOW_THROUGH_WINDOW_SEC", 45)
+    failed_follow_through_loss_pct: float = _f("FAILED_FOLLOW_THROUGH_LOSS_PCT", 0.03)
+    failed_follow_through_max_mfe_pct: float = _f("FAILED_FOLLOW_THROUGH_MAX_MFE_PCT", 0.02)
+    failed_follow_through_min_secs_left: int = _i("FAILED_FOLLOW_THROUGH_MIN_SECS_LEFT", 90)
     # entry_velocity_min: block entry if Binance velocity is strongly opposing signal.
     # Only blocks adverse moves; flat/zero velocity still allows entry. Set 0.0 to disable.
     entry_velocity_min: float = _f("ENTRY_VELOCITY_MIN", 0.0002)

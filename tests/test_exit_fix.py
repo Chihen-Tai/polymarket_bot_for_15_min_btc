@@ -1,24 +1,60 @@
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from core.exchange import PolymarketExchange
 
 
-def main():
-    ex = PolymarketExchange(dry_run=True)
+def make_paper_exchange() -> PolymarketExchange:
+    original = PolymarketExchange._init_real_client
+    PolymarketExchange._init_real_client = lambda self: setattr(self, "client", None)
+    try:
+        ex = PolymarketExchange(dry_run=True)
+    finally:
+        PolymarketExchange._init_real_client = original
+    ex._cash = 100.0
+    ex._equity = 100.0
+    ex._open_exposure = 0.0
+    ex._position_cost = {}
+    ex._position_shares = {}
+    return ex
 
-    value, source, fields = ex._extract_close_response_value({"takingAmount": 0.9823, "makingAmount": 2.094658})
-    filled, filled_source = ex._extract_close_response_filled_shares({"takingAmount": 0.9823, "makingAmount": 2.094658})
+
+def main():
+    ex = make_paper_exchange()
+
+    value, source = ex._extract_close_usdc_received({"takingAmount": 0.9823, "makingAmount": 2.094658})
+    filled, filled_source = ex._extract_close_shares_sold({"takingAmount": 0.9823, "makingAmount": 2.094658})
+
+    ex.place_order("UP", 1.0, token_id_override="tok1", simulated_price=0.5)
+    partial = ex.close_position("tok1", 1.0, simulated_price=0.6)
+    cost_after_partial = ex._position_cost.get("tok1", 0.0)
+    exposure_after_partial = ex._open_exposure
+    settle = ex.close_position("tok1", 1.0, simulated_price=0.0)
 
     cases = [
         ("close_response_value_prefers_taking_amount", abs((value or 0.0) - 0.9823) < 1e-9),
         ("close_response_value_source", source == "close_response_takingAmount"),
         ("close_response_filled_shares_from_making_amount", abs((filled or 0.0) - 2.094658) < 1e-9),
         ("close_response_filled_shares_source", filled_source == "close_response_makingAmount"),
-        ("close_response_fields_keep_both", fields.get("takingAmount") == 0.9823 and fields.get("makingAmount") == 2.094658),
+        ("paper_partial_close_value", abs(float(partial["actual_exit_value_usd"]) - 0.6) < 1e-9),
+        ("paper_partial_close_remaining_shares", abs(float(partial["remaining_shares"]) - 1.0) < 1e-9),
+        ("paper_partial_close_preserves_cost", abs(cost_after_partial - 0.5) < 1e-9),
+        ("paper_partial_close_preserves_exposure", abs(exposure_after_partial - 0.5) < 1e-9),
+        ("paper_zero_settlement_allowed", abs(float(settle["actual_exit_value_usd"]) - 0.0) < 1e-9),
+        ("paper_zero_settlement_clears_position", "tok1" not in ex._position_cost and "tok1" not in ex._position_shares),
+        ("paper_zero_settlement_source", settle.get("close_response_value_source") == "paper_trade_simulation"),
     ]
 
     failed = [name for name, ok in cases if not ok]
     if failed:
         raise SystemExit(f"FAILED: {', '.join(failed)}")
     print("OK")
+
+
+def test_main():
+    main()
 
 
 if __name__ == "__main__":

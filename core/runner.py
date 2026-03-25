@@ -130,6 +130,68 @@ def realistic_exit_value(pos: OpenPos, up: float | None, down: float | None, ob_
     return pos.shares * float(mark)
 
 
+def paper_settlement_from_last_mark(last_mark: float | None) -> tuple[float, str]:
+    if last_mark is None:
+        return 0.0, "binary-unknown-conservative"
+    if last_mark > 0.5:
+        return 1.0, "binary-win"
+    if last_mark < 0.5:
+        return 0.0, "binary-lose"
+    return 0.5, "binary-neutral"
+
+
+def strategy_name_for_side(strategy_name: str, side: str | None) -> str:
+    base = str(strategy_name or "").split("+")[0]
+    target = str(side or "").upper()
+    if target not in {"UP", "DOWN"}:
+        return base
+    lower = base.lower()
+    if lower.endswith("_up"):
+        return f"{base[:-3]}_{target.lower()}"
+    if lower.endswith("_down"):
+        return f"{base[:-5]}_{target.lower()}"
+    return base
+
+
+def required_trade_edge(entry_price: float, secs_left: float | None, history_count: int = 0) -> float:
+    required = max(0.0, float(getattr(SETTINGS, "edge_threshold", 0.0)))
+    if history_count < 5:
+        required *= 0.25
+    elif history_count < 20:
+        required *= 0.50
+
+    if secs_left is not None and secs_left < max(float(getattr(SETTINGS, "entry_window_min_sec", 120.0)) + 60.0, 180.0):
+        required += float(getattr(SETTINGS, "late_entry_edge_penalty", 0.015))
+
+    rich_price_penalty = float(getattr(SETTINGS, "rich_price_edge_penalty", 0.015))
+    if entry_price >= 0.60:
+        required += rich_price_penalty
+    if entry_price >= 0.68:
+        required += rich_price_penalty
+
+    return required
+
+
+def price_aware_kelly_fraction(win_rate: float, entry_price: float) -> float:
+    if entry_price <= 0.0 or entry_price >= 1.0:
+        return 0.0
+    raw_fraction = max(0.0, (win_rate - entry_price) / max(1.0 - entry_price, 1e-9))
+    return raw_fraction / max(1.0, float(getattr(SETTINGS, "binary_kelly_divisor", 4.0)))
+
+
+def summarize_entry_edge(*, win_rate: float, entry_price: float, secs_left: float | None, history_count: int = 0) -> dict:
+    required = required_trade_edge(entry_price, secs_left, history_count=history_count)
+    raw_edge = win_rate - entry_price
+    return {
+        "win_rate": win_rate,
+        "entry_price": entry_price,
+        "raw_edge": raw_edge,
+        "required_edge": required,
+        "ok": raw_edge >= required,
+        "history_count": history_count,
+    }
+
+
 def observed_mark_value(pos: OpenPos, up: float | None, down: float | None) -> float | None:
     mark = up if pos.side == "UP" else down
     if mark is None:
@@ -667,12 +729,16 @@ def main():
             signal_side = None
             signal_origin = ""
             no_entry_reason = ""
+            entry_price = None
 
             # The daily loss circuit breaker is handled properly in `can_place_order`
             # Removing the unconditional continue so open positions are still managed.
 
             if SETTINGS.auto_market_selection:
                 try:
+                    previous_market_slug = last_market_slug
+                    previous_up = prev_up
+                    previous_down = prev_down
                     market = resolve_latest_btc_5m_token_ids()
                     if market["slug"] != last_market_slug:
                         # Clear price history to prevent artificial momentum / mean-reversion signals
@@ -686,41 +752,31 @@ def main():
                     if getattr(SETTINGS, "dry_run", False):
                         ghosts = [p for p in open_positions if p.slug != market["slug"]]
                         for gp in ghosts:
-                            # Simulate binary market resolution for dry-run:
-                            # Use last known mark price to determine outcome.
-                            # If mark > 0.5 → position is winning → resolve at 1.0 (winner pays out)
-                            # If mark < 0.5 → position is losing → resolve at ~0 (use current mark as conservative est)
-                            last_mark = (up if gp.side == "UP" else down) if (
-                                gp.slug == (last_market_slug or "") and up is not None and down is not None
-                            ) else 0.5
-                            if last_mark >= 0.5:
-                                # Winning side resolves at $1.00 per share
-                                resolution_value = gp.shares * 1.0
-                                resolution_note = "binary-win"
-                            else:
-                                # Losing side: use current mark (conservative, likely near 0)
-                                resolution_value = gp.shares * last_mark
-                                resolution_note = "binary-lose"
+                            last_mark = None
+                            if gp.slug == (previous_market_slug or ""):
+                                last_mark = previous_up if gp.side == "UP" else previous_down
+                            settlement_price, resolution_note = paper_settlement_from_last_mark(last_mark)
+                            close_resp = ex.close_position(gp.token_id, gp.shares, simulated_price=settlement_price)
+                            resolution_value = float(close_resp.get("actual_exit_value_usd", gp.shares * settlement_price) or 0.0)
                             realized_pnl = resolution_value - gp.cost_usd
-                            ex._cash += resolution_value
-                            ex._position_cost.pop(gp.token_id, None)
-                            ex._save_paper_balance()
                             risk.daily_pnl += realized_pnl
-                            log(f"Force-clearing stale dry-run position from expired market: {gp.slug} | {resolution_note} mark={last_mark:.3f} value=${resolution_value:.4f} pnl={realized_pnl:+.4f}")
+                            mark_text = f"{last_mark:.3f}" if last_mark is not None else "n/a"
+                            log(f"Force-clearing stale dry-run position from expired market: {gp.slug} | {resolution_note} mark={mark_text} value=${resolution_value:.4f} pnl={realized_pnl:+.4f}")
                             append_event({
                                 "kind": "exit",
                                 "slug": gp.slug,
                                 "side": gp.side,
                                 "token_id": gp.token_id,
                                 "position_id": gp.position_id,
-                                "closed_shares": gp.shares,
+                                "closed_shares": float(close_resp.get("closed_shares", gp.shares) or gp.shares),
                                 "remaining_shares": 0.0,
                                 "realized_cost_usd": gp.cost_usd,
                                 "actual_exit_value_usd": resolution_value,
+                                "actual_exit_value_source": close_resp.get("actual_exit_value_source") or "paper_trade_settlement",
                                 "observed_exit_value_usd": resolution_value,
                                 "actual_realized_pnl_usd": realized_pnl,
                                 "status": "closed",
-                                "exit_reason": f"dry-run-market-expired-{resolution_note}"
+                                "reason": f"dry-run-market-expired-{resolution_note}",
                             })
                             open_positions.remove(gp)
 
@@ -775,7 +831,7 @@ def main():
                             SETTINGS.zscore_threshold = max(SETTINGS.zscore_threshold, 2.5)
                         else:
                             from core.config import _f
-                            SETTINGS.stop_loss_pct = _f("STOP_LOSS_PCT", 0.10)
+                            SETTINGS.stop_loss_pct = _f("STOP_LOSS_PCT", 0.15)
                             SETTINGS.zscore_threshold = _f("ZSCORE_THRESHOLD", 2.0)
 
                     arbitrage_triggered = False
@@ -791,6 +847,7 @@ def main():
                     if not arbitrage_triggered:
                         model_decision = explain_choose_side(
                             market, yes_price_window, up_price_window, down_price_window,
+                            observed_up=up, observed_down=down,
                             binance_1m=binance_1m, binance_5m=binance_5m,
                             ws_bba=ws_bba, ws_trades=ws_trades,
                             poly_ob_up=poly_ob_up, poly_ob_down=poly_ob_down
@@ -844,7 +901,7 @@ def main():
                         if mark is None:
                             keep_positions.append(p)
                             continue
-                        observed_value = realistic_exit_value(p, up, down, None, None)
+                        observed_value = realistic_exit_value(p, up, down, poly_ob_up, poly_ob_down)
                         mark_value = observed_mark_value(p, up, down)
                         if observed_value is None and mark_value is None:
                             keep_positions.append(p)
@@ -857,6 +914,7 @@ def main():
                         update_position_excursions(p, effective_exit_value)
                         pnl_pct = (effective_exit_value - p.cost_usd) / max(p.cost_usd, 1e-9)
                         hard_stop_pnl_pct = (hard_stop_value - p.cost_usd) / max(p.cost_usd, 1e-9)
+                        mfe_pnl_pct = p.max_favorable_pnl_usd / max(p.cost_usd, 1e-9)
                         hold_sec = time.time() - p.opened_ts
                         recovery_chance_low = False
                         if getattr(SETTINGS, "smart_stop_loss_enabled", False) and hard_stop_pnl_pct < -0.10:
@@ -873,7 +931,8 @@ def main():
                             recovery_chance_low=recovery_chance_low,
                             has_scaled_out_loss=getattr(p, "has_scaled_out_loss", False),
                             has_taken_partial=getattr(p, "has_taken_partial", False),
-                            has_extracted_principal=getattr(p, "has_extracted_principal", False)
+                            has_extracted_principal=getattr(p, "has_extracted_principal", False),
+                            mfe_pnl_pct=mfe_pnl_pct,
                         )
 
                         # --- Phase 2: Advanced Loophole Exploitation ---
@@ -902,7 +961,8 @@ def main():
                         # If Binance price is still moving with the position, delay hard-stop for one cycle.
                         # Panic-dump override (above) fires first and is unaffected.
                         if (
-                            exit_decision.should_close
+                            getattr(SETTINGS, "enable_hard_stop_shield", False)
+                            and exit_decision.should_close
                             and exit_decision.reason == "hard-stop-loss"
                         ):
                             _shield_vel = getattr(SETTINGS, "hard_stop_shield_velocity", 0.0)
@@ -1195,10 +1255,10 @@ def main():
 
                                         if close_response_value is not None and float(close_response_value) > 0:
                                             actual_exit_value_usd = float(close_response_value)
-                                            actual_exit_value_source = close_response_value_source or "close_response_value"
+                                            actual_exit_value_source = close_response_value_source or actual_exit_value_source or "close_response_value"
                                             actual_realized_pnl_usd = actual_exit_value_usd - realized_cost
                                             actual_realized_return_pct = actual_realized_pnl_usd / max(realized_cost, 1e-9)
-                                            pnl_source = "actual_close_response_value"
+                                            pnl_source = "actual_cash_recovered" if "balance" in actual_exit_value_source else "actual_close_response_value"
                                             risk.daily_pnl += actual_realized_pnl_usd
                                         elif actual_exit_value_usd > 0 and actual_exit_value_source == "cash_balance_delta":
                                             actual_realized_pnl_usd = actual_exit_value_usd - realized_cost
@@ -1349,14 +1409,14 @@ def main():
                             # Guard: only reverse if the target side has a proven scoreboard edge (WR > 55%)
                             try:
                                 from core.learning import SCOREBOARD
-                                reversed_strat = signal_origin.replace("model-", "").split("+")[0]
+                                reversed_strat = strategy_name_for_side(signal_origin, entry_decision.side)
                                 _rev_wr = SCOREBOARD.get_strategy_score(reversed_strat)
                             except Exception:
                                 _rev_wr = 0.5  # fallback: neutral
                             if _rev_wr > 0.55:
                                 signal_side = entry_decision.side
                                 signal_origin = f"{signal_origin}+{entry_decision.reason}" if signal_origin else entry_decision.reason
-                                log(f"{entry_decision.reason} applied (DOWN losing streak) | consec_losses={flags.live_consec_losses} -> side={signal_side} (WR={_rev_wr:.1%})")
+                                log(f"{entry_decision.reason} applied | consec_losses={flags.live_consec_losses} last_loss_side={flags.last_loss_side} -> side={signal_side} (WR={_rev_wr:.1%})")
                             else:
                                 log(f"loss-reversal SKIPPED: reversed side WR={_rev_wr:.1%} <= 55% threshold, keeping original signal={signal_side}")
 
@@ -1441,25 +1501,69 @@ def main():
                 smart_sleep(SETTINGS.poll_seconds)
                 continue
 
+            strategy_win_rate = 0.5
+            strategy_trade_count = 0
+            entry_edge = None
+            if signal_side and signal_origin and entry_price and float(entry_price) > 0:
+                try:
+                    from core.learning import SCOREBOARD
+                    strategy_win_rate = SCOREBOARD.get_strategy_score(signal_origin)
+                    strategy_trade_count = SCOREBOARD.get_strategy_trade_count(signal_origin)
+                except Exception as e:
+                    log(f"scoreboard lookup error: {e}")
+                entry_edge = summarize_entry_edge(
+                    win_rate=strategy_win_rate,
+                    entry_price=float(entry_price),
+                    secs_left=secs_left if "secs_left" in locals() else None,
+                    history_count=strategy_trade_count,
+                )
+                if not entry_edge["ok"]:
+                    maybe_record_cycle_label(
+                        state,
+                        "signal-blocked",
+                        slug=last_market_slug,
+                        side=signal_side,
+                        reason="weak-scoreboard-edge",
+                    )
+                    log(
+                        f"skip entry: weak scoreboard edge | strategy={signal_origin} WR={strategy_win_rate:.1%} "
+                        f"price={float(entry_price):.3f} raw_edge={entry_edge['raw_edge']:.3f} "
+                        f"required={entry_edge['required_edge']:.3f} history={strategy_trade_count}"
+                    )
+                    smart_sleep(SETTINGS.poll_seconds)
+                    continue
+
             order_usd = SETTINGS.max_order_usd
             if getattr(SETTINGS, "use_kelly_sizing", False) and signal_origin:
                 try:
-                    from core.learning import SCOREBOARD
-                    win_rate = SCOREBOARD.get_strategy_score(signal_origin)
-                    f_star = max(0.0, 2.0 * win_rate - 1.0)
-                    q_kelly = f_star / 4.0
+                    win_rate = strategy_win_rate
+                    entry_price_value = float(entry_price) if entry_price and float(entry_price) > 0 else 0.0
+                    q_kelly = price_aware_kelly_fraction(win_rate, entry_price_value) if entry_price_value > 0 else 0.0
                     if q_kelly > 0:
                         bankroll = acct.equity
                         kelly_bet = bankroll * q_kelly
                         # Kelly can shrink OR grow the bet — respect min $1 floor and hard cap.
                         min_bet = SETTINGS.max_order_usd  # never bet less than baseline
                         order_usd = max(min_bet, min(kelly_bet, getattr(SETTINGS, "max_bet_cap_usd", 50.0)))
-                        log(f"Kelly Sizing | Strategy={signal_origin} WR={win_rate:.1%} qK={q_kelly:.2%} Bankroll=${bankroll:.2f} -> Bet=${order_usd:.2f}")
+                        log(
+                            f"Kelly Sizing | Strategy={signal_origin} WR={win_rate:.1%} price={entry_price_value:.3f} "
+                            f"qK={q_kelly:.2%} Bankroll=${bankroll:.2f} -> Bet=${order_usd:.2f}"
+                        )
                     else:
-                        # win_rate <= 50%: Kelly says don't bet; use baseline only
-                        log(f"Kelly Sizing | Strategy={signal_origin} WR={win_rate:.1%} -> no edge, baseline bet=${order_usd:.2f}")
+                        log(
+                            f"Kelly Sizing | Strategy={signal_origin} WR={win_rate:.1%} "
+                            f"price={entry_price_value:.3f} -> no size edge, baseline bet=${order_usd:.2f}"
+                        )
                 except Exception as e:
                     log(f"Kelly calc error: {e}")
+
+            if signal_side and token_override and entry_price and float(entry_price) > 0:
+                est_shares = order_usd / float(entry_price)
+                if not ex.has_exit_liquidity(token_override, est_shares):
+                    maybe_record_cycle_label(state, "signal-but-no-fill", slug=last_market_slug, side=signal_side, reason="weak-exit-liquidity-sized")
+                    log(f"skip entry: weak exit liquidity for sized order (${order_usd:.2f}, est_shares={est_shares:.4f})")
+                    smart_sleep(SETTINGS.poll_seconds)
+                    continue
 
             if flags.panic_exit_mode:
                 maybe_record_cycle_label(state, "signal-blocked", slug=last_market_slug, side=signal_side, reason="panic-exit-mode")

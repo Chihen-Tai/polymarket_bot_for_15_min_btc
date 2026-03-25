@@ -111,6 +111,8 @@ def explain_choose_side(
     yes_window: deque, 
     up_window: Optional[deque] = None, 
     down_window: Optional[deque] = None,
+    observed_up: Optional[float] = None,
+    observed_down: Optional[float] = None,
     binance_1m: Optional[dict] = None,
     binance_5m: Optional[list[dict]] = None,
     ws_bba: Optional[dict] = None,
@@ -119,8 +121,10 @@ def explain_choose_side(
     poly_ob_down: Optional[dict] = None
 ) -> dict:
     prices = get_outcome_prices(market)
-    up = prices.get("up") or prices.get("漲")
-    down = prices.get("down") or prices.get("跌")
+    gamma_up = prices.get("up") or prices.get("漲")
+    gamma_down = prices.get("down") or prices.get("跌")
+    up = observed_up if observed_up is not None else gamma_up
+    down = observed_down if observed_down is not None else gamma_down
     secs_left = seconds_to_market_end(market)
     base_result = {
         "ok": False,
@@ -319,6 +323,8 @@ def choose_side(
     yes_window: deque, 
     up_window: Optional[deque] = None, 
     down_window: Optional[deque] = None,
+    observed_up: Optional[float] = None,
+    observed_down: Optional[float] = None,
     binance_1m: Optional[dict] = None,
     binance_5m: Optional[list[dict]] = None,
     ws_bba: Optional[dict] = None,
@@ -326,7 +332,20 @@ def choose_side(
     poly_ob_up: Optional[dict] = None,
     poly_ob_down: Optional[dict] = None
 ) -> Optional[str]:
-    decision = explain_choose_side(market, yes_window, up_window, down_window, binance_1m, binance_5m, ws_bba, ws_trades, poly_ob_up, poly_ob_down)
+    decision = explain_choose_side(
+        market,
+        yes_window,
+        up_window,
+        down_window,
+        observed_up,
+        observed_down,
+        binance_1m,
+        binance_5m,
+        ws_bba,
+        ws_trades,
+        poly_ob_up,
+        poly_ob_down,
+    )
     if not decision.get("ok"):
         return None
     return decision.get("side")

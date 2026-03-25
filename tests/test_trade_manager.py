@@ -1,9 +1,41 @@
-from core.trade_manager import decide_exit, maybe_reverse_entry, can_reenter_same_market
+import os
+import sys
+from collections import deque
+from datetime import datetime, timedelta, timezone
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from core.config import SETTINGS
+from core.decision_engine import explain_choose_side
 from core.journal import replay_open_positions
-from scripts.journal_analysis import build_exit_accounting_rows, build_trade_pairs
+from core.runner import (
+    paper_settlement_from_last_mark,
+    price_aware_kelly_fraction,
+    required_trade_edge,
+    strategy_name_for_side,
+    summarize_entry_edge,
+)
+from core.trade_manager import decide_exit, maybe_reverse_entry, can_reenter_same_market
+from scripts.journal_analysis import build_exit_accounting_rows, build_trade_pairs, classify_actual_source_tier
 
 
 def main():
+    SETTINGS.stop_loss_partial_pct = 0.05
+    SETTINGS.stop_loss_warn_pct = 0.07
+    SETTINGS.stop_loss_pct = 0.10
+    SETTINGS.max_hold_seconds = 90
+    SETTINGS.min_entry_price = 0.35
+    SETTINGS.max_entry_price = 0.75
+    SETTINGS.entry_window_min_sec = 120
+    SETTINGS.edge_threshold = 0.02
+    SETTINGS.late_entry_edge_penalty = 0.015
+    SETTINGS.rich_price_edge_penalty = 0.015
+    SETTINGS.binary_kelly_divisor = 4.0
+    SETTINGS.failed_follow_through_window_sec = 45
+    SETTINGS.failed_follow_through_loss_pct = 0.03
+    SETTINGS.failed_follow_through_max_mfe_pct = 0.02
+    SETTINGS.failed_follow_through_min_secs_left = 90
+
     lots, notes = replay_open_positions([
         {
             "kind": "entry",
@@ -75,22 +107,39 @@ def main():
         },
     ])
 
+    future_end = (datetime.now(timezone.utc) + timedelta(seconds=180)).isoformat()
+    observed_price_decision = explain_choose_side(
+        market={
+            "outcomes": ["up", "down"],
+            "outcomePrices": [0.95, 0.05],
+            "endDate": future_end,
+        },
+        yes_window=deque([0.45] * 10, maxlen=20),
+        up_window=deque([0.43, 0.44, 0.45], maxlen=5),
+        down_window=deque([0.57, 0.56, 0.55], maxlen=5),
+        observed_up=0.45,
+        observed_down=0.55,
+        ws_trades=[
+            {"p": 100000.0, "q": 1.0, "m": False},
+            {"p": 100001.0, "q": 1.0, "m": False},
+            {"p": 100002.0, "q": 1.0, "m": False},
+            {"p": 100003.0, "q": 0.2, "m": True},
+        ],
+    )
+
     cases = [
-        # stop-loss-scale-out triggers at -5% (stop_loss_partial_pct=0.05), before hard-stop at -10%
         ("stop_loss_scale_out", decide_exit(pnl_pct=-0.07, hold_sec=5).reason == "stop-loss-scale-out"),
-        # after scale-out loss, smart-stop fires at -8% (< -7% warn, > -10% hard-stop) when recovery_chance_low
+        ("failed_follow_through", decide_exit(pnl_pct=-0.04, hold_sec=50, secs_left=200, mfe_pnl_pct=0.01).reason == "failed-follow-through"),
+        ("failed_follow_through_skips_if_signal_showed_life", decide_exit(pnl_pct=-0.04, hold_sec=50, secs_left=200, mfe_pnl_pct=0.05).reason != "failed-follow-through"),
         ("smart_stop_loss_after_scale_out", decide_exit(pnl_pct=-0.08, hold_sec=5, recovery_chance_low=True, has_scaled_out_loss=True).reason == "smart-stop-loss"),
-        # at -8% with recovery_chance_low, smart-stop fires (checked before scale-out in priority order)
         ("smart_stop_loss_at_threshold", decide_exit(pnl_pct=-0.08, hold_sec=5, recovery_chance_low=True).reason == "smart-stop-loss"),
-        # hard-stop fires at -10% (stop_loss_pct=0.10)
         ("hard_stop_loss", decide_exit(pnl_pct=-0.55, hold_sec=5).reason == "hard-stop-loss"),
-        # max-hold-extended fires at 2x max_hold_seconds (90*2=180) when smart_stop is enabled
         ("max_hold_extended", decide_exit(pnl_pct=-0.01, hold_sec=190).reason == "max-hold-loss-extended"),
-        # max-hold-loss fires at 1x max_hold_seconds when recovery_chance_low=True
         ("max_hold_loss_low_recovery", decide_exit(pnl_pct=-0.01, hold_sec=95, recovery_chance_low=True).reason == "max-hold-loss"),
         (
-            "loss_reversal_only_down",
+            "loss_reversal_symmetric",
             maybe_reverse_entry(signal_side="DOWN", live_consec_losses=2, last_loss_side="DOWN").side == "UP"
+            and maybe_reverse_entry(signal_side="UP", live_consec_losses=2, last_loss_side="UP").side == "DOWN"
             and maybe_reverse_entry(signal_side="UP", live_consec_losses=2, last_loss_side="DOWN").side == "UP",
         ),
         ("reenter_gate", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=80) is True),
@@ -102,12 +151,28 @@ def main():
         ("trade_pair_closed", len(pair_rows) == 1 and pair_rows[0].status == "closed"),
         ("trade_pair_actual_pnl", len(pair_rows) == 1 and abs((pair_rows[0].actual_pnl_usd or 0.0) - 0.2) < 1e-9),
         ("trade_pair_mae_mfe", len(pair_rows) == 1 and pair_rows[0].mae_pnl_usd == -0.1 and pair_rows[0].mfe_pnl_usd == 0.2),
+        ("decision_engine_uses_observed_prices", observed_price_decision.get("ok") and observed_price_decision.get("side") == "UP" and abs((observed_price_decision.get("entry_price") or 0.0) - 0.45) < 1e-9),
+        ("paper_settlement_win", paper_settlement_from_last_mark(0.72) == (1.0, "binary-win")),
+        ("paper_settlement_loss", paper_settlement_from_last_mark(0.28) == (0.0, "binary-lose")),
+        ("paper_settlement_neutral", paper_settlement_from_last_mark(0.50) == (0.5, "binary-neutral")),
+        ("price_aware_kelly_fraction", abs(price_aware_kelly_fraction(0.60, 0.45) - (((0.60 - 0.45) / (1.0 - 0.45)) / 4.0)) < 1e-9),
+        ("required_trade_edge_relaxes_for_fresh_strategy", abs(required_trade_edge(0.45, 250, history_count=0) - 0.005) < 1e-9),
+        ("required_trade_edge_penalizes_late_rich_price", abs(required_trade_edge(0.70, 150, history_count=30) - 0.065) < 1e-9),
+        ("summarize_entry_edge_blocks_weak_late_trade", summarize_entry_edge(win_rate=0.56, entry_price=0.55, secs_left=140, history_count=30)["ok"] is False),
+        ("summarize_entry_edge_allows_fresh_discounted_trade", summarize_entry_edge(win_rate=0.50, entry_price=0.48, secs_left=250, history_count=0)["ok"] is True),
+        ("actual_source_tier_maker_balance_delta", classify_actual_source_tier("maker-balance-delta", 1.0) == "high"),
+        ("strategy_name_for_reversed_side", strategy_name_for_side("model-ws_order_flow_down", "UP") == "model-ws_order_flow_up"),
+        ("hard_stop_shield_opt_in_default", SETTINGS.enable_hard_stop_shield is False),
     ]
 
     failed = [name for name, ok in cases if not ok]
     if failed:
         raise SystemExit(f"FAILED: {', '.join(failed)}")
     print("OK")
+
+
+def test_main():
+    main()
 
 
 if __name__ == "__main__":

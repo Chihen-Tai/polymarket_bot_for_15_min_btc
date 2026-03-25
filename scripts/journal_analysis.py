@@ -112,7 +112,11 @@ def classify_actual_source_tier(source: str | None, actual_value: float | None =
         return "none"
     if src == "cash_balance_delta":
         return "high"
+    if "balance-delta" in src or "balance_delta" in src:
+        return "high"
     if src in {"close_response_amount", "close_response_value", "close_response_raw_amount", "actual_close_response_value", "response_amount", "response_value"}:
+        return "medium"
+    if src == "paper_trade_simulation":
         return "medium"
     if src in {"actual_exit_value", "observed_mark_estimate", "observed_only", "unavailable", "cash_balance_non_positive", "cash_balance_unavailable", ""}:
         return "low"

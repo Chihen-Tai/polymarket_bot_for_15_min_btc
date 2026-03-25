@@ -87,6 +87,10 @@ class StrategyScoreboard:
         win_rate = wins / total
         return win_rate
 
+    def get_strategy_trade_count(self, strategy_name: str) -> int:
+        strategy_name = strategy_name.replace("model-", "").split("+")[0]
+        return len(self.history.get(strategy_name, []))
+
     def get_best_strategy(self, available_strategies: Dict[str, dict]) -> Optional[dict]:
         """
         Given a dictionary of proposed signals {strategy_name: decision_dict},
