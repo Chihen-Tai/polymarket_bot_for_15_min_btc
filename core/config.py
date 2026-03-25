@@ -78,9 +78,9 @@ class Settings:
     hedge_ratio: float = _f("HEDGE_RATIO", 0.0)
     ws_flash_snipe_threshold: float = _f("WS_FLASH_SNIPE_THRESHOLD", 0.003)
     hedge_max_wait_sec: int = _i("HEDGE_MAX_WAIT_SEC", 90)
-    stop_loss_pct: float = _f("STOP_LOSS_PCT", 0.05)
+    stop_loss_pct: float = _f("STOP_LOSS_PCT", 0.15)
     smart_stop_loss_enabled: bool = _b("SMART_STOP_LOSS_ENABLED", True)
-    stop_loss_partial_pct: float = _f("STOP_LOSS_PARTIAL_PCT", 0.03)
+    stop_loss_partial_pct: float = _f("STOP_LOSS_PARTIAL_PCT", 0.10)
     stop_loss_partial_fraction: float = _f("STOP_LOSS_PARTIAL_FRACTION", 0.50)
     max_hold_seconds: int = _i("MAX_HOLD_SECONDS", 180)
     take_profit_scaleout_pct: float = _f("TAKE_PROFIT_SCALEOUT_PCT", 0.03)
@@ -89,7 +89,7 @@ class Settings:
     momentum_ticks: int = _i("MOMENTUM_TICKS", 3)
     momentum_min_move: float = _f("MOMENTUM_MIN_MOVE", 0.005)
     exit_deadline_sec: int = _i("EXIT_DEADLINE_SEC", 20)
-    stop_loss_warn_pct: float = _f("STOP_LOSS_WARN_PCT", 0.03)
+    stop_loss_warn_pct: float = _f("STOP_LOSS_WARN_PCT", 0.10)
 
     # Strategy 1: Binance Oracle Front-running
     use_cex_oracle: bool = _b("USE_CEX_ORACLE", True)
@@ -121,9 +121,9 @@ class Settings:
     tp_hold_velocity: float = _f("TP_HOLD_VELOCITY", 0.0004)
 
     # Phase 3: Entry & Exit Quality Guards
-    # hard_stop_shield_velocity: if Binance velocity is same-direction as position,
-    # skip hard stop for this cycle. Set 0.0 to disable.
-    hard_stop_shield_velocity: float = _f("HARD_STOP_SHIELD_VELOCITY", 0.0004)
+    # hard_stop_shield_velocity: DISABLED (set to 0.0) — shield was blocking stop-loss
+    # when Binance showed same-direction momentum but Polymarket market dumped near resolution
+    hard_stop_shield_velocity: float = _f("HARD_STOP_SHIELD_VELOCITY", 0.0)
     # entry_velocity_min: block entry if Binance velocity is strongly opposing signal.
     # Only blocks adverse moves; flat/zero velocity still allows entry. Set 0.0 to disable.
     entry_velocity_min: float = _f("ENTRY_VELOCITY_MIN", 0.0002)

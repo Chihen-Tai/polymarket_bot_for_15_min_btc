@@ -686,7 +686,27 @@ def main():
                     if getattr(SETTINGS, "dry_run", False):
                         ghosts = [p for p in open_positions if p.slug != market["slug"]]
                         for gp in ghosts:
-                            log(f"Force-clearing stale dry-run position from expired market: {gp.slug}")
+                            # Simulate binary market resolution for dry-run:
+                            # Use last known mark price to determine outcome.
+                            # If mark > 0.5 → position is winning → resolve at 1.0 (winner pays out)
+                            # If mark < 0.5 → position is losing → resolve at ~0 (use current mark as conservative est)
+                            last_mark = (up if gp.side == "UP" else down) if (
+                                gp.slug == (last_market_slug or "") and up is not None and down is not None
+                            ) else 0.5
+                            if last_mark >= 0.5:
+                                # Winning side resolves at $1.00 per share
+                                resolution_value = gp.shares * 1.0
+                                resolution_note = "binary-win"
+                            else:
+                                # Losing side: use current mark (conservative, likely near 0)
+                                resolution_value = gp.shares * last_mark
+                                resolution_note = "binary-lose"
+                            realized_pnl = resolution_value - gp.cost_usd
+                            ex._cash += resolution_value
+                            ex._position_cost.pop(gp.token_id, None)
+                            ex._save_paper_balance()
+                            risk.daily_pnl += realized_pnl
+                            log(f"Force-clearing stale dry-run position from expired market: {gp.slug} | {resolution_note} mark={last_mark:.3f} value=${resolution_value:.4f} pnl={realized_pnl:+.4f}")
                             append_event({
                                 "kind": "exit",
                                 "slug": gp.slug,
@@ -696,12 +716,14 @@ def main():
                                 "closed_shares": gp.shares,
                                 "remaining_shares": 0.0,
                                 "realized_cost_usd": gp.cost_usd,
-                                "actual_exit_value_usd": gp.cost_usd,
-                                "observed_exit_value_usd": gp.cost_usd,
+                                "actual_exit_value_usd": resolution_value,
+                                "observed_exit_value_usd": resolution_value,
+                                "actual_realized_pnl_usd": realized_pnl,
                                 "status": "closed",
-                                "exit_reason": "dry-run-market-expired"
+                                "exit_reason": f"dry-run-market-expired-{resolution_note}"
                             })
                             open_positions.remove(gp)
+
                             
                     token_up = market.get("token_up", "")
                     token_down = market.get("token_down", "")
