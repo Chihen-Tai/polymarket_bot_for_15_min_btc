@@ -838,6 +838,7 @@ def save_runtime_state(
     risk: RiskState,
     *,
     last_market_slug: str,
+    same_market_reentry_block_slug: str,
     yes_price_window: deque,
     up_price_window: deque,
     down_price_window: deque,
@@ -859,6 +860,7 @@ def save_runtime_state(
         "risk_window_key": risk.window_key,
         "risk_consec_losses": risk.consec_losses,
         "last_market_slug": last_market_slug,
+        "same_market_reentry_block_slug": same_market_reentry_block_slug,
         "yes_price_window": list(yes_price_window),
         "up_price_window": list(up_price_window),
         "down_price_window": list(down_price_window),
@@ -1000,6 +1002,7 @@ def main():
     risk.consec_losses = int(state.get("risk_consec_losses", 0))
 
     last_market_slug = state.get("last_market_slug", "")
+    same_market_reentry_block_slug = str(state.get("same_market_reentry_block_slug") or "")
     yes_price_window: deque = deque(state.get("yes_price_window", []), maxlen=max(5, SETTINGS.zscore_window))
     up_price_window: deque = deque(state.get("up_price_window", []), maxlen=max(5, SETTINGS.momentum_ticks + 2))
     down_price_window: deque = deque(state.get("down_price_window", []), maxlen=max(5, SETTINGS.momentum_ticks + 2))
@@ -1015,6 +1018,7 @@ def main():
         save_runtime_state(
             risk,
             last_market_slug=last_market_slug,
+            same_market_reentry_block_slug=same_market_reentry_block_slug,
             yes_price_window=yes_price_window,
             up_price_window=up_price_window,
             down_price_window=down_price_window,
@@ -1076,6 +1080,7 @@ def main():
                 save_runtime_state(
                     risk,
                     last_market_slug=last_market_slug,
+                    same_market_reentry_block_slug=same_market_reentry_block_slug,
                     yes_price_window=yes_price_window,
                     up_price_window=up_price_window,
                     down_price_window=down_price_window,
@@ -1263,6 +1268,7 @@ def main():
                             yes_price_window.clear()
                             up_price_window.clear()
                             down_price_window.clear()
+                        same_market_reentry_block_slug = ""
                         last_market_slug = market["slug"]
                         log(f"market switched => {market['slug']}")
                         
@@ -1799,6 +1805,8 @@ def main():
 
                                         remaining_shares = max(max(0.0, p.shares - sold_shares), remaining_hint)
                                         remaining_cost = max(0.0, p.cost_usd - realized_cost)
+                                        if exit_decision.reason == "stalled-trade" and remaining_shares <= LOT_EPS_SHARES:
+                                            same_market_reentry_block_slug = p.slug
                                         quality_pnl = actual_realized_pnl_usd if actual_realized_pnl_usd is not None else observed_realized_pnl_usd
                                         entry_quality = "good-entry" if quality_pnl > 0 else "bad-entry" if quality_pnl < 0 else "flat-entry"
                                         exit_event = append_event({
@@ -1908,7 +1916,13 @@ def main():
                         panic_market_slug = ""
 
                     has_current_market_pos = any(p.slug == market["slug"] for p in open_positions)
-                    if can_reenter_same_market(has_current_market_pos=has_current_market_pos, closed_any=closed_any, secs_left=secs_left):
+                    if can_reenter_same_market(
+                        has_current_market_pos=has_current_market_pos,
+                        closed_any=closed_any,
+                        secs_left=secs_left,
+                        current_market_slug=market["slug"],
+                        blocked_market_slug=same_market_reentry_block_slug,
+                    ):
                         # Grant one extra order slot for re-entry rather than zeroing the whole window
                         # so the per-5min rate limiter remains effective across multiple re-entries.
                         risk.orders_this_window = max(0, risk.orders_this_window - 1)
@@ -2041,6 +2055,7 @@ def main():
             save_runtime_state(
                 risk,
                 last_market_slug=last_market_slug,
+                same_market_reentry_block_slug=same_market_reentry_block_slug,
                 yes_price_window=yes_price_window,
                 up_price_window=up_price_window,
                 down_price_window=down_price_window,
@@ -2203,6 +2218,12 @@ def main():
                     log(f"skip entry: weak exit liquidity for sized order (${order_usd:.2f}, est_shares={est_shares:.4f})")
                     smart_sleep(SETTINGS.poll_seconds)
                     continue
+
+            if same_market_reentry_block_slug and last_market_slug == same_market_reentry_block_slug:
+                maybe_record_cycle_label(state, "signal-blocked", slug=last_market_slug, side=signal_side, reason="same-market-blocked-after-stalled-trade")
+                log("skip entry: same market blocked after stalled-trade close")
+                smart_sleep(SETTINGS.poll_seconds)
+                continue
 
             if flags.panic_exit_mode:
                 maybe_record_cycle_label(state, "signal-blocked", slug=last_market_slug, side=signal_side, reason="panic-exit-mode")
@@ -2409,6 +2430,7 @@ def main():
                 save_runtime_state(
                     risk,
                     last_market_slug=last_market_slug,
+                    same_market_reentry_block_slug=same_market_reentry_block_slug,
                     yes_price_window=yes_price_window,
                     up_price_window=up_price_window,
                     down_price_window=down_price_window,
@@ -2447,6 +2469,7 @@ def main():
                 save_runtime_state(
                     risk,
                     last_market_slug=last_market_slug,
+                    same_market_reentry_block_slug=same_market_reentry_block_slug,
                     yes_price_window=yes_price_window,
                     up_price_window=up_price_window,
                     down_price_window=down_price_window,

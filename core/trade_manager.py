@@ -111,6 +111,15 @@ def maybe_reverse_entry(*, signal_side: Optional[str], live_consec_losses: int, 
     return EntryDecision(signal_side, "")
 
 
-def can_reenter_same_market(*, has_current_market_pos: bool, closed_any: bool, secs_left: Optional[float]) -> bool:
+def can_reenter_same_market(
+    *,
+    has_current_market_pos: bool,
+    closed_any: bool,
+    secs_left: Optional[float],
+    current_market_slug: str = "",
+    blocked_market_slug: str = "",
+) -> bool:
     min_secs_left = float(getattr(SETTINGS, "same_market_reentry_min_secs_left", 60))
+    if blocked_market_slug and current_market_slug and blocked_market_slug == current_market_slug:
+        return False
     return bool(closed_any and (not has_current_market_pos) and secs_left is not None and secs_left >= min_secs_left)

@@ -406,9 +406,10 @@ def main():
             and maybe_reverse_entry(signal_side="UP", live_consec_losses=2, last_loss_side="UP").side == "DOWN"
             and maybe_reverse_entry(signal_side="UP", live_consec_losses=2, last_loss_side="DOWN").side == "UP",
         ),
-        ("reenter_gate", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=50) is True),
-        ("reenter_gate_respects_min_secs_left", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=40) is False),
-        ("reenter_block", can_reenter_same_market(has_current_market_pos=True, closed_any=True, secs_left=80) is False),
+        ("reenter_gate", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=50, current_market_slug="m1", blocked_market_slug="") is True),
+        ("reenter_gate_respects_min_secs_left", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=40, current_market_slug="m1", blocked_market_slug="") is False),
+        ("reenter_block", can_reenter_same_market(has_current_market_pos=True, closed_any=True, secs_left=80, current_market_slug="m1", blocked_market_slug="") is False),
+        ("reenter_block_after_stalled_trade", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=80, current_market_slug="m1", blocked_market_slug="m1") is False),
         ("journal_partial_close_shares", abs(lots["tok1"]["shares"] - 6.0) < 1e-9),
         ("journal_partial_close_cost", abs(lots["tok1"]["cost_usd"] - 0.6) < 1e-9),
         ("journal_partial_close_notes", len(notes) == 0),
