@@ -811,6 +811,9 @@ def main():
                 open_positions, sync_notes = synced_result
                 for note in sync_notes:
                     log(note)
+                if getattr(SETTINGS, "dry_run", False) and ex.reconcile_dry_run_positions(open_positions):
+                    log("dry-run reconcile: aligned internal exposure with runtime open positions")
+                    acct = ex.get_account()
             except Exception as sync_err:
                 network_notes = update_network_guard(
                     flags,
