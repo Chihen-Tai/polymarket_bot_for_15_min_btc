@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+from datetime import datetime
 import json
 import sys
 import os
@@ -29,6 +30,23 @@ def _maybe_float(v: Any) -> float | None:
         return float(v)
     except Exception:
         return None
+
+
+def _event_ts(ev: dict) -> datetime | None:
+    raw = str(ev.get("ts") or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw)
+    except Exception:
+        return None
+
+
+def _event_pair_key(ev: dict) -> str:
+    position_id = str(ev.get("position_id") or "").strip()
+    if position_id:
+        return position_id
+    return str(ev.get("token_id") or "").strip()
 
 
 @dataclass
@@ -102,8 +120,51 @@ class TradePairRow:
     legs: list[TradeLeg]
 
 
-def load_trade_events(limit: int = 0) -> list[dict]:
-    return [ev for ev in read_events(limit=limit) if ev.get("kind") in {"entry", "exit"}]
+def load_trade_events(limit: int = 0, run_id: str | None = None, since_ts: str | None = None) -> list[dict]:
+    events = [ev for ev in read_events(limit=limit) if ev.get("kind") in {"entry", "exit"}]
+    if not run_id and not since_ts:
+        return events
+
+    since_dt = None
+    if since_ts:
+        try:
+            since_dt = datetime.fromisoformat(str(since_ts))
+        except Exception:
+            since_dt = None
+
+    selected: list[dict] = []
+    selected_ids: set[str] = set()
+    touched_keys: set[str] = set()
+    for ev in events:
+        include = False
+        if run_id and str(ev.get("run_id") or "") == str(run_id):
+            include = True
+        if not include and since_dt is not None:
+            ev_dt = _event_ts(ev)
+            if ev_dt is not None and ev_dt >= since_dt:
+                include = True
+        if not include:
+            continue
+        selected.append(ev)
+        if ev.get("event_id"):
+            selected_ids.add(str(ev["event_id"]))
+        key = _event_pair_key(ev)
+        if key:
+            touched_keys.add(key)
+
+    if touched_keys:
+        for ev in events:
+            if ev.get("kind") != "entry":
+                continue
+            key = _event_pair_key(ev)
+            event_id = str(ev.get("event_id") or "")
+            if key in touched_keys and event_id not in selected_ids:
+                selected.append(ev)
+                if event_id:
+                    selected_ids.add(event_id)
+
+    selected.sort(key=lambda ev: (str(ev.get("ts") or ""), str(ev.get("event_id") or "")))
+    return selected
 
 
 def classify_actual_source_tier(source: str | None, actual_value: float | None = None) -> str:

@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from core.config import SETTINGS
 from core.decision_engine import explain_choose_side
 from core.journal import replay_open_positions
+from core.learning import StrategyScoreboard
 from core.runner import (
     RuntimeFlags,
     refresh_runtime_flags,
@@ -15,12 +16,15 @@ from core.runner import (
     paper_settlement_from_last_mark,
     price_aware_kelly_fraction,
     required_trade_edge,
+    stabilize_entry_win_rate,
     strategy_name_for_side,
     summarize_entry_edge,
     update_network_guard,
 )
 from core.trade_manager import decide_exit, maybe_reverse_entry, can_reenter_same_market
-from scripts.journal_analysis import build_exit_accounting_rows, build_trade_pairs, classify_actual_source_tier
+import core.learning as learning_mod
+import scripts.journal_analysis as journal_analysis_mod
+from scripts.journal_analysis import build_exit_accounting_rows, build_trade_pairs, classify_actual_source_tier, load_trade_events
 
 
 def main():
@@ -168,6 +172,68 @@ def main():
         "",
     )
 
+    original_score_file = learning_mod.SCORE_FILE
+    temp_score_file = os.path.join(os.path.dirname(__file__), "tmp_strategy_scores.json")
+    learning_mod.SCORE_FILE = temp_score_file
+    try:
+        if os.path.exists(temp_score_file):
+            os.remove(temp_score_file)
+        scratch_scoreboard = StrategyScoreboard()
+        scratch_scoreboard.record_outcome("model-ws_order_flow_up", 0.0, 1.0)
+        scratch_score = scratch_scoreboard.get_strategy_score("model-ws_order_flow_up")
+        scratch_total = scratch_scoreboard.get_strategy_trade_count("model-ws_order_flow_up")
+        scratch_decisive = scratch_scoreboard.get_strategy_decisive_trade_count("model-ws_order_flow_up")
+    finally:
+        learning_mod.SCORE_FILE = original_score_file
+        if os.path.exists(temp_score_file):
+            os.remove(temp_score_file)
+
+    original_read_events = journal_analysis_mod.read_events
+    journal_analysis_mod.read_events = lambda limit=0: [
+        {
+            "kind": "entry",
+            "ts": "2026-03-19T09:59:00",
+            "event_id": "entry_pre",
+            "position_id": "pos_run_x",
+            "token_id": "tok_run_x",
+            "slug": "m1",
+            "side": "UP",
+            "shares": 2.0,
+            "cost_usd": 1.0,
+        },
+        {
+            "kind": "exit",
+            "ts": "2026-03-19T10:01:00",
+            "event_id": "exit_run_x",
+            "run_id": "run_x",
+            "position_id": "pos_run_x",
+            "token_id": "tok_run_x",
+            "slug": "m1",
+            "side": "UP",
+            "closed_shares": 2.0,
+            "remaining_shares": 0.0,
+            "realized_cost_usd": 1.0,
+            "actual_exit_value_usd": 1.2,
+            "observed_exit_value_usd": 1.2,
+        },
+        {
+            "kind": "entry",
+            "ts": "2026-03-19T10:02:00",
+            "event_id": "entry_other",
+            "run_id": "run_other",
+            "position_id": "pos_other",
+            "token_id": "tok_other",
+            "slug": "m2",
+            "side": "DOWN",
+            "shares": 2.0,
+            "cost_usd": 1.0,
+        },
+    ]
+    try:
+        filtered_run_events = load_trade_events(run_id="run_x")
+    finally:
+        journal_analysis_mod.read_events = original_read_events
+
     cases = [
         ("stop_loss_scale_out", decide_exit(pnl_pct=-0.07, hold_sec=5).reason == "stop-loss-scale-out"),
         (
@@ -213,10 +279,13 @@ def main():
         ("required_trade_edge_penalizes_late_rich_price", abs(required_trade_edge(0.70, 150, history_count=30) - 0.065) < 1e-9),
         ("summarize_entry_edge_blocks_weak_late_trade", summarize_entry_edge(win_rate=0.56, entry_price=0.55, secs_left=140, history_count=30)["ok"] is False),
         ("summarize_entry_edge_allows_fresh_discounted_trade", summarize_entry_edge(win_rate=0.50, entry_price=0.48, secs_left=250, history_count=0)["ok"] is True),
+        ("stabilize_entry_win_rate_floors_sparse_history", abs(stabilize_entry_win_rate(0.18, 1) - 0.50) < 1e-9),
         ("observe_api_latency_detects_slow_call", slow_detected is True and abs(health_flags.last_api_latency_ms - 1600.0) < 1e-9),
         ("network_fail_safe_activates_on_slow_api_streak", activated_after_slow is True and any("ACTIVATED" in note for note in slow_notes_3)),
         ("network_fail_safe_clears_after_recovery", cleared_after_recovery is False and any("CLEARED" in note for note in clear_notes_2)),
         ("network_fail_safe_activates_on_ws_stale_streak", stale_flags.network_fail_safe_mode is True and any("ACTIVATED" in note for note in stale_notes_2) and any("ws stale detected" in note for note in stale_notes_1)),
+        ("scoreboard_zero_pnl_is_neutral", abs(scratch_score - 0.5) < 1e-9 and scratch_total == 1 and scratch_decisive == 0),
+        ("load_trade_events_filters_to_run_and_keeps_matching_entry", [ev["event_id"] for ev in filtered_run_events] == ["entry_pre", "exit_run_x"]),
         (
             "refresh_runtime_flags_preserves_network_state",
             reloaded_flags.close_fail_streak == 0

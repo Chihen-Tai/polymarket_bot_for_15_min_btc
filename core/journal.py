@@ -11,6 +11,7 @@ JOURNAL_PATH = Path(__file__).resolve().parent.parent / "data" / "trade_journal.
 LOT_EPS_SHARES = 0.20
 LOT_EPS_COST_USD = 0.10
 STALE_HOURS = 6
+_JOURNAL_CONTEXT: dict[str, Any] = {}
 
 
 def _now_iso() -> str:
@@ -21,8 +22,18 @@ def new_event_id(prefix: str = "evt") -> str:
     return f"{prefix}_{uuid4().hex[:12]}"
 
 
+def set_journal_context(**context: Any) -> None:
+    _JOURNAL_CONTEXT.clear()
+    _JOURNAL_CONTEXT.update({k: v for k, v in context.items() if v not in (None, "")})
+
+
+def clear_journal_context() -> None:
+    _JOURNAL_CONTEXT.clear()
+
+
 def append_event(event: dict) -> dict:
     row = {
+        **_JOURNAL_CONTEXT,
         "ts": _now_iso(),
         "event_id": event.get("event_id") or new_event_id(str(event.get("kind") or "evt")),
         **event,

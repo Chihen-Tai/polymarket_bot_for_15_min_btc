@@ -22,6 +22,7 @@ from core.journal import (
     LOT_EPS_SHARES,
     STALE_HOURS,
     append_event,
+    set_journal_context,
     replay_open_positions,
     read_events,
     format_exit_summary,
@@ -280,6 +281,13 @@ def summarize_entry_edge(*, win_rate: float, entry_price: float, secs_left: floa
         "ok": raw_edge >= required,
         "history_count": history_count,
     }
+
+
+def stabilize_entry_win_rate(win_rate: float, decisive_history_count: int) -> float:
+    min_decisive = int(getattr(SETTINGS, "scoreboard_entry_gate_min_decisive_trades", 5))
+    if decisive_history_count < min_decisive:
+        return max(0.5, float(win_rate))
+    return float(win_rate)
 
 
 def observed_mark_value(pos: OpenPos, up: float | None, down: float | None) -> float | None:
@@ -677,6 +685,11 @@ def perform_startup_sanity_check(ex: PolymarketExchange, state: dict) -> tuple[l
     sanitized_positions, final_notes = sanitize_open_positions(merged_positions, live_positions=live_positions, source="startup-final")
     notes.extend(final_notes)
 
+    if getattr(SETTINGS, "dry_run", False) and ex.reconcile_dry_run_positions(sanitized_positions):
+        notes.append(
+            f"reconciled dry-run paper balance to startup positions | kept_positions={len(sanitized_positions)}"
+        )
+
     runtime_state_changed = sanitized_positions != runtime_positions
 
     if notes:
@@ -723,6 +736,7 @@ def main():
     state = load_state()
     open_positions, startup_notes, recovery_restart, runtime_state_changed = perform_startup_sanity_check(ex, state)
     run_journal = RunJournal(notes=startup_notes, recovery_restart=recovery_restart)
+    set_journal_context(run_id=run_journal.run_id)
     install_signal_handlers(run_journal)
 
     log(f"bot started | dry_run={SETTINGS.dry_run}")
@@ -1717,19 +1731,22 @@ def main():
 
             strategy_win_rate = 0.5
             strategy_trade_count = 0
+            strategy_decisive_trade_count = 0
             entry_edge = None
             if signal_side and signal_origin and entry_price and float(entry_price) > 0:
                 try:
                     from core.learning import SCOREBOARD
                     strategy_win_rate = SCOREBOARD.get_strategy_score(signal_origin)
                     strategy_trade_count = SCOREBOARD.get_strategy_trade_count(signal_origin)
+                    strategy_decisive_trade_count = SCOREBOARD.get_strategy_decisive_trade_count(signal_origin)
                 except Exception as e:
                     log(f"scoreboard lookup error: {e}")
+                strategy_win_rate = stabilize_entry_win_rate(strategy_win_rate, strategy_decisive_trade_count)
                 entry_edge = summarize_entry_edge(
                     win_rate=strategy_win_rate,
                     entry_price=float(entry_price),
                     secs_left=secs_left if "secs_left" in locals() else None,
-                    history_count=strategy_trade_count,
+                    history_count=strategy_decisive_trade_count,
                 )
                 if not entry_edge["ok"]:
                     maybe_record_cycle_label(
@@ -1742,7 +1759,7 @@ def main():
                     log(
                         f"skip entry: weak scoreboard edge | strategy={signal_origin} WR={strategy_win_rate:.1%} "
                         f"price={float(entry_price):.3f} raw_edge={entry_edge['raw_edge']:.3f} "
-                        f"required={entry_edge['required_edge']:.3f} history={strategy_trade_count}"
+                        f"required={entry_edge['required_edge']:.3f} history={strategy_trade_count} decisive={strategy_decisive_trade_count}"
                     )
                     smart_sleep(SETTINGS.poll_seconds)
                     continue
@@ -2061,7 +2078,7 @@ def main():
             if script_path.exists():
                 print("\n================= RUN REPORT =================")
                 print("Generating post-run summary report...")
-                report_args = [sys.executable, str(script_path), "--limit", "30", "--summary"]
+                report_args = [sys.executable, str(script_path), "--limit", "30", "--summary", "--run-id", run_journal.run_id]
                 # 儲存帶時間戳的報告（實戰和模擬都執行）
                 with open(timestamped_path, "w", encoding="utf-8") as f:
                     subprocess.run(report_args, stdout=f, check=False)

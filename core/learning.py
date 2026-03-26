@@ -27,6 +27,12 @@ class StrategyScoreboard:
         self.history: Dict[str, List[TradeOutcome]] = defaultdict(list)
         self.load()
 
+    def _normalized_name(self, strategy_name: str) -> str:
+        return strategy_name.replace("model-", "").split("+")[0]
+
+    def _neutral_band(self) -> float:
+        return max(0.0, float(getattr(SETTINGS, "scoreboard_neutral_pnl_pct", 0.0)))
+
     def load(self):
         if not os.path.exists(SCORE_FILE):
             return
@@ -50,7 +56,7 @@ class StrategyScoreboard:
     def record_outcome(self, strategy_name: str, pnl_pct: float, timestamp: float):
         """Record the outcome of a trade to update the strategy's historical win rate."""
         # Standardize strategy name (remove 'model-' prefix if present)
-        strategy_name = strategy_name.replace("model-", "").split("+")[0]
+        strategy_name = self._normalized_name(strategy_name)
         
         outcome = TradeOutcome(pnl_pct=pnl_pct, timestamp=timestamp)
         self.history[strategy_name].append(outcome)
@@ -65,20 +71,24 @@ class StrategyScoreboard:
     def get_strategy_score(self, strategy_name: str) -> float:
         """
         Calculate the Bayesian/smoothed win rate for a strategy.
-        Win condition: pnl_pct > 0. (Can be adjusted to account for slippage buffering).
+        Tiny scratch exits inside the neutral band are ignored so flat trades do not
+        poison the score and eventually disable all entries.
         """
-        strategy_name = strategy_name.replace("model-", "").split("+")[0]
+        strategy_name = self._normalized_name(strategy_name)
         trades = self.history.get(strategy_name, [])
-        
+
         wins = PRIOR_WINS
         losses = PRIOR_LOSSES
+        neutral_band = self._neutral_band()
 
         # Weight by PnL magnitude: a +50% win counts more than a +1% win.
         # Scale factor 5.0 keeps the prior (1 win + 1 loss) meaningful.
         _SCALE = 5.0
         for t in trades:
+            if abs(t.pnl_pct) <= neutral_band:
+                continue
             weight = 1.0 + abs(t.pnl_pct) * _SCALE
-            if t.pnl_pct > 0.0:
+            if t.pnl_pct > neutral_band:
                 wins += weight
             else:
                 losses += weight
@@ -88,8 +98,13 @@ class StrategyScoreboard:
         return win_rate
 
     def get_strategy_trade_count(self, strategy_name: str) -> int:
-        strategy_name = strategy_name.replace("model-", "").split("+")[0]
+        strategy_name = self._normalized_name(strategy_name)
         return len(self.history.get(strategy_name, []))
+
+    def get_strategy_decisive_trade_count(self, strategy_name: str) -> int:
+        strategy_name = self._normalized_name(strategy_name)
+        neutral_band = self._neutral_band()
+        return sum(1 for trade in self.history.get(strategy_name, []) if abs(trade.pnl_pct) > neutral_band)
 
     def get_best_strategy(self, available_strategies: Dict[str, dict]) -> Optional[dict]:
         """

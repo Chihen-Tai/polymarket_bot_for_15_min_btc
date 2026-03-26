@@ -18,6 +18,9 @@ def make_paper_exchange() -> PolymarketExchange:
     ex._open_exposure = 0.0
     ex._position_cost = {}
     ex._position_shares = {}
+    ex.paper_balance_file = os.path.join(os.path.dirname(__file__), "tmp_paper_balance.json")
+    if os.path.exists(ex.paper_balance_file):
+        os.remove(ex.paper_balance_file)
     return ex
 
 
@@ -32,6 +35,12 @@ def main():
     cost_after_partial = ex._position_cost.get("tok1", 0.0)
     exposure_after_partial = ex._open_exposure
     settle = ex.close_position("tok1", 1.0, simulated_price=0.0)
+    ex._cash = 100.0
+    ex._position_cost = {"ghost": 4.0}
+    ex._position_shares = {"ghost": 8.0}
+    ex._open_exposure = 4.0
+    reconciled = ex.reconcile_dry_run_positions([])
+    acct = ex.get_account()
 
     cases = [
         ("close_response_value_prefers_taking_amount", abs((value or 0.0) - 0.9823) < 1e-9),
@@ -45,9 +54,12 @@ def main():
         ("paper_zero_settlement_allowed", abs(float(settle["actual_exit_value_usd"]) - 0.0) < 1e-9),
         ("paper_zero_settlement_clears_position", "tok1" not in ex._position_cost and "tok1" not in ex._position_shares),
         ("paper_zero_settlement_source", settle.get("close_response_value_source") == "paper_trade_simulation"),
+        ("reconcile_dry_run_positions_clears_ghost_exposure", reconciled is True and acct.cash == 100.0 and acct.equity == 100.0 and acct.open_exposure == 0.0),
     ]
 
     failed = [name for name, ok in cases if not ok]
+    if os.path.exists(ex.paper_balance_file):
+        os.remove(ex.paper_balance_file)
     if failed:
         raise SystemExit(f"FAILED: {', '.join(failed)}")
     print("OK")

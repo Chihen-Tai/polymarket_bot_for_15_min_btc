@@ -41,9 +41,11 @@ def main() -> None:
     ap.add_argument("--format", choices=["table", "json", "csv"], default="table", help="Optional export format")
     ap.add_argument("--output", help="Export file path for --format json/csv")
     ap.add_argument("--summary", action="store_true", help="Print aggregated summary after the table")
+    ap.add_argument("--run-id", help="Only include events from a specific run_id and matching predecessor entries")
+    ap.add_argument("--since-ts", help="Only include events at/after this ISO timestamp and matching predecessor entries")
     args = ap.parse_args()
 
-    events = load_trade_events(limit=0)
+    events = load_trade_events(limit=0, run_id=args.run_id, since_ts=args.since_ts)
     rows = build_trade_pairs(events)
     if args.status != "all":
         rows = [row for row in rows if row.status == args.status]

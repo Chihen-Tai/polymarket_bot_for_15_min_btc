@@ -101,6 +101,34 @@ class PolymarketExchange:
         except Exception:
             pass
 
+    def reconcile_dry_run_positions(self, positions: list[Any]) -> bool:
+        if not self.dry_run:
+            return False
+
+        expected_cost: dict[str, float] = {}
+        expected_shares: dict[str, float] = {}
+        for pos in positions or []:
+            token_id = str(getattr(pos, "token_id", "") or "")
+            if not token_id:
+                continue
+            expected_cost[token_id] = expected_cost.get(token_id, 0.0) + max(0.0, _to_float(getattr(pos, "cost_usd", 0.0), 0.0))
+            expected_shares[token_id] = expected_shares.get(token_id, 0.0) + max(0.0, _to_float(getattr(pos, "shares", 0.0), 0.0))
+
+        expected_exposure = sum(expected_cost.values())
+        changed = (
+            self._position_cost != expected_cost
+            or self._position_shares != expected_shares
+            or abs(self._open_exposure - expected_exposure) > 1e-9
+        )
+        if not changed:
+            return False
+
+        self._position_cost = expected_cost
+        self._position_shares = expected_shares
+        self._open_exposure = expected_exposure
+        self._save_paper_balance()
+        return True
+
     def _init_real_client(self):
         from py_clob_client.client import ClobClient
         from py_clob_client.clob_types import ApiCreds
