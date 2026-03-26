@@ -951,6 +951,8 @@ def main():
                                 "reason": f"dry-run-market-expired-{resolution_note}",
                             })
                             open_positions.remove(gp)
+                        if ghosts:
+                            acct = ex.get_account()
 
                             
                     token_up = market.get("token_up", "")
@@ -1695,6 +1697,8 @@ def main():
             )
 
             if signal_side is None:
+                if SETTINGS.dry_run:
+                    acct = ex.get_account()
                 if SETTINGS.dry_run and open_positions:
                     mock_value = 0.0
                     for p in open_positions:
