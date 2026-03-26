@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from core.config import SETTINGS
 from core.journal import read_events
 
 
@@ -107,8 +108,15 @@ class TradePairRow:
     exit_recovered_observed_usd: float | None
     actual_pnl_usd: float | None
     observed_pnl_usd: float | None
+    fee_adjusted_actual_pnl_usd: float | None
+    fee_adjusted_observed_pnl_usd: float | None
+    estimated_total_fees_actual_usd: float | None
+    estimated_total_fees_observed_usd: float | None
     actual_source: str
     actual_source_tier: str
+    entry_execution_style: str
+    exit_execution_style: str
+    close_bucket: str
     close_reason: str
     entry_quality: str
     remaining_shares: float
@@ -274,6 +282,73 @@ def classify_pair_status(*, remaining_shares: float, has_exit: bool, exit_count:
     return "closed"
 
 
+def classify_close_bucket(reason: str | None) -> str:
+    text = str(reason or "").strip().lower()
+    if "market-expired" in text:
+        if "binary-win" in text:
+            return "expiry-binary-win"
+        if "binary-loss" in text:
+            return "expiry-binary-loss"
+        if "binary-neutral" in text:
+            return "expiry-binary-neutral"
+        return "expiry-settlement"
+    return "active-close"
+
+
+def normalize_execution_style(style: str | None) -> str:
+    text = str(style or "").strip().lower()
+    if not text:
+        return "unknown"
+    if "mixed" in text:
+        return "mixed"
+    if "expiry" in text:
+        return "expiry-settlement"
+    if "taker" in text:
+        return "taker"
+    if text in {"maker-timeout-fallback", "simulated-cross", "dry-run-cross", "dry_run_cross"}:
+        return "taker"
+    if "timeout-fallback" in text:
+        return "taker"
+    if "maker" in text:
+        return "maker"
+    if text in {"dry-run", "dry_run"}:
+        return "unknown"
+    return text
+
+
+def execution_fee_rate(style: str | None, *, close_reason: str | None = None, for_exit: bool = False) -> float:
+    if for_exit and classify_close_bucket(close_reason) != "active-close":
+        return 0.0
+    normalized = normalize_execution_style(style)
+    if normalized in {"taker", "mixed"}:
+        return max(0.0, float(getattr(SETTINGS, "report_assumed_taker_fee_rate", 0.0)))
+    return 0.0
+
+
+def estimate_pair_fees(
+    *,
+    matched_cost_usd: float,
+    actual_exit_value_usd: float | None,
+    observed_exit_value_usd: float | None,
+    entry_execution_style: str | None,
+    exit_execution_style: str | None,
+    close_reason: str | None,
+) -> tuple[float | None, float | None, float | None, float | None]:
+    entry_fee_rate = execution_fee_rate(entry_execution_style, close_reason=close_reason, for_exit=False)
+    exit_fee_rate = execution_fee_rate(exit_execution_style, close_reason=close_reason, for_exit=True)
+    entry_fee = matched_cost_usd * entry_fee_rate if matched_cost_usd > EPS else 0.0
+
+    actual_total_fees = None
+    if actual_exit_value_usd is not None:
+        actual_total_fees = entry_fee + (actual_exit_value_usd * exit_fee_rate)
+
+    observed_total_fees = None
+    if observed_exit_value_usd is not None:
+        observed_total_fees = entry_fee + (observed_exit_value_usd * exit_fee_rate)
+
+    return entry_fee, actual_total_fees, observed_total_fees, exit_fee_rate
+
+
 def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
     open_entries: dict[str, deque[dict]] = {}
     rows: list[TradePairRow] = []
@@ -300,6 +375,8 @@ def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
                 "has_observed": False,
                 "actual_source": "unavailable",
                 "actual_source_tier": "none",
+                "entry_execution_style": normalize_execution_style(ev.get("execution_style")),
+                "exit_execution_style": "unknown",
                 "close_reason": "",
                 "entry_quality": "unknown",
                 "closed_ts": "",
@@ -360,6 +437,7 @@ def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
             lot["exit_count"] += 1
             lot["actual_source"] = actual_source
             lot["actual_source_tier"] = actual_tier
+            lot["exit_execution_style"] = normalize_execution_style(ev.get("exit_execution_style"))
             lot["mae_pnl_usd"] = _coalesce_extreme(lot.get("mae_pnl_usd"), _maybe_float(ev.get("mae_pnl_usd")), min)
             lot["mfe_pnl_usd"] = _coalesce_extreme(lot.get("mfe_pnl_usd"), _maybe_float(ev.get("mfe_pnl_usd")), max)
             if actual_tier == "medium":
@@ -416,8 +494,15 @@ def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
                 exit_recovered_observed_usd=observed_piece,
                 actual_pnl_usd=actual_piece,
                 observed_pnl_usd=observed_piece,
+                fee_adjusted_actual_pnl_usd=actual_piece,
+                fee_adjusted_observed_pnl_usd=observed_piece,
+                estimated_total_fees_actual_usd=0.0 if actual_piece is not None else None,
+                estimated_total_fees_observed_usd=0.0 if observed_piece is not None else None,
                 actual_source=actual_source,
                 actual_source_tier=actual_tier,
+                entry_execution_style="unknown",
+                exit_execution_style=normalize_execution_style(ev.get("exit_execution_style")),
+                close_bucket=classify_close_bucket(ev.get("reason")),
                 close_reason=str(ev.get("reason") or ""),
                 entry_quality=str(ev.get("entry_quality") or "unknown"),
                 remaining_shares=0.0,
@@ -462,6 +547,19 @@ def _finalize_pair_row(entry_ev: dict, token_id: str, key: str, lot: dict) -> Tr
     matched_cost = float(lot.get("matched_cost_usd") or 0.0)
     actual_pnl = (exit_actual - matched_cost) if exit_actual is not None else None
     observed_pnl = (exit_observed - matched_cost) if exit_observed is not None else None
+    entry_execution_style = normalize_execution_style(lot.get("entry_execution_style") or entry_ev.get("execution_style"))
+    exit_execution_style = normalize_execution_style(lot.get("exit_execution_style"))
+    close_reason = str(lot.get("close_reason") or "")
+    _, actual_total_fees, observed_total_fees, _ = estimate_pair_fees(
+        matched_cost_usd=matched_cost,
+        actual_exit_value_usd=exit_actual,
+        observed_exit_value_usd=exit_observed,
+        entry_execution_style=entry_execution_style,
+        exit_execution_style=exit_execution_style,
+        close_reason=close_reason,
+    )
+    fee_adjusted_actual_pnl = (actual_pnl - actual_total_fees) if actual_pnl is not None and actual_total_fees is not None else None
+    fee_adjusted_observed_pnl = (observed_pnl - observed_total_fees) if observed_pnl is not None and observed_total_fees is not None else None
     remaining_shares = float(lot.get("remaining_shares") or 0.0)
     flags = list(dict.fromkeys(lot.get("flags") or []))
     if remaining_shares > EPS:
@@ -489,9 +587,16 @@ def _finalize_pair_row(entry_ev: dict, token_id: str, key: str, lot: dict) -> Tr
         exit_recovered_observed_usd=exit_observed,
         actual_pnl_usd=actual_pnl,
         observed_pnl_usd=observed_pnl,
+        fee_adjusted_actual_pnl_usd=fee_adjusted_actual_pnl,
+        fee_adjusted_observed_pnl_usd=fee_adjusted_observed_pnl,
+        estimated_total_fees_actual_usd=actual_total_fees,
+        estimated_total_fees_observed_usd=observed_total_fees,
         actual_source=str(lot.get("actual_source") or "unavailable"),
         actual_source_tier=str(lot.get("actual_source_tier") or "none"),
-        close_reason=str(lot.get("close_reason") or ""),
+        entry_execution_style=entry_execution_style,
+        exit_execution_style=exit_execution_style,
+        close_bucket=classify_close_bucket(close_reason),
+        close_reason=close_reason,
         entry_quality=str(lot.get("entry_quality") or "unknown"),
         remaining_shares=remaining_shares,
         unmatched_entry_cost_usd=float(lot.get("remaining_cost_usd") or 0.0),
@@ -543,24 +648,43 @@ def summarize_trade_pairs(rows: list[TradePairRow]) -> dict[str, Any]:
     by_status = Counter(row.status for row in rows)
     by_quality = Counter(row.entry_quality for row in rows if row.entry_quality)
     by_reason = Counter(row.close_reason for row in rows if row.close_reason)
+    by_bucket = Counter(row.close_bucket for row in rows if row.close_bucket)
     by_tier = Counter(row.actual_source_tier for row in rows)
     actual_rows = [row for row in rows if row.actual_pnl_usd is not None]
     observed_rows = [row for row in rows if row.observed_pnl_usd is not None]
+    fee_actual_rows = [row for row in rows if row.fee_adjusted_actual_pnl_usd is not None]
+    fee_observed_rows = [row for row in rows if row.fee_adjusted_observed_pnl_usd is not None]
+
+    def _summarize_values(items: list[TradePairRow], attr: str) -> dict[str, Any]:
+        values = [getattr(row, attr) for row in items if getattr(row, attr) is not None]
+        return {
+            "count": len(values),
+            "sum": sum(values) if values else None,
+            "average": (sum(values) / len(values)) if values else None,
+        }
+
+    bucket_summary: dict[str, Any] = {}
+    for bucket in sorted(by_bucket):
+        bucket_rows = [row for row in rows if row.close_bucket == bucket]
+        bucket_summary[bucket] = {
+            "count": len(bucket_rows),
+            "actual_pnl": _summarize_values(bucket_rows, "actual_pnl_usd"),
+            "fee_adjusted_actual_pnl": _summarize_values(bucket_rows, "fee_adjusted_actual_pnl_usd"),
+        }
+
     return {
         "total_trades": total,
         "status_counts": dict(sorted(by_status.items())),
         "entry_quality_counts": dict(sorted(by_quality.items())),
         "close_reason_counts": dict(sorted(by_reason.items())),
+        "close_bucket_counts": dict(sorted(by_bucket.items())),
+        "close_bucket_pnl": bucket_summary,
         "actual_source_tier_counts": dict(sorted(by_tier.items())),
         "actual_available_ratio": (len(actual_rows) / total) if total else None,
-        "actual_pnl": {
-            "count": len(actual_rows),
-            "average": (sum(row.actual_pnl_usd for row in actual_rows) / len(actual_rows)) if actual_rows else None,
-        },
-        "observed_pnl": {
-            "count": len(observed_rows),
-            "average": (sum(row.observed_pnl_usd for row in observed_rows) / len(observed_rows)) if observed_rows else None,
-        },
+        "actual_pnl": _summarize_values(actual_rows, "actual_pnl_usd"),
+        "observed_pnl": _summarize_values(observed_rows, "observed_pnl_usd"),
+        "fee_adjusted_actual_pnl": _summarize_values(fee_actual_rows, "fee_adjusted_actual_pnl_usd"),
+        "fee_adjusted_observed_pnl": _summarize_values(fee_observed_rows, "fee_adjusted_observed_pnl_usd"),
         "mae": {
             "count": sum(1 for row in rows if row.mae_pnl_usd is not None),
             "average": (sum(row.mae_pnl_usd for row in rows if row.mae_pnl_usd is not None) / max(1, sum(1 for row in rows if row.mae_pnl_usd is not None))),
@@ -572,6 +696,7 @@ def summarize_trade_pairs(rows: list[TradePairRow]) -> dict[str, Any]:
         "notes": {
             "actual_unavailable": "actual_pnl average uses only rows with actual data; missing actual rows are excluded, not imputed"
             if len(actual_rows) < total else "all rows have actual pnl",
+            "fee_model": "fee_adjusted pnl applies assumed taker fees only to legs tagged taker/mixed; maker-like and unknown legs are treated as zero-fee, and expiry settlements pay no exit fee",
         },
     }
 

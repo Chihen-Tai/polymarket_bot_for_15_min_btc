@@ -54,6 +54,18 @@ def decide_exit(
     ):
         return ExitDecision(True, "failed-follow-through", pnl_pct, hold_sec)
 
+    # Dead trades that never developed are better recycled while there is still
+    # enough clock to earn a fresh signal in the same market.
+    if (
+        hold_sec >= getattr(SETTINGS, "stalled_exit_window_sec", 35)
+        and secs_left is not None
+        and secs_left >= getattr(SETTINGS, "stalled_exit_min_secs_left", 45)
+        and not has_extracted_principal
+        and abs(pnl_pct) <= getattr(SETTINGS, "stalled_exit_max_abs_pnl_pct", 0.02)
+        and mfe_pnl_pct <= getattr(SETTINGS, "stalled_exit_max_mfe_pct", 0.02)
+    ):
+        return ExitDecision(True, "stalled-trade", pnl_pct, hold_sec)
+
     # 2. Stop Loss Handling
     if getattr(SETTINGS, "smart_stop_loss_enabled", False):
         if pnl_pct <= -SETTINGS.stop_loss_pct:
@@ -100,4 +112,5 @@ def maybe_reverse_entry(*, signal_side: Optional[str], live_consec_losses: int, 
 
 
 def can_reenter_same_market(*, has_current_market_pos: bool, closed_any: bool, secs_left: Optional[float]) -> bool:
-    return bool(closed_any and (not has_current_market_pos) and secs_left is not None and secs_left >= 60)
+    min_secs_left = float(getattr(SETTINGS, "same_market_reentry_min_secs_left", 60))
+    return bool(closed_any and (not has_current_market_pos) and secs_left is not None and secs_left >= min_secs_left)

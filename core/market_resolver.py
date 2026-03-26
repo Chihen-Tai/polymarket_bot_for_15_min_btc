@@ -22,6 +22,27 @@ def _coerce_ids(v):
     return v if isinstance(v, list) else []
 
 
+def _extract_token_pair(m: dict) -> tuple[str, str] | tuple[None, None]:
+    ids = _coerce_ids(m.get("clobTokenIds"))
+    if len(ids) < 2:
+        return None, None
+
+    outcomes = _coerce_ids(m.get("outcomes"))
+    mapped: dict[str, str] = {}
+    for idx, outcome in enumerate(outcomes):
+        if idx >= len(ids):
+            break
+        label = str(outcome or "").strip().lower()
+        if label == "up":
+            mapped["up"] = str(ids[idx])
+        elif label == "down":
+            mapped["down"] = str(ids[idx])
+
+    if mapped.get("up") and mapped.get("down"):
+        return mapped["up"], mapped["down"]
+    return str(ids[0]), str(ids[1])
+
+
 def _fetch_by_slug(slug: str):
     r = requests.get(
         "https://gamma-api.polymarket.com/markets",
@@ -34,15 +55,15 @@ def _fetch_by_slug(slug: str):
     if not arr:
         return None
     m = arr[0]
-    ids = _coerce_ids(m.get("clobTokenIds"))
-    if len(ids) < 2:
+    token_up, token_down = _extract_token_pair(m)
+    if not token_up or not token_down:
         return None
     return {
         "question": m.get("question"),
         "slug": m.get("slug") or slug,
         "condition_id": m.get("conditionId"),
-        "token_up": str(ids[0]),
-        "token_down": str(ids[1]),
+        "token_up": token_up,
+        "token_down": token_down,
         "outcomes": m.get("outcomes"),
         "outcomePrices": m.get("outcomePrices"),
         "endDate": m.get("endDate") or m.get("end_date_iso"),
@@ -82,27 +103,27 @@ def resolve_latest_btc_5m_token_ids() -> dict:
         slug = (m.get("slug") or "")
         if prefix.lower() not in slug.lower():
             continue
-        ids = _coerce_ids(m.get("clobTokenIds"))
-        if len(ids) < 2:
+        token_up, token_down = _extract_token_pair(m)
+        if not token_up or not token_down:
             continue
         # 優先取 slug 最後的 epoch 數字
         try:
             tail = int(slug.split("-")[-1])
         except Exception:
             tail = 0
-        candidates.append((tail, m, ids))
+        candidates.append((tail, m, token_up, token_down))
 
     if not candidates:
         raise MarketResolutionError(f"no active markets with slug prefix: {prefix}")
 
     candidates.sort(key=lambda x: x[0], reverse=True)
-    _, m, ids = candidates[0]
+    _, m, token_up, token_down = candidates[0]
     return {
         "question": m.get("question"),
         "slug": m.get("slug"),
         "condition_id": m.get("conditionId"),
-        "token_up": str(ids[0]),
-        "token_down": str(ids[1]),
+        "token_up": token_up,
+        "token_down": token_down,
         "outcomes": m.get("outcomes"),
         "outcomePrices": m.get("outcomePrices"),
         "endDate": m.get("endDate") or m.get("end_date_iso"),

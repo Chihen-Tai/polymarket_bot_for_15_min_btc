@@ -9,9 +9,14 @@ from core.config import SETTINGS
 from core.decision_engine import explain_choose_side
 from core.journal import replay_open_positions
 from core.learning import StrategyScoreboard
+from core.market_resolver import _extract_token_pair
 from core.runner import (
     RuntimeFlags,
+    assess_entry_liquidity,
     apply_scoreboard_aux_probability,
+    decide_pending_order_action,
+    entry_response_has_actionable_state,
+    normalize_execution_style as normalize_runner_execution_style,
     refresh_runtime_flags,
     observe_api_latency,
     paper_settlement_from_last_mark,
@@ -25,7 +30,14 @@ from core.runner import (
 from core.trade_manager import decide_exit, maybe_reverse_entry, can_reenter_same_market
 import core.learning as learning_mod
 import scripts.journal_analysis as journal_analysis_mod
-from scripts.journal_analysis import build_exit_accounting_rows, build_trade_pairs, classify_actual_source_tier, load_trade_events
+from scripts.journal_analysis import (
+    build_exit_accounting_rows,
+    build_trade_pairs,
+    classify_actual_source_tier,
+    load_trade_events,
+    normalize_execution_style as normalize_report_execution_style,
+    summarize_trade_pairs,
+)
 
 
 def main():
@@ -38,11 +50,15 @@ def main():
     SETTINGS.max_hold_seconds = 90
     SETTINGS.min_entry_price = 0.35
     SETTINGS.max_entry_price = 0.75
+    SETTINGS.entry_max_spread = 0.03
+    SETTINGS.entry_min_best_ask_multiple = 2.0
+    SETTINGS.entry_min_total_ask_multiple = 6.0
     SETTINGS.entry_window_min_sec = 120
     SETTINGS.entry_window_max_sec = 999999.0
     SETTINGS.exit_deadline_sec = 20
     SETTINGS.exit_deadline_flat_pnl_pct = 0.0
     SETTINGS.edge_threshold = 0.02
+    SETTINGS.report_assumed_taker_fee_rate = 0.0156
     SETTINGS.late_entry_edge_penalty = 0.015
     SETTINGS.rich_price_edge_penalty = 0.015
     SETTINGS.scoreboard_aux_weight = 0.10
@@ -53,6 +69,11 @@ def main():
     SETTINGS.failed_follow_through_loss_pct = 0.03
     SETTINGS.failed_follow_through_max_mfe_pct = 0.02
     SETTINGS.failed_follow_through_min_secs_left = 90
+    SETTINGS.stalled_exit_window_sec = 35
+    SETTINGS.stalled_exit_max_abs_pnl_pct = 0.02
+    SETTINGS.stalled_exit_max_mfe_pct = 0.02
+    SETTINGS.stalled_exit_min_secs_left = 45
+    SETTINGS.same_market_reentry_min_secs_left = 45
     SETTINGS.ws_stale_max_age_sec = 5.0
     SETTINGS.ws_stale_fail_safe_streak = 2
     SETTINGS.api_slow_threshold_ms = 1500.0
@@ -129,6 +150,92 @@ def main():
             "mae_pnl_usd": -0.1,
         },
     ])
+    fee_summary_rows = build_trade_pairs([
+        {
+            "kind": "entry",
+            "ts": "2026-03-19T10:00:00",
+            "event_id": "entry_fee_active",
+            "position_id": "pos_fee_active",
+            "slug": "m_fee_active",
+            "side": "UP",
+            "token_id": "tok_fee_active",
+            "shares": 10,
+            "cost_usd": 1.0,
+            "execution_style": "taker",
+        },
+        {
+            "kind": "exit",
+            "ts": "2026-03-19T10:01:00",
+            "event_id": "exit_fee_active",
+            "position_id": "pos_fee_active",
+            "slug": "m_fee_active",
+            "side": "UP",
+            "token_id": "tok_fee_active",
+            "closed_shares": 10,
+            "remaining_shares": 0,
+            "realized_cost_usd": 1.0,
+            "actual_exit_value_usd": 1.2,
+            "observed_exit_value_usd": 1.2,
+            "reason": "take-profit-hard",
+            "exit_execution_style": "taker",
+        },
+        {
+            "kind": "entry",
+            "ts": "2026-03-19T10:02:00",
+            "event_id": "entry_fee_expiry",
+            "position_id": "pos_fee_expiry",
+            "slug": "m_fee_expiry",
+            "side": "DOWN",
+            "token_id": "tok_fee_expiry",
+            "shares": 10,
+            "cost_usd": 1.0,
+            "execution_style": "taker",
+        },
+        {
+            "kind": "exit",
+            "ts": "2026-03-19T10:05:00",
+            "event_id": "exit_fee_expiry",
+            "position_id": "pos_fee_expiry",
+            "slug": "m_fee_expiry",
+            "side": "DOWN",
+            "token_id": "tok_fee_expiry",
+            "closed_shares": 10,
+            "remaining_shares": 0,
+            "realized_cost_usd": 1.0,
+            "actual_exit_value_usd": 1.8,
+            "observed_exit_value_usd": 1.8,
+            "reason": "dry-run-market-expired-binary-win",
+            "exit_execution_style": "expiry-settlement",
+        },
+    ])
+    fee_summary = summarize_trade_pairs(fee_summary_rows)
+    book_gate_ok = assess_entry_liquidity(
+        book={"best_bid": 0.49, "best_ask": 0.51, "best_ask_size": 5.0, "asks_volume": 20.0},
+        est_shares=2.0,
+        max_spread=0.03,
+        min_best_ask_multiple=2.0,
+        min_total_ask_multiple=6.0,
+    )
+    book_gate_wide = assess_entry_liquidity(
+        book={"best_bid": 0.45, "best_ask": 0.51, "best_ask_size": 5.0, "asks_volume": 20.0},
+        est_shares=2.0,
+        max_spread=0.03,
+        min_best_ask_multiple=2.0,
+        min_total_ask_multiple=6.0,
+    )
+    book_gate_thin = assess_entry_liquidity(
+        book={"best_bid": 0.49, "best_ask": 0.51, "best_ask_size": 2.0, "asks_volume": 8.0},
+        est_shares=2.0,
+        max_spread=0.03,
+        min_best_ask_multiple=2.0,
+        min_total_ask_multiple=6.0,
+    )
+    reversed_token_pair = _extract_token_pair(
+        {
+            "outcomes": '["Down", "Up"]',
+            "clobTokenIds": '["tok_down", "tok_up"]',
+        }
+    )
 
     future_end = (datetime.now(timezone.utc) + timedelta(seconds=180)).isoformat()
     observed_price_decision = explain_choose_side(
@@ -270,6 +377,9 @@ def main():
         ),
         ("failed_follow_through", decide_exit(pnl_pct=-0.04, hold_sec=50, secs_left=200, mfe_pnl_pct=0.01).reason == "failed-follow-through"),
         ("failed_follow_through_skips_if_signal_showed_life", decide_exit(pnl_pct=-0.04, hold_sec=50, secs_left=200, mfe_pnl_pct=0.05).reason != "failed-follow-through"),
+        ("stalled_trade_exit", decide_exit(pnl_pct=0.0, hold_sec=40, secs_left=55, mfe_pnl_pct=0.01).reason == "stalled-trade"),
+        ("stalled_trade_skips_if_trade_showed_life", decide_exit(pnl_pct=0.0, hold_sec=40, secs_left=55, mfe_pnl_pct=0.05).reason != "stalled-trade"),
+        ("stalled_trade_skips_if_reentry_window_too_short", decide_exit(pnl_pct=0.0, hold_sec=40, secs_left=40, mfe_pnl_pct=0.01).reason != "stalled-trade"),
         ("deadline_exit_flat_without_principal", decide_exit(pnl_pct=0.0, hold_sec=50, secs_left=10).reason == "deadline-exit-flat"),
         ("deadline_exit_allows_moonbag_hold", decide_exit(pnl_pct=0.0, hold_sec=50, secs_left=10, has_extracted_principal=True).reason != "deadline-exit-flat"),
         ("smart_stop_loss_after_scale_out", decide_exit(pnl_pct=-0.08, hold_sec=5, recovery_chance_low=True, has_scaled_out_loss=True).reason == "smart-stop-loss"),
@@ -289,7 +399,8 @@ def main():
             and maybe_reverse_entry(signal_side="UP", live_consec_losses=2, last_loss_side="UP").side == "DOWN"
             and maybe_reverse_entry(signal_side="UP", live_consec_losses=2, last_loss_side="DOWN").side == "UP",
         ),
-        ("reenter_gate", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=80) is True),
+        ("reenter_gate", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=50) is True),
+        ("reenter_gate_respects_min_secs_left", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=40) is False),
         ("reenter_block", can_reenter_same_market(has_current_market_pos=True, closed_any=True, secs_left=80) is False),
         ("journal_partial_close_shares", abs(lots["tok1"]["shares"] - 6.0) < 1e-9),
         ("journal_partial_close_cost", abs(lots["tok1"]["cost_usd"] - 0.6) < 1e-9),
@@ -297,6 +408,7 @@ def main():
         ("exit_accounting_diff", len(accounting_rows) == 1 and abs((accounting_rows[0].difference_usd or 0.0) - 0.05) < 1e-9),
         ("trade_pair_closed", len(pair_rows) == 1 and pair_rows[0].status == "closed"),
         ("trade_pair_actual_pnl", len(pair_rows) == 1 and abs((pair_rows[0].actual_pnl_usd or 0.0) - 0.2) < 1e-9),
+        ("trade_pair_fee_adjusted_defaults_unknown_to_zero", len(pair_rows) == 1 and abs((pair_rows[0].fee_adjusted_actual_pnl_usd or 0.0) - 0.2) < 1e-9),
         ("trade_pair_mae_mfe", len(pair_rows) == 1 and pair_rows[0].mae_pnl_usd == -0.1 and pair_rows[0].mfe_pnl_usd == 0.2),
         ("decision_engine_uses_observed_prices", observed_price_decision.get("ok") and observed_price_decision.get("side") == "UP" and abs((observed_price_decision.get("entry_price") or 0.0) - 0.45) < 1e-9),
         ("decision_engine_returns_model_probability", observed_price_decision.get("ok") and (observed_price_decision.get("model_probability") or 0.0) > (observed_price_decision.get("entry_price") or 1.0)),
@@ -311,6 +423,58 @@ def main():
         ("summarize_entry_edge_blocks_weak_late_trade", summarize_entry_edge(win_rate=0.56, entry_price=0.55, secs_left=140, history_count=30)["ok"] is False),
         ("summarize_entry_edge_allows_fresh_discounted_trade", summarize_entry_edge(win_rate=0.50, entry_price=0.48, secs_left=250, history_count=0)["ok"] is True),
         ("stabilize_entry_win_rate_floors_sparse_history", abs(stabilize_entry_win_rate(0.18, 1) - 0.50) < 1e-9),
+        ("entry_response_actionable_on_fill", entry_response_has_actionable_state({"response": {"takingAmount": "1.25"}}) is True),
+        ("entry_response_actionable_on_order_id", entry_response_has_actionable_state({"response": {"orderID": "abc123"}}) is True),
+        ("entry_response_not_actionable_when_empty", entry_response_has_actionable_state({"response": {}}) is False),
+        ("runner_normalizes_timeout_fallback_as_taker", normalize_runner_execution_style("maker-timeout-fallback") == "taker"),
+        ("report_normalizes_timeout_fallback_as_taker", normalize_report_execution_style("maker-timeout-fallback") == "taker"),
+        ("report_normalizes_taker_simulated_as_taker", normalize_report_execution_style("taker-simulated") == "taker"),
+        ("market_resolver_maps_tokens_by_outcome_label", reversed_token_pair == ("tok_up", "tok_down")),
+        ("entry_book_gate_passes_normal_book", book_gate_ok["ok"] is True and abs(float(book_gate_ok["spread"] or 0.0) - 0.02) < 1e-9),
+        ("entry_book_gate_blocks_wide_spread", book_gate_wide["ok"] is False and book_gate_wide["reason"] == "spread-too-wide"),
+        ("entry_book_gate_blocks_thin_depth", book_gate_thin["ok"] is False and book_gate_thin["reason"] == "best-ask-too-thin"),
+        (
+            "pending_order_timeout_prefers_taker_fallback",
+            decide_pending_order_action(
+                order_still_open=True,
+                age_sec=20.0,
+                side="UP",
+                ws_vel=0.0,
+                cancel_velocity=0.003,
+                timeout_sec=15.0,
+                has_live_position=False,
+                fallback_enabled=True,
+                fallback_attempted=False,
+            ) == "fallback-taker",
+        ),
+        (
+            "pending_order_reversal_cancels",
+            decide_pending_order_action(
+                order_still_open=True,
+                age_sec=5.0,
+                side="DOWN",
+                ws_vel=0.01,
+                cancel_velocity=0.003,
+                timeout_sec=15.0,
+                has_live_position=False,
+                fallback_enabled=True,
+                fallback_attempted=False,
+            ) == "cancel-reversal",
+        ),
+        (
+            "pending_order_gone_without_live_position",
+            decide_pending_order_action(
+                order_still_open=False,
+                age_sec=5.0,
+                side="UP",
+                ws_vel=0.0,
+                cancel_velocity=0.003,
+                timeout_sec=15.0,
+                has_live_position=False,
+                fallback_enabled=True,
+                fallback_attempted=False,
+            ) == "gone",
+        ),
         ("observe_api_latency_detects_slow_call", slow_detected is True and abs(health_flags.last_api_latency_ms - 1600.0) < 1e-9),
         ("network_fail_safe_activates_on_slow_api_streak", activated_after_slow is True and any("ACTIVATED" in note for note in slow_notes_3)),
         ("network_fail_safe_clears_after_recovery", cleared_after_recovery is False and any("CLEARED" in note for note in clear_notes_2)),
@@ -329,6 +493,13 @@ def main():
             and abs(reloaded_flags.last_api_latency_ms - 2222.0) < 1e-9
         ),
         ("actual_source_tier_maker_balance_delta", classify_actual_source_tier("maker-balance-delta", 1.0) == "high"),
+        (
+            "summary_tracks_fee_adjusted_and_buckets",
+            fee_summary["close_bucket_counts"] == {"active-close": 1, "expiry-binary-win": 1}
+            and abs((fee_summary["fee_adjusted_actual_pnl"]["sum"] or 0.0) - (0.16568 + 0.7844)) < 1e-6
+            and abs((fee_summary["close_bucket_pnl"]["active-close"]["fee_adjusted_actual_pnl"]["sum"] or 0.0) - 0.16568) < 1e-6
+            and abs((fee_summary["close_bucket_pnl"]["expiry-binary-win"]["fee_adjusted_actual_pnl"]["sum"] or 0.0) - 0.7844) < 1e-6
+        ),
         ("strategy_name_for_reversed_side", strategy_name_for_side("model-ws_order_flow_down", "UP") == "model-ws_order_flow_up"),
         ("hard_stop_shield_opt_in_default", SETTINGS.enable_hard_stop_shield is False),
     ]

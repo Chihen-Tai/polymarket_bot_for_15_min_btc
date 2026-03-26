@@ -412,6 +412,7 @@ class PolymarketExchange:
                 "mode": "dry-run",
                 "side": side,
                 "amount_usd": amount_usd,
+                "execution_style": "taker-simulated",
                 "response": mock_resp,
             }
 
@@ -461,6 +462,7 @@ class PolymarketExchange:
             "mode": "live",
             "side": side,
             "amount_usd": amount_usd,
+            "execution_style": "taker" if force_taker else "maker",
             "response": resp,
         }
 
@@ -475,6 +477,7 @@ class PolymarketExchange:
             
             bids_vol, asks_vol = 0.0, 0.0
             best_bid, best_ask = 0.0, 1.0
+            best_bid_size, best_ask_size = 0.0, 0.0
 
             bids = book.get("bids", [])
             for lv in (bids if isinstance(bids, list) else []):
@@ -483,6 +486,7 @@ class PolymarketExchange:
                 bids_vol += sz
                 if price > best_bid:
                     best_bid = price
+                    best_bid_size = sz
 
             asks = book.get("asks", [])
             for lv in (asks if isinstance(asks, list) else []):
@@ -491,8 +495,16 @@ class PolymarketExchange:
                 asks_vol += sz
                 if price < best_ask:
                     best_ask = price
+                    best_ask_size = sz
 
-            return {"bids_volume": bids_vol, "asks_volume": asks_vol, "best_bid": best_bid, "best_ask": best_ask}
+            return {
+                "bids_volume": bids_vol,
+                "asks_volume": asks_vol,
+                "best_bid": best_bid,
+                "best_ask": best_ask,
+                "best_bid_size": best_bid_size,
+                "best_ask_size": best_ask_size,
+            }
         except Exception:
             return {}
 
@@ -581,7 +593,8 @@ class PolymarketExchange:
                 "actual_exit_value_source": "paper_trade_simulation",
                 "close_response_value": value_received,
                 "close_response_value_source": "paper_trade_simulation",
-                "remaining_shares": remaining_shares
+                "remaining_shares": remaining_shares,
+                "execution_style": "taker-simulated",
             }
 
         from py_clob_client.clob_types import MarketOrderArgs, OrderArgs, OrderType
@@ -597,6 +610,8 @@ class PolymarketExchange:
         usdc_received_total: float | None = None  # Strictly USDC received (takingAmount sum)
         usdc_received_source = "close_response_unavailable"
         shares_sold_per_attempt: list[float] = []  # Shares filled per attempt (for debug)
+        maker_filled = False
+        taker_filled = False
         
         while remaining > 0.0001 and attempts < 8:
             attempts += 1
@@ -652,6 +667,7 @@ class PolymarketExchange:
                         filled_shares = min(remaining, new_usdc_this_round / target_price)
                         usdc_this = new_usdc_this_round
                         usdc_src = "maker-balance-delta"
+                        maker_filled = True
                     else:
                         filled_shares = 0.0
                         usdc_this = 0.0
@@ -670,6 +686,8 @@ class PolymarketExchange:
                     last_resp = self.client.post_order(order, OrderType.FAK)
                     usdc_this, usdc_src = self._extract_close_usdc_received(last_resp)
                     filled_shares, _ = self._extract_close_shares_sold(last_resp)
+                    if filled_shares and filled_shares > 0:
+                        taker_filled = True
 
                 if usdc_this is not None and usdc_this > 0:
                     usdc_received_total = (usdc_received_total or 0.0) + usdc_this
@@ -709,6 +727,14 @@ class PolymarketExchange:
         # Prefer USDC received from response (most accurate); fallback to cash delta
         best_exit_value = usdc_received_total if (usdc_received_total and usdc_received_total > 0) else cash_delta
         best_exit_source = usdc_received_source if (usdc_received_total and usdc_received_total > 0) else cash_delta_source
+        if maker_filled and taker_filled:
+            execution_style = "mixed"
+        elif taker_filled or force_taker:
+            execution_style = "taker"
+        elif maker_filled:
+            execution_style = "maker"
+        else:
+            execution_style = "unknown"
         return {
             "ok": ok,
             "mode": "live",
@@ -725,6 +751,7 @@ class PolymarketExchange:
             "close_response_value": usdc_received_total,
             "close_response_value_source": usdc_received_source,
             "close_response_amount_fields": {"shares_sold_per_attempt": str(shares_sold_per_attempt)},
+            "execution_style": execution_style,
         }
 
     def settle_mock(self, pnl: float):

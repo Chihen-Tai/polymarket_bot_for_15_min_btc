@@ -104,6 +104,8 @@ class PendingOrder:
     token_id: str
     placed_ts: float
     order_usd: float
+    entry_reason: str = "signal"
+    fallback_attempted: bool = False
 
 
 @dataclass
@@ -118,6 +120,245 @@ class RuntimeFlags:
     ws_stale_streak: int = 0
     network_recovery_streak: int = 0
     last_api_latency_ms: float = 0.0
+
+
+def normalize_execution_style(style: str | None, *, default: str = "unknown") -> str:
+    raw = str(style or "").strip().lower()
+    if not raw:
+        return default
+    if "mixed" in raw:
+        return "mixed"
+    if "expiry" in raw:
+        return "expiry-settlement"
+    if "taker" in raw:
+        return "taker"
+    if raw in {"maker-timeout-fallback", "simulated-cross", "dry-run-cross", "dry_run_cross"}:
+        return "taker"
+    if "timeout-fallback" in raw:
+        return "taker"
+    if "maker" in raw:
+        return "maker"
+    if raw in {"dry-run", "dry_run"}:
+        return default
+    return raw
+
+
+def extract_entry_response_details(resp: dict | None) -> tuple[float, str]:
+    payload = resp.get("response", {}) if isinstance(resp, dict) else {}
+    if not isinstance(payload, dict):
+        return 0.0, ""
+    shares = float(payload.get("takingAmount", 0) or 0.0)
+    order_id = str(payload.get("orderID") or "")
+    return shares, order_id
+
+
+def entry_response_has_actionable_state(resp: dict | None) -> bool:
+    shares, order_id = extract_entry_response_details(resp)
+    return shares > 0 or bool(order_id)
+
+
+def decide_pending_order_action(
+    *,
+    order_still_open: bool,
+    age_sec: float,
+    side: str,
+    ws_vel: float,
+    cancel_velocity: float,
+    timeout_sec: float,
+    has_live_position: bool,
+    fallback_enabled: bool,
+    fallback_attempted: bool,
+) -> str:
+    if not order_still_open:
+        return "filled" if has_live_position else "gone"
+    if cancel_velocity > 0.0:
+        reversal = (
+            (side == "UP" and ws_vel < -cancel_velocity)
+            or (side == "DOWN" and ws_vel > cancel_velocity)
+        )
+        if reversal:
+            return "cancel-reversal"
+    if age_sec > timeout_sec:
+        if has_live_position:
+            return "filled"
+        if fallback_enabled and not fallback_attempted:
+            return "fallback-taker"
+        return "cancel-timeout"
+    return "wait"
+
+
+def track_pending_fill(
+    open_positions: list["OpenPos"],
+    po: PendingOrder,
+    *,
+    shares: float,
+    cost_usd: float,
+    entry_reason: str | None = None,
+    source: str = "pending-order",
+    execution_style: str | None = None,
+) -> bool:
+    if shares <= LOT_EPS_SHARES:
+        return False
+    if any(p.token_id == po.token_id for p in open_positions):
+        return False
+    opened_ts = time.time()
+    position_id = f"pos_{int(opened_ts)}_{po.token_id[-6:]}"
+    reason = entry_reason or po.entry_reason or "signal"
+    open_positions.append(OpenPos(
+        slug=po.slug,
+        side=po.side,
+        token_id=po.token_id,
+        shares=shares,
+        cost_usd=cost_usd,
+        opened_ts=opened_ts,
+        position_id=position_id,
+        entry_reason=reason,
+        source=source,
+        pending_confirmation=True,
+        max_favorable_value_usd=cost_usd,
+        max_adverse_value_usd=cost_usd,
+        max_favorable_pnl_usd=0.0,
+        max_adverse_pnl_usd=0.0,
+    ))
+    append_event({
+        "kind": "entry",
+        "slug": po.slug,
+        "side": po.side,
+        "token_id": po.token_id,
+        "position_id": position_id,
+        "shares": shares,
+        "cost_usd": cost_usd,
+        "opened_ts": opened_ts,
+        "entry_reason": reason,
+        "classification": source,
+        "execution_style": normalize_execution_style(execution_style or source, default="maker"),
+        "mae_pnl_usd": 0.0,
+        "mfe_pnl_usd": 0.0,
+    })
+    return True
+
+
+def assess_entry_liquidity(
+    *,
+    book: dict | None,
+    est_shares: float,
+    max_spread: float,
+    min_best_ask_multiple: float,
+    min_total_ask_multiple: float,
+) -> dict[str, float | bool | str | None]:
+    if not isinstance(book, dict):
+        return {"ok": True, "available": False, "reason": "book-unavailable"}
+
+    best_bid = float(book.get("best_bid", 0.0) or 0.0)
+    best_ask = float(book.get("best_ask", 0.0) or 0.0)
+    best_ask_size = float(book.get("best_ask_size", 0.0) or 0.0)
+    asks_volume = float(book.get("asks_volume", 0.0) or 0.0)
+
+    if best_bid <= 0.0 or best_ask <= 0.0 or best_ask < best_bid:
+        return {"ok": True, "available": False, "reason": "book-unavailable"}
+
+    spread = max(0.0, best_ask - best_bid)
+    min_best_ask = max(0.0, est_shares * max(0.0, min_best_ask_multiple))
+    min_total_ask = max(0.0, est_shares * max(0.0, min_total_ask_multiple))
+
+    if max_spread > 0.0 and spread > max_spread:
+        return {
+            "ok": False,
+            "available": True,
+            "reason": "spread-too-wide",
+            "spread": spread,
+            "best_bid": best_bid,
+            "best_ask": best_ask,
+            "best_ask_size": best_ask_size,
+            "asks_volume": asks_volume,
+        }
+
+    if min_best_ask > 0.0 and best_ask_size < min_best_ask:
+        return {
+            "ok": False,
+            "available": True,
+            "reason": "best-ask-too-thin",
+            "spread": spread,
+            "best_bid": best_bid,
+            "best_ask": best_ask,
+            "best_ask_size": best_ask_size,
+            "asks_volume": asks_volume,
+            "required_best_ask": min_best_ask,
+        }
+
+    if min_total_ask > 0.0 and asks_volume < min_total_ask:
+        return {
+            "ok": False,
+            "available": True,
+            "reason": "ask-depth-too-thin",
+            "spread": spread,
+            "best_bid": best_bid,
+            "best_ask": best_ask,
+            "best_ask_size": best_ask_size,
+            "asks_volume": asks_volume,
+            "required_asks_volume": min_total_ask,
+        }
+
+    return {
+        "ok": True,
+        "available": True,
+        "reason": "ok",
+        "spread": spread,
+        "best_bid": best_bid,
+        "best_ask": best_ask,
+        "best_ask_size": best_ask_size,
+        "asks_volume": asks_volume,
+    }
+
+
+def place_entry_order_with_retry(
+    ex: PolymarketExchange,
+    side: str,
+    amount_usd: float,
+    token_id: str,
+    *,
+    simulated_price: float | None,
+    force_taker: bool,
+    max_attempts: int,
+    backoff_sec: float,
+) -> tuple[dict, list[float], int]:
+    attempts = max(1, int(max_attempts))
+    backoff = max(0.0, float(backoff_sec))
+    latencies_ms: list[float] = []
+    last_resp: dict | None = None
+    last_error: Exception | None = None
+
+    for attempt in range(1, attempts + 1):
+        started = time.perf_counter()
+        try:
+            resp = ex.place_order(
+                side,
+                amount_usd,
+                token_id,
+                simulated_price=simulated_price,
+                force_taker=force_taker,
+            )
+            latencies_ms.append((time.perf_counter() - started) * 1000.0)
+            last_resp = resp
+            if entry_response_has_actionable_state(resp):
+                return resp, latencies_ms, attempt
+            last_error = RuntimeError("no-takingAmount-no-orderID")
+        except Exception as exc:
+            latencies_ms.append((time.perf_counter() - started) * 1000.0)
+            last_error = exc
+            if attempt >= attempts:
+                raise
+
+        if attempt < attempts:
+            log(
+                f"entry retry scheduled | side={side} attempt={attempt + 1}/{attempts} "
+                f"reason={last_error}"
+            )
+            time.sleep(backoff)
+
+    if last_resp is not None:
+        return last_resp, latencies_ms, attempts
+    raise last_error or RuntimeError("entry retry exhausted without response")
 
 
 def realistic_exit_value(pos: OpenPos, up: float | None, down: float | None, ob_up: dict | None, ob_down: dict | None) -> float | None:
@@ -601,6 +842,7 @@ def save_runtime_state(
     prev_down,
     error_cooldown_until: float,
     open_positions: list[OpenPos],
+    pending_orders: list[PendingOrder],
     flags: RuntimeFlags,
     last_cycle_label: str,
     panic_market_slug: str,
@@ -621,6 +863,7 @@ def save_runtime_state(
         "prev_down": prev_down,
         "error_cooldown_until": error_cooldown_until,
         "open_positions": [p.__dict__ for p in sanitized_positions],
+        "pending_orders": [po.__dict__ for po in pending_orders],
         "live_consec_losses": flags.live_consec_losses,
         "last_loss_side": flags.last_loss_side,
         "close_fail_streak": flags.close_fail_streak,
@@ -760,6 +1003,7 @@ def main():
     prev_up = state.get("prev_up")
     prev_down = state.get("prev_down")
     error_cooldown_until = float(state.get("error_cooldown_until", 0.0))
+    pending_orders = [PendingOrder(**dict(p)) for p in state.get("pending_orders", []) if isinstance(p, dict)]
     flags = load_runtime_flags(state, open_positions)
     panic_market_slug = str(state.get("panic_market_slug") or "")
 
@@ -775,6 +1019,7 @@ def main():
             prev_down=prev_down,
             error_cooldown_until=error_cooldown_until,
             open_positions=open_positions,
+            pending_orders=pending_orders,
             flags=flags,
             last_cycle_label=state.get("last_cycle_label", ""),
             panic_market_slug=panic_market_slug,
@@ -835,6 +1080,7 @@ def main():
                     prev_down=prev_down,
                     error_cooldown_until=error_cooldown_until,
                     open_positions=open_positions,
+                    pending_orders=pending_orders,
                     flags=flags,
                     last_cycle_label=state.get("last_cycle_label", ""),
                     panic_market_slug=panic_market_slug,
@@ -844,13 +1090,16 @@ def main():
             flags = refresh_runtime_flags(flags, open_positions, panic_market_slug)
 
             # --- PENDING ORDERS / KILL-SWITCH ---
-            if 'pending_orders' not in locals():
-                pending_orders = []
-            
             if pending_orders:
                 try:
-                    open_clob_orders = ex.get_open_orders()
+                    open_clob_orders, open_orders_ms = timed_call(ex.get_open_orders)
+                    cycle_had_slow_api = observe_api_latency(flags, "get_open_orders", open_orders_ms) or cycle_had_slow_api
                     open_order_ids = {o.get("orderID") for o in open_clob_orders} if isinstance(open_clob_orders, list) else set()
+                    live_positions_snapshot, pending_pos_ms = timed_call(ex.get_positions)
+                    cycle_had_slow_api = observe_api_latency(flags, "get_positions_pending_orders", pending_pos_ms) or cycle_had_slow_api
+                    live_positions_by_token = {
+                        p.token_id: p for p in (live_positions_snapshot or []) if float(getattr(p, "size", 0.0) or 0.0) > LOT_EPS_SHARES
+                    }
                     
                     ws_vel = 0.0
                     try:
@@ -859,34 +1108,126 @@ def main():
                         pass
                         
                     for po in list(pending_orders):
-                        if po.order_id and po.order_id not in open_order_ids:
-                            log(f"Pending order {po.order_id} filled or cancelled on CLOB.")
-                            open_positions.append(OpenPos(
-                                slug=po.slug,
-                                side=po.side,
-                                token_id=po.token_id,
-                                shares=0.0001, # placeholder till next sync
-                                cost_usd=po.order_usd,
-                                opened_ts=time.time(),
-                                position_id=f"pos_{int(time.time())}_{po.token_id[-6:]}",
-                                entry_reason="maker-fill",
-                                source="live-order",
-                                pending_confirmation=True,
-                                max_favorable_value_usd=po.order_usd,
-                            ))
+                        live_pos = live_positions_by_token.get(po.token_id)
+                        has_live_position = live_pos is not None
+                        order_still_open = bool(po.order_id) and po.order_id in open_order_ids
+                        action = decide_pending_order_action(
+                            order_still_open=order_still_open,
+                            age_sec=time.time() - po.placed_ts,
+                            side=po.side,
+                            ws_vel=ws_vel,
+                            cancel_velocity=float(getattr(SETTINGS, "cancel_on_reversal_velocity", 0.0)),
+                            timeout_sec=float(getattr(SETTINGS, "maker_order_timeout_sec", 15)),
+                            has_live_position=has_live_position,
+                            fallback_enabled=bool(getattr(SETTINGS, "maker_timeout_fallback_taker", True)),
+                            fallback_attempted=bool(getattr(po, "fallback_attempted", False)),
+                        )
+
+                        if action == "filled":
+                            shares = float(live_pos.size) if live_pos is not None else 0.0
+                            cost_usd = float(live_pos.initial_value) if live_pos is not None and float(live_pos.initial_value) > 0 else po.order_usd
+                            track_pending_fill(
+                                open_positions,
+                                po,
+                                shares=shares,
+                                cost_usd=cost_usd,
+                                entry_reason=po.entry_reason,
+                                source="maker-fill-confirmed",
+                            )
+                            log(f"Pending order {po.order_id or 'n/a'} confirmed filled on CLOB/runtime state.")
                             pending_orders.remove(po)
                             continue
-                            
-                        # Kill-Switch: Cancel if adverse velocity
-                        if (po.side == "UP" and ws_vel < -SETTINGS.cancel_on_reversal_velocity) or \
-                           (po.side == "DOWN" and ws_vel > SETTINGS.cancel_on_reversal_velocity):
+
+                        if action == "gone":
+                            log(f"Pending order {po.order_id or 'n/a'} disappeared with no live position; treating as canceled/unfilled.")
+                            pending_orders.remove(po)
+                            continue
+
+                        if action == "cancel-reversal":
                             log(f"KILL-SWITCH TRIGGERED on {po.side} {po.order_id} (velocity: {ws_vel:.4f})")
                             ex.cancel_order(po.order_id)
+                            if live_pos is not None:
+                                shares = float(live_pos.size)
+                                cost_usd = float(live_pos.initial_value) if float(live_pos.initial_value) > 0 else po.order_usd
+                                track_pending_fill(
+                                    open_positions,
+                                    po,
+                                    shares=shares,
+                                    cost_usd=cost_usd,
+                                    entry_reason=po.entry_reason,
+                                    source="maker-cancel-reconciled",
+                                )
                             pending_orders.remove(po)
                             continue
-                            
-                        # Timeout
-                        if time.time() - po.placed_ts > getattr(SETTINGS, "maker_order_timeout_sec", 15):
+
+                        if action == "fallback-taker":
+                            log(f"MAKER TIMEOUT on {po.side} {po.order_id} -> attempting taker fallback")
+                            ex.cancel_order(po.order_id)
+                            po.fallback_attempted = True
+                            try:
+                                fallback_resp, fallback_latencies, fallback_attempts = place_entry_order_with_retry(
+                                    ex,
+                                    po.side,
+                                    po.order_usd,
+                                    po.token_id,
+                                    simulated_price=None,
+                                    force_taker=True,
+                                    max_attempts=int(getattr(SETTINGS, "entry_retry_attempts", 3)),
+                                    backoff_sec=float(getattr(SETTINGS, "entry_retry_backoff_sec", 2.0)),
+                                )
+                                for idx, latency_ms in enumerate(fallback_latencies, start=1):
+                                    cycle_had_slow_api = observe_api_latency(
+                                        flags,
+                                        f"place_order_timeout_fallback#{idx}",
+                                        latency_ms,
+                                    ) or cycle_had_slow_api
+                                shares, _ = extract_entry_response_details(fallback_resp)
+                                if shares > 0:
+                                    track_pending_fill(
+                                        open_positions,
+                                        po,
+                                        shares=shares,
+                                        cost_usd=po.order_usd,
+                                        entry_reason=f"{(po.entry_reason or 'maker-timeout')}+taker-fallback",
+                                        source="maker-timeout-fallback",
+                                        execution_style=(
+                                            fallback_resp.get("execution_style")
+                                            if isinstance(fallback_resp, dict)
+                                            else "taker"
+                                        ),
+                                    )
+                                    maybe_record_cycle_label(state, "maker-timeout-fallback-filled", slug=po.slug, side=po.side)
+                                    log(
+                                        f"maker timeout fallback filled | side={po.side} token={po.token_id} "
+                                        f"attempts={fallback_attempts} shares={shares:.4f}"
+                                    )
+                                else:
+                                    maybe_record_cycle_label(state, "signal-but-no-fill", slug=po.slug, side=po.side, reason="maker-timeout-fallback-no-fill")
+                                    append_event({
+                                        "kind": "entry_attempt",
+                                        "slug": po.slug,
+                                        "side": po.side,
+                                        "token_id": po.token_id,
+                                        "status": "signal-but-no-fill",
+                                        "reason": "maker-timeout-fallback-no-fill",
+                                        "response_mode": fallback_resp.get("mode") if isinstance(fallback_resp, dict) else "",
+                                    })
+                                    log(f"maker timeout fallback returned no fill | side={po.side} token={po.token_id}")
+                            except Exception as fallback_err:
+                                network_notes = update_network_guard(
+                                    flags,
+                                    ws_age=current_ws_age(),
+                                    cycle_had_slow_api=cycle_had_slow_api,
+                                    cycle_api_error=True,
+                                )
+                                for note in network_notes:
+                                    log(note)
+                                error_cooldown_until = time.time() + 20
+                                log(f"maker timeout fallback failed: {fallback_err}")
+                            pending_orders.remove(po)
+                            continue
+
+                        if action == "cancel-timeout":
                             log(f"MAKER TIMEOUT on {po.side} {po.order_id}")
                             ex.cancel_order(po.order_id)
                             pending_orders.remove(po)
@@ -946,7 +1287,9 @@ def main():
                                 "actual_exit_value_usd": resolution_value,
                                 "actual_exit_value_source": close_resp.get("actual_exit_value_source") or "paper_trade_settlement",
                                 "observed_exit_value_usd": resolution_value,
+                                "observed_exit_value_source": "expiry-settlement",
                                 "actual_realized_pnl_usd": realized_pnl,
+                                "exit_execution_style": "expiry-settlement",
                                 "status": "closed",
                                 "reason": f"dry-run-market-expired-{resolution_note}",
                             })
@@ -1210,9 +1553,12 @@ def main():
                                                 "remaining_shares": p.shares,
                                                 "realized_cost_usd": realized_cost,
                                                 "actual_exit_value_usd": _act_val,
+                                                "actual_exit_value_source": close_resp.get("actual_exit_value_source") or "unavailable",
                                                 "actual_realized_pnl_usd": _act_val - realized_cost,
                                                 "observed_exit_value_usd": _obs_val,
+                                                "observed_exit_value_source": "observed_mark_price",
                                                 "observed_realized_pnl_usd": _obs_val - realized_cost,
+                                                "exit_execution_style": normalize_execution_style(close_resp.get("execution_style"), default="maker"),
                                                 "status": "partial",
                                                 "reason": "scale-out",
                                                 "mfe_pnl_usd": p.max_favorable_pnl_usd,
@@ -1255,9 +1601,12 @@ def main():
                                                 "remaining_shares": p.shares,
                                                 "realized_cost_usd": realized_cost,
                                                 "actual_exit_value_usd": _act_val,
+                                                "actual_exit_value_source": close_resp.get("actual_exit_value_source") or "unavailable",
                                                 "actual_realized_pnl_usd": _act_val - realized_cost,
                                                 "observed_exit_value_usd": _obs_val,
+                                                "observed_exit_value_source": "observed_mark_price",
                                                 "observed_realized_pnl_usd": _obs_val - realized_cost,
+                                                "exit_execution_style": normalize_execution_style(close_resp.get("execution_style"), default="maker"),
                                                 "status": "partial",
                                                 "reason": "stop-loss-scale-out",
                                                 "mfe_pnl_usd": p.max_favorable_pnl_usd,
@@ -1301,9 +1650,12 @@ def main():
                                                 "remaining_shares": p.shares,
                                                 "realized_cost_usd": realized_cost,
                                                 "actual_exit_value_usd": _act_val,
+                                                "actual_exit_value_source": close_resp.get("actual_exit_value_source") or "unavailable",
                                                 "actual_realized_pnl_usd": _act_val - realized_cost,
                                                 "observed_exit_value_usd": _obs_val,
+                                                "observed_exit_value_source": "observed_mark_price",
                                                 "observed_realized_pnl_usd": _obs_val - realized_cost,
+                                                "exit_execution_style": normalize_execution_style(close_resp.get("execution_style"), default="maker"),
                                                 "status": "partial",
                                                 "reason": "take-profit-principal",
                                                 "mfe_pnl_usd": p.max_favorable_pnl_usd,
@@ -1467,6 +1819,7 @@ def main():
                                             "observed_realized_pnl_usd": observed_realized_pnl_usd,
                                             "observed_realized_return_pct": observed_realized_return_pct,
                                             "pnl_source": pnl_source,
+                                            "exit_execution_style": normalize_execution_style(close_resp.get("execution_style"), default="maker"),
                                             "reason": exit_decision.reason,
                                             "entry_quality": entry_quality,
                                             "mae_pnl_usd": p.max_adverse_pnl_usd,
@@ -1655,6 +2008,7 @@ def main():
                         prev_down=prev_down,
                         error_cooldown_until=error_cooldown_until,
                         open_positions=open_positions,
+                        pending_orders=pending_orders,
                         flags=flags,
                         last_cycle_label=state.get("last_cycle_label", ""),
                         panic_market_slug=panic_market_slug,
@@ -1691,6 +2045,7 @@ def main():
                 prev_down=prev_down,
                 error_cooldown_until=error_cooldown_until,
                 open_positions=open_positions,
+                pending_orders=pending_orders,
                 flags=flags,
                 last_cycle_label=state.get("last_cycle_label", ""),
                 panic_market_slug=panic_market_slug,
@@ -1790,6 +2145,7 @@ def main():
                 )
 
             order_usd = SETTINGS.max_order_usd
+            entry_book_quality: dict[str, float | bool | str | None] | None = None
             if getattr(SETTINGS, "use_kelly_sizing", False) and signal_origin:
                 try:
                     win_rate = effective_probability if effective_probability is not None else strategy_win_rate
@@ -1815,6 +2171,29 @@ def main():
 
             if signal_side and token_override and entry_price and float(entry_price) > 0:
                 est_shares = order_usd / float(entry_price)
+                try:
+                    entry_book_quality = assess_entry_liquidity(
+                        book=ex.get_full_orderbook(token_override),
+                        est_shares=est_shares,
+                        max_spread=float(getattr(SETTINGS, "entry_max_spread", 0.0)),
+                        min_best_ask_multiple=float(getattr(SETTINGS, "entry_min_best_ask_multiple", 0.0)),
+                        min_total_ask_multiple=float(getattr(SETTINGS, "entry_min_total_ask_multiple", 0.0)),
+                    )
+                except Exception as e:
+                    entry_book_quality = {"ok": True, "available": False, "reason": f"book-check-error:{e}"}
+
+                if entry_book_quality and entry_book_quality.get("available") and not entry_book_quality.get("ok"):
+                    reason = str(entry_book_quality.get("reason") or "book-quality-fail")
+                    maybe_record_cycle_label(state, "signal-blocked", slug=last_market_slug, side=signal_side, reason=reason)
+                    log(
+                        f"skip entry: {reason} | spread={float(entry_book_quality.get('spread') or 0.0):.3f} "
+                        f"ask1={float(entry_book_quality.get('best_ask_size') or 0.0):.2f} "
+                        f"askDepth={float(entry_book_quality.get('asks_volume') or 0.0):.2f} "
+                        f"needShares={est_shares:.2f}"
+                    )
+                    smart_sleep(SETTINGS.poll_seconds)
+                    continue
+
                 if not ex.has_exit_liquidity(token_override, est_shares):
                     maybe_record_cycle_label(state, "signal-but-no-fill", slug=last_market_slug, side=signal_side, reason="weak-exit-liquidity-sized")
                     log(f"skip entry: weak exit liquidity for sized order (${order_usd:.2f}, est_shares={est_shares:.4f})")
@@ -1896,15 +2275,20 @@ def main():
                 except Exception:
                     pass
 
-                resp, order_ms = timed_call(
-                    ex.place_order,
+                resp, order_latencies, order_attempts = place_entry_order_with_retry(
+                    ex,
                     signal_side,
                     order_usd,
                     token_override,
                     simulated_price=sim_price,
                     force_taker=force_taker_snipe,
+                    max_attempts=int(getattr(SETTINGS, "entry_retry_attempts", 3)),
+                    backoff_sec=float(getattr(SETTINGS, "entry_retry_backoff_sec", 2.0)),
                 )
-                observe_api_latency(flags, "place_order", order_ms)
+                for idx, latency_ms in enumerate(order_latencies, start=1):
+                    cycle_had_slow_api = observe_api_latency(flags, f"place_order#{idx}", latency_ms) or cycle_had_slow_api
+                if order_attempts > 1:
+                    log(f"entry order recovered after retry | attempts={order_attempts} side={signal_side}")
                 risk.orders_this_window += 1
                 last_trade_ts = time.time()
                 risk.consec_losses = flags.live_consec_losses
@@ -1947,7 +2331,7 @@ def main():
                             log(f"hedge parsing error: {e}")
                 try:
                     r = resp.get("response", {}) if isinstance(resp, dict) else {}
-                    shares = float(r.get("takingAmount", 0) or 0)
+                    shares, order_id = extract_entry_response_details(resp)
                     token_id = token_override or (market["token_up"] if signal_side == "UP" else market["token_down"])
                     if shares > 0 and token_id:
                         opened_ts = time.time()
@@ -1979,12 +2363,19 @@ def main():
                             "opened_ts": opened_ts,
                             "entry_reason": signal_origin or "signal",
                             "classification": "good-entry-candidate",
+                            "execution_style": normalize_execution_style(
+                                resp.get("execution_style") if isinstance(resp, dict) else "",
+                                default="taker" if force_taker_snipe else "maker",
+                            ),
+                            "entry_price": float(entry_price),
+                            "entry_book_spread": (float(entry_book_quality.get("spread")) if entry_book_quality and entry_book_quality.get("spread") is not None else None),
+                            "entry_best_ask_size": (float(entry_book_quality.get("best_ask_size")) if entry_book_quality and entry_book_quality.get("best_ask_size") is not None else None),
+                            "entry_ask_depth_shares": (float(entry_book_quality.get("asks_volume")) if entry_book_quality and entry_book_quality.get("asks_volume") is not None else None),
                             "mae_pnl_usd": 0.0,
                             "mfe_pnl_usd": 0.0,
                         })
                         maybe_record_cycle_label(state, "good-entry", slug=market["slug"], side=signal_side, reason=signal_origin or "signal")
                     else:
-                        order_id = r.get("orderID")
                         if order_id:
                             pending_orders.append(PendingOrder(
                                 order_id=order_id,
@@ -1992,7 +2383,9 @@ def main():
                                 side=signal_side,
                                 token_id=token_id,
                                 placed_ts=time.time(),
-                                order_usd=order_usd
+                                order_usd=order_usd,
+                                entry_reason=signal_origin or "signal",
+                                fallback_attempted=False,
                             ))
                             maybe_record_cycle_label(state, "maker-order-placed", slug=market["slug"], side=signal_side, reason="waiting-for-fill")
                             log(f"Maker order placed on {signal_side}, awaiting fill: {order_id}")
@@ -2020,6 +2413,7 @@ def main():
                     prev_down=prev_down,
                     error_cooldown_until=error_cooldown_until,
                     open_positions=open_positions,
+                    pending_orders=pending_orders,
                     flags=flags,
                     last_cycle_label=state.get("last_cycle_label", ""),
                     panic_market_slug=panic_market_slug,
@@ -2057,18 +2451,19 @@ def main():
                     prev_down=prev_down,
                     error_cooldown_until=error_cooldown_until,
                     open_positions=open_positions,
+                    pending_orders=pending_orders,
                     flags=flags,
                     last_cycle_label=state.get("last_cycle_label", ""),
                     panic_market_slug=panic_market_slug,
                 )
-                has_active = bool(open_positions) or (len(pending_orders) > 0 if 'pending_orders' in locals() else False)
+                has_active = bool(open_positions) or bool(pending_orders)
                 if has_active:
                     smart_sleep(1.5)
                 else:
                     smart_sleep(SETTINGS.poll_seconds)
                 continue
 
-            has_active = bool(open_positions) or (len(pending_orders) > 0 if 'pending_orders' in locals() else False)
+            has_active = bool(open_positions) or bool(pending_orders)
             if has_active:
                 smart_sleep(1.5)
             elif "secs_left" in locals() and secs_left is not None and 200 <= secs_left <= 260:

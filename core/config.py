@@ -1,6 +1,10 @@
 import os
 from dataclasses import dataclass
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except Exception:
+    def load_dotenv(*args, **kwargs):
+        return False
 
 from pathlib import Path
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
@@ -61,6 +65,7 @@ class Settings:
     # Integrated decision rules (from prior paper simulations)
     edge_threshold: float = _f("EDGE_THRESHOLD", 0.02)
     fee_buffer: float = _f("FEE_BUFFER", 0.01)
+    report_assumed_taker_fee_rate: float = _f("REPORT_ASSUMED_TAKER_FEE_RATE", 0.0156)
     scoreboard_neutral_pnl_pct: float = _f("SCOREBOARD_NEUTRAL_PNL_PCT", 0.001)
     scoreboard_entry_gate_min_decisive_trades: int = _i("SCOREBOARD_ENTRY_GATE_MIN_DECISIVE_TRADES", 5)
     scoreboard_aux_weight: float = _f("SCOREBOARD_AUX_WEIGHT", 0.10)
@@ -70,6 +75,9 @@ class Settings:
     entry_window_max_sec: float = _f("ENTRY_WINDOW_MAX_SEC", 999999.0)
     min_entry_price: float = _f("MIN_ENTRY_PRICE", 0.35)
     max_entry_price: float = _f("MAX_ENTRY_PRICE", 0.75)
+    entry_max_spread: float = _f("ENTRY_MAX_SPREAD", 0.03)
+    entry_min_best_ask_multiple: float = _f("ENTRY_MIN_BEST_ASK_MULTIPLE", 2.0)
+    entry_min_total_ask_multiple: float = _f("ENTRY_MIN_TOTAL_ASK_MULTIPLE", 6.0)
 
     # Cadence guard: avoid long no-trade stretches
     max_idle_minutes: int = _i("MAX_IDLE_MINUTES", 120)
@@ -118,7 +126,10 @@ class Settings:
 
     # Maker/Limit Latency Execution Settings
     maker_order_timeout_sec: int = _i("MAKER_ORDER_TIMEOUT_SEC", 15)
+    maker_timeout_fallback_taker: bool = _b("MAKER_TIMEOUT_FALLBACK_TAKER", True)
     cancel_on_reversal_velocity: float = _f("CANCEL_ON_REVERSAL_VELOCITY", 0.003)
+    entry_retry_attempts: int = _i("ENTRY_RETRY_ATTEMPTS", 3)
+    entry_retry_backoff_sec: float = _f("ENTRY_RETRY_BACKOFF_SEC", 2.0)
 
     # Phase 2: Advanced Loophole Exploitation
     taker_snipe_velocity: float = _f("TAKER_SNIPE_VELOCITY", 0.0008)
@@ -139,6 +150,11 @@ class Settings:
     failed_follow_through_loss_pct: float = _f("FAILED_FOLLOW_THROUGH_LOSS_PCT", 0.03)
     failed_follow_through_max_mfe_pct: float = _f("FAILED_FOLLOW_THROUGH_MAX_MFE_PCT", 0.02)
     failed_follow_through_min_secs_left: int = _i("FAILED_FOLLOW_THROUGH_MIN_SECS_LEFT", 90)
+    stalled_exit_window_sec: int = _i("STALLED_EXIT_WINDOW_SEC", 35)
+    stalled_exit_max_abs_pnl_pct: float = _f("STALLED_EXIT_MAX_ABS_PNL_PCT", 0.02)
+    stalled_exit_max_mfe_pct: float = _f("STALLED_EXIT_MAX_MFE_PCT", 0.02)
+    stalled_exit_min_secs_left: int = _i("STALLED_EXIT_MIN_SECS_LEFT", 45)
+    same_market_reentry_min_secs_left: int = _i("SAME_MARKET_REENTRY_MIN_SECS_LEFT", 60)
     ws_stale_max_age_sec: float = _f("WS_STALE_MAX_AGE_SEC", 5.0)
     ws_stale_fail_safe_streak: int = _i("WS_STALE_FAIL_SAFE_STREAK", 2)
     api_slow_threshold_ms: float = _f("API_SLOW_THRESHOLD_MS", 1500.0)

@@ -30,7 +30,7 @@ def main():
     value, source = ex._extract_close_usdc_received({"takingAmount": 0.9823, "makingAmount": 2.094658})
     filled, filled_source = ex._extract_close_shares_sold({"takingAmount": 0.9823, "makingAmount": 2.094658})
 
-    ex.place_order("UP", 1.0, token_id_override="tok1", simulated_price=0.5)
+    entry = ex.place_order("UP", 1.0, token_id_override="tok1", simulated_price=0.5)
     partial = ex.close_position("tok1", 1.0, simulated_price=0.6)
     cost_after_partial = ex._position_cost.get("tok1", 0.0)
     exposure_after_partial = ex._open_exposure
@@ -47,10 +47,12 @@ def main():
         ("close_response_value_source", source == "close_response_takingAmount"),
         ("close_response_filled_shares_from_making_amount", abs((filled or 0.0) - 2.094658) < 1e-9),
         ("close_response_filled_shares_source", filled_source == "close_response_makingAmount"),
+        ("paper_entry_is_taker_simulated", entry.get("execution_style") == "taker-simulated"),
         ("paper_partial_close_value", abs(float(partial["actual_exit_value_usd"]) - 0.6) < 1e-9),
         ("paper_partial_close_remaining_shares", abs(float(partial["remaining_shares"]) - 1.0) < 1e-9),
         ("paper_partial_close_preserves_cost", abs(cost_after_partial - 0.5) < 1e-9),
         ("paper_partial_close_preserves_exposure", abs(exposure_after_partial - 0.5) < 1e-9),
+        ("paper_partial_close_is_taker_simulated", partial.get("execution_style") == "taker-simulated"),
         ("paper_zero_settlement_allowed", abs(float(settle["actual_exit_value_usd"]) - 0.0) < 1e-9),
         ("paper_zero_settlement_clears_position", "tok1" not in ex._position_cost and "tok1" not in ex._position_shares),
         ("paper_zero_settlement_source", settle.get("close_response_value_source") == "paper_trade_simulation"),
