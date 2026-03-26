@@ -492,7 +492,11 @@ def required_trade_edge(entry_price: float, secs_left: float | None, history_cou
     elif history_count < 20:
         required *= 0.50
 
-    if secs_left is not None and secs_left < max(float(getattr(SETTINGS, "entry_window_min_sec", 120.0)) + 60.0, 180.0):
+    late_threshold = max(
+        float(getattr(SETTINGS, "entry_window_min_sec", 120.0)) + 45.0,
+        min(float(getattr(SETTINGS, "entry_window_max_sec", 999999.0)) * 0.5, 120.0),
+    )
+    if secs_left is not None and secs_left < late_threshold:
         required += float(getattr(SETTINGS, "late_entry_edge_penalty", 0.015))
 
     rich_price_penalty = float(getattr(SETTINGS, "rich_price_edge_penalty", 0.015))

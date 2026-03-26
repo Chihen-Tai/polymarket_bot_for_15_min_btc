@@ -236,6 +236,13 @@ def main():
             "clobTokenIds": '["tok_down", "tok_up"]',
         }
     )
+    original_min_sec = SETTINGS.entry_window_min_sec
+    original_max_sec = SETTINGS.entry_window_max_sec
+    SETTINGS.entry_window_min_sec = 15
+    SETTINGS.entry_window_max_sec = 180
+    natural_window_edge = required_trade_edge(0.70, 150, history_count=30)
+    SETTINGS.entry_window_min_sec = original_min_sec
+    SETTINGS.entry_window_max_sec = original_max_sec
 
     future_end = (datetime.now(timezone.utc) + timedelta(seconds=180)).isoformat()
     observed_price_decision = explain_choose_side(
@@ -419,7 +426,8 @@ def main():
         ("price_aware_kelly_fraction", abs(price_aware_kelly_fraction(0.60, 0.45) - (((0.60 - 0.45) / (1.0 - 0.45)) / 4.0)) < 1e-9),
         ("apply_scoreboard_aux_probability_stays_small", abs(apply_scoreboard_aux_probability(0.62, 0.20) - 0.59) < 1e-9),
         ("required_trade_edge_relaxes_for_fresh_strategy", abs(required_trade_edge(0.45, 250, history_count=0) - 0.005) < 1e-9),
-        ("required_trade_edge_penalizes_late_rich_price", abs(required_trade_edge(0.70, 150, history_count=30) - 0.065) < 1e-9),
+        ("required_trade_edge_penalizes_late_rich_price_under_wide_window", abs(required_trade_edge(0.70, 150, history_count=30) - 0.065) < 1e-9),
+        ("required_trade_edge_skips_late_penalty_at_150_under_natural_window", abs(natural_window_edge - 0.05) < 1e-9),
         ("summarize_entry_edge_blocks_weak_late_trade", summarize_entry_edge(win_rate=0.56, entry_price=0.55, secs_left=140, history_count=30)["ok"] is False),
         ("summarize_entry_edge_allows_fresh_discounted_trade", summarize_entry_edge(win_rate=0.50, entry_price=0.48, secs_left=250, history_count=0)["ok"] is True),
         ("stabilize_entry_win_rate_floors_sparse_history", abs(stabilize_entry_win_rate(0.18, 1) - 0.50) < 1e-9),
