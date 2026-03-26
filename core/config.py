@@ -93,6 +93,7 @@ class Settings:
     momentum_ticks: int = _i("MOMENTUM_TICKS", 3)
     momentum_min_move: float = _f("MOMENTUM_MIN_MOVE", 0.005)
     exit_deadline_sec: int = _i("EXIT_DEADLINE_SEC", 20)
+    exit_deadline_flat_pnl_pct: float = _f("EXIT_DEADLINE_FLAT_PNL_PCT", 0.0)
     stop_loss_warn_pct: float = _f("STOP_LOSS_WARN_PCT", 0.10)
 
     # Strategy 1: Binance Oracle Front-running

@@ -72,8 +72,16 @@ def decide_exit(
                 return ExitDecision(True, "stop-loss-full", pnl_pct, hold_sec)
             return ExitDecision(True, "stop-loss-scale-out", pnl_pct, hold_sec)
 
-    if secs_left is not None and secs_left <= getattr(SETTINGS, "exit_deadline_sec", 20) and pnl_pct < 0:
-        return ExitDecision(True, "deadline-exit-loss", pnl_pct, hold_sec)
+    if secs_left is not None and secs_left <= getattr(SETTINGS, "exit_deadline_sec", 20):
+        if pnl_pct < 0:
+            return ExitDecision(True, "deadline-exit-loss", pnl_pct, hold_sec)
+        if (
+            not has_extracted_principal
+            and pnl_pct <= getattr(SETTINGS, "exit_deadline_flat_pnl_pct", 0.0)
+        ):
+            # If the trade never became meaningfully profitable, don't let a near-expiry
+            # binary position drift into a full settlement loss just because the mark stayed flat.
+            return ExitDecision(True, "deadline-exit-flat", pnl_pct, hold_sec)
 
     if hold_sec >= SETTINGS.max_hold_seconds and pnl_pct < 0:
         if getattr(SETTINGS, "smart_stop_loss_enabled", False) and not recovery_chance_low:

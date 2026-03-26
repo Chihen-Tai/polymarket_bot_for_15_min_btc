@@ -40,6 +40,8 @@ def main():
     SETTINGS.max_entry_price = 0.75
     SETTINGS.entry_window_min_sec = 120
     SETTINGS.entry_window_max_sec = 999999.0
+    SETTINGS.exit_deadline_sec = 20
+    SETTINGS.exit_deadline_flat_pnl_pct = 0.0
     SETTINGS.edge_threshold = 0.02
     SETTINGS.late_entry_edge_penalty = 0.015
     SETTINGS.rich_price_edge_penalty = 0.015
@@ -268,6 +270,8 @@ def main():
         ),
         ("failed_follow_through", decide_exit(pnl_pct=-0.04, hold_sec=50, secs_left=200, mfe_pnl_pct=0.01).reason == "failed-follow-through"),
         ("failed_follow_through_skips_if_signal_showed_life", decide_exit(pnl_pct=-0.04, hold_sec=50, secs_left=200, mfe_pnl_pct=0.05).reason != "failed-follow-through"),
+        ("deadline_exit_flat_without_principal", decide_exit(pnl_pct=0.0, hold_sec=50, secs_left=10).reason == "deadline-exit-flat"),
+        ("deadline_exit_allows_moonbag_hold", decide_exit(pnl_pct=0.0, hold_sec=50, secs_left=10, has_extracted_principal=True).reason != "deadline-exit-flat"),
         ("smart_stop_loss_after_scale_out", decide_exit(pnl_pct=-0.08, hold_sec=5, recovery_chance_low=True, has_scaled_out_loss=True).reason == "smart-stop-loss"),
         ("smart_stop_loss_at_threshold", decide_exit(pnl_pct=-0.08, hold_sec=5, recovery_chance_low=True).reason == "smart-stop-loss"),
         ("hard_stop_loss", decide_exit(pnl_pct=-0.55, hold_sec=5).reason == "hard-stop-loss"),
