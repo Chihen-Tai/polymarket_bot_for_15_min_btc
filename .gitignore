@@ -1,5 +1,5 @@
 # Secrets / local config
-.env
+# `.env` 會被版本控制追蹤；請把真正敏感的私人設定放到備份或本地覆蓋檔。
 .env.backup
 *.local
 

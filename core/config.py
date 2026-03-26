@@ -67,6 +67,7 @@ class Settings:
     zscore_window: int = _i("ZSCORE_WINDOW", 20)
     zscore_threshold: float = _f("ZSCORE_THRESHOLD", 2.0)
     entry_window_min_sec: float = _f("ENTRY_WINDOW_MIN_SEC", 120.0)
+    entry_window_max_sec: float = _f("ENTRY_WINDOW_MAX_SEC", 999999.0)
     min_entry_price: float = _f("MIN_ENTRY_PRICE", 0.35)
     max_entry_price: float = _f("MAX_ENTRY_PRICE", 0.75)
 

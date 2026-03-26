@@ -206,6 +206,9 @@ def explain_choose_side(
     if secs_left is None:
         base_result["reason"] = "missing_end_time"
         return base_result
+    if secs_left > SETTINGS.entry_window_max_sec:
+        base_result["reason"] = "too_early_in_market"
+        return base_result
     if secs_left < SETTINGS.entry_window_min_sec:
         base_result["reason"] = "too_late_in_market"
         return base_result

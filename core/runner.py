@@ -1570,6 +1570,17 @@ def main():
                         risk.orders_this_window = max(0, risk.orders_this_window - 1)
                         log(f"re-entry unlocked in same market | secs_left={secs_left:.0f} orders_this_window={risk.orders_this_window}")
 
+                    if closed_any and signal_side:
+                        # A pre-close signal can be dangerously stale after we flatten a position.
+                        # Force the next poll to earn a fresh entry signal instead of same-loop re-entry churn.
+                        signal_side = None
+                        signal_origin = ""
+                        signal_probability = None
+                        token_override = None
+                        entry_price = None
+                        no_entry_reason = "post-close-wait-next-cycle"
+                        log("post-close gate: cleared cycle signal after exit; waiting for next poll before re-entry")
+
                     idle_min = (time.time() - last_trade_ts) / 60.0
                     # Cadence fallback disabled per Openclaw report (prevents forced trades without edge)
 
@@ -1781,6 +1792,13 @@ def main():
                     )
                     smart_sleep(SETTINGS.poll_seconds)
                     continue
+                log(
+                    f"entry approved | strategy={signal_origin} side={signal_side} "
+                    f"modelP={(signal_probability if signal_probability is not None else strategy_win_rate):.1%} "
+                    f"auxWR={strategy_win_rate:.1%} effectiveP={effective_probability:.1%} "
+                    f"price={float(entry_price):.3f} raw_edge={entry_edge['raw_edge']:.3f} "
+                    f"required={entry_edge['required_edge']:.3f}"
+                )
 
             order_usd = SETTINGS.max_order_usd
             if getattr(SETTINGS, "use_kelly_sizing", False) and signal_origin:
