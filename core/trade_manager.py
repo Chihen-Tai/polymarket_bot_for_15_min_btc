@@ -112,6 +112,13 @@ def maybe_reverse_entry(*, signal_side: Optional[str], live_consec_losses: int, 
     return EntryDecision(signal_side, "")
 
 
+def should_block_same_market_reentry(exit_reason: str | None, *, remaining_shares: float = 0.0) -> bool:
+    reason = str(exit_reason or "").strip().lower()
+    if remaining_shares > 1e-6:
+        return False
+    return reason == "stalled-trade" or reason.startswith("deadline-exit-")
+
+
 def can_reenter_same_market(
     *,
     has_current_market_pos: bool,

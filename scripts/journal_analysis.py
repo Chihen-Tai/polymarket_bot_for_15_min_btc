@@ -177,7 +177,7 @@ def load_trade_events(limit: int = 0, run_id: str | None = None, since_ts: str |
 
 def classify_actual_source_tier(source: str | None, actual_value: float | None = None) -> str:
     src = str(source or "").strip().lower()
-    if actual_value is None or actual_value <= 0:
+    if actual_value is None:
         return "none"
     if src == "cash_balance_delta":
         return "high"
@@ -199,7 +199,7 @@ def classify_actual_source_tier(source: str | None, actual_value: float | None =
 def actual_status_for_exit(ev: dict) -> str:
     actual = _maybe_float(ev.get("actual_exit_value_usd"))
     tier = classify_actual_source_tier(ev.get("actual_exit_value_source") or ev.get("actual_close_response_value_source") or ev.get("pnl_source"), actual)
-    if actual is None or actual <= 0:
+    if actual is None:
         return "missing"
     if tier == "high":
         return "ok"
@@ -239,7 +239,7 @@ def build_exit_accounting_rows(events: list[dict]) -> list[ExitAccountingRow]:
         diff = None
         diff_pct = None
         realized_cost = _f(ev.get("realized_cost_usd"), 0.0)
-        actual_value = actual if actual is not None and actual > 0 else None
+        actual_value = actual if actual is not None else None
         if actual_value is not None and observed is not None:
             diff = actual_value - observed
             if realized_cost > EPS:
@@ -397,7 +397,7 @@ def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
         remaining = exit_shares
         actual_total = _maybe_float(ev.get("actual_exit_value_usd"))
         observed_total = _maybe_float(ev.get("observed_exit_value_usd"))
-        actual_value = actual_total if actual_total is not None and actual_total > 0 else None
+        actual_value = actual_total if actual_total is not None else None
         actual_source = str(ev.get("actual_exit_value_source") or ev.get("close_response_value_source") or ev.get("actual_close_response_value_source") or ev.get("pnl_source") or "unavailable")
         actual_tier = classify_actual_source_tier(actual_source, actual_value)
         lots = open_entries.get(key) or deque()

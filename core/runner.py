@@ -14,7 +14,7 @@ from core.risk import RiskState, can_place_order, current_5min_key, update_windo
 from core.market_resolver import resolve_latest_btc_5m_token_ids, MarketResolutionError
 from core.run_journal import RunJournal
 from core.state_store import load_state, save_state
-from core.trade_manager import decide_exit, maybe_reverse_entry, can_reenter_same_market
+from core.trade_manager import decide_exit, maybe_reverse_entry, can_reenter_same_market, should_block_same_market_reentry
 from core.ws_binance import BINANCE_WS
 from core.indicators import compute_buy_sell_pressure
 from core.journal import (
@@ -1811,7 +1811,10 @@ def main():
 
                                         remaining_shares = max(max(0.0, p.shares - sold_shares), remaining_hint)
                                         remaining_cost = max(0.0, p.cost_usd - realized_cost)
-                                        if exit_decision.reason == "stalled-trade" and remaining_shares <= LOT_EPS_SHARES:
+                                        if should_block_same_market_reentry(
+                                            exit_decision.reason,
+                                            remaining_shares=remaining_shares,
+                                        ):
                                             same_market_reentry_block_slug = p.slug
                                         quality_pnl = actual_realized_pnl_usd if actual_realized_pnl_usd is not None else observed_realized_pnl_usd
                                         entry_quality = "good-entry" if quality_pnl > 0 else "bad-entry" if quality_pnl < 0 else "flat-entry"

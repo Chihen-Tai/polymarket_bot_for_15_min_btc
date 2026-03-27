@@ -27,7 +27,7 @@ from core.runner import (
     summarize_entry_edge,
     update_network_guard,
 )
-from core.trade_manager import decide_exit, maybe_reverse_entry, can_reenter_same_market
+from core.trade_manager import decide_exit, maybe_reverse_entry, can_reenter_same_market, should_block_same_market_reentry
 import core.learning as learning_mod
 import scripts.journal_analysis as journal_analysis_mod
 from scripts.journal_analysis import (
@@ -124,6 +124,22 @@ def main():
             "observed_exit_value_usd": 0.50,
         }
     ])
+    zero_actual_accounting_rows = build_exit_accounting_rows([
+        {
+            "kind": "exit",
+            "ts": "2026-03-19T10:00:30",
+            "event_id": "exit_zero",
+            "position_id": "pos_zero",
+            "slug": "m_zero",
+            "side": "UP",
+            "reason": "dry-run-market-expired-binary-lose",
+            "closed_shares": 4,
+            "realized_cost_usd": 1.0,
+            "actual_exit_value_usd": 0.0,
+            "actual_exit_value_source": "paper_trade_simulation",
+            "observed_exit_value_usd": 0.0,
+        }
+    ])
     pair_rows = build_trade_pairs([
         {
             "kind": "entry",
@@ -156,6 +172,38 @@ def main():
             "mae_pnl_usd": -0.1,
         },
     ])
+    zero_actual_pair_rows = build_trade_pairs([
+        {
+            "kind": "entry",
+            "ts": "2026-03-19T10:03:00",
+            "event_id": "entry_zero",
+            "position_id": "pos_zero",
+            "slug": "m_zero",
+            "side": "UP",
+            "token_id": "tok_zero",
+            "shares": 10,
+            "cost_usd": 1.0,
+            "execution_style": "unknown",
+        },
+        {
+            "kind": "exit",
+            "ts": "2026-03-19T10:05:00",
+            "event_id": "exit_zero",
+            "position_id": "pos_zero",
+            "slug": "m_zero",
+            "side": "UP",
+            "token_id": "tok_zero",
+            "closed_shares": 10,
+            "remaining_shares": 0,
+            "realized_cost_usd": 1.0,
+            "actual_exit_value_usd": 0.0,
+            "actual_exit_value_source": "paper_trade_simulation",
+            "observed_exit_value_usd": 0.0,
+            "reason": "dry-run-market-expired-binary-lose",
+            "exit_execution_style": "expiry-settlement",
+        },
+    ])
+    zero_actual_summary = summarize_trade_pairs(zero_actual_pair_rows)
     fee_summary_rows = build_trade_pairs([
         {
             "kind": "entry",
@@ -449,12 +497,17 @@ def main():
         ("reenter_gate_respects_min_secs_left", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=40, current_market_slug="m1", blocked_market_slug="") is False),
         ("reenter_block", can_reenter_same_market(has_current_market_pos=True, closed_any=True, secs_left=80, current_market_slug="m1", blocked_market_slug="") is False),
         ("reenter_block_after_stalled_trade", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=80, current_market_slug="m1", blocked_market_slug="m1") is False),
+        ("deadline_exit_blocks_same_market_reentry", should_block_same_market_reentry("deadline-exit-flat", remaining_shares=0.0) is True and should_block_same_market_reentry("deadline-exit-loss", remaining_shares=0.0) is True),
+        ("non_terminal_exit_does_not_block_same_market_reentry", should_block_same_market_reentry("take-profit-partial", remaining_shares=0.5) is False),
         ("journal_partial_close_shares", abs(lots["tok1"]["shares"] - 6.0) < 1e-9),
         ("journal_partial_close_cost", abs(lots["tok1"]["cost_usd"] - 0.6) < 1e-9),
         ("journal_partial_close_notes", len(notes) == 0),
         ("exit_accounting_diff", len(accounting_rows) == 1 and abs((accounting_rows[0].difference_usd or 0.0) - 0.05) < 1e-9),
+        ("exit_accounting_zero_actual_is_available", len(zero_actual_accounting_rows) == 1 and zero_actual_accounting_rows[0].actual_exit_value_usd == 0.0 and zero_actual_accounting_rows[0].actual_status == "estimated"),
         ("trade_pair_closed", len(pair_rows) == 1 and pair_rows[0].status == "closed"),
         ("trade_pair_actual_pnl", len(pair_rows) == 1 and abs((pair_rows[0].actual_pnl_usd or 0.0) - 0.2) < 1e-9),
+        ("trade_pair_zero_actual_loss_is_preserved", len(zero_actual_pair_rows) == 1 and abs((zero_actual_pair_rows[0].actual_pnl_usd or 0.0) + 1.0) < 1e-9),
+        ("summary_counts_zero_actual_as_available", abs((zero_actual_summary["actual_available_ratio"] or 0.0) - 1.0) < 1e-9 and abs((zero_actual_summary["actual_pnl"]["sum"] or 0.0) + 1.0) < 1e-9),
         ("trade_pair_fee_adjusted_defaults_unknown_to_zero", len(pair_rows) == 1 and abs((pair_rows[0].fee_adjusted_actual_pnl_usd or 0.0) - 0.2) < 1e-9),
         ("trade_pair_mae_mfe", len(pair_rows) == 1 and pair_rows[0].mae_pnl_usd == -0.1 and pair_rows[0].mfe_pnl_usd == 0.2),
         ("decision_engine_uses_observed_prices", observed_price_decision.get("ok") and observed_price_decision.get("side") == "UP" and abs((observed_price_decision.get("entry_price") or 0.0) - 0.45) < 1e-9),
