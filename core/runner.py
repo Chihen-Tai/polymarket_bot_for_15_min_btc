@@ -9,7 +9,13 @@ from random import uniform
 
 from core.config import SETTINGS
 from core.decision_engine import choose_side, explain_choose_side, get_outcome_prices, seconds_to_market_end
-from core.exchange import PolymarketExchange, Position, order_below_minimum_shares, plan_live_order
+from core.exchange import (
+    PolymarketExchange,
+    Position,
+    estimate_book_exit_value,
+    order_below_minimum_shares,
+    plan_live_order,
+)
 from core.hedge_logic import should_trigger_dump
 from core.notifier import notify_discord
 from core.risk import RiskState, can_place_order, current_5min_key, update_window
@@ -167,25 +173,44 @@ def entry_velocity_gate_rejects(
     signal_side: str | None,
     signal_origin: str | None,
     ws_velocity: float,
+    *,
+    current_ws_velocity: float | None = None,
+    require_dual_confirmation: bool | None = None,
 ) -> bool:
     side = str(signal_side or "").strip().upper()
     origin = str(signal_origin or "").strip().lower()
     vel = float(ws_velocity or 0.0)
+    current_vel = vel if current_ws_velocity is None else float(current_ws_velocity or 0.0)
+    dual_confirm = (
+        bool(getattr(SETTINGS, "entry_dual_velocity_confirm", True))
+        if require_dual_confirmation is None
+        else bool(require_dual_confirmation)
+    )
 
     if side not in {"UP", "DOWN"}:
         return False
 
+    def _adverse(v: float, threshold: float) -> bool:
+        if side == "UP":
+            return v < -threshold
+        return v > threshold
+
     if "ws_order_flow_" in origin:
-        return (side == "UP" and vel < 0.0) or (side == "DOWN" and vel > 0.0)
+        if _adverse(vel, 0.0):
+            return True
+        if dual_confirm and _adverse(current_vel, 0.0):
+            return True
+        return False
 
     entry_vel_min = max(0.0, float(getattr(SETTINGS, "entry_velocity_min", 0.0) or 0.0))
     if entry_vel_min <= 0.0:
         return False
 
-    return (
-        (side == "UP" and vel < -entry_vel_min)
-        or (side == "DOWN" and vel > entry_vel_min)
-    )
+    if _adverse(vel, entry_vel_min):
+        return True
+    if dual_confirm and _adverse(current_vel, entry_vel_min):
+        return True
+    return False
 
 
 def extract_entry_response_details(resp: dict | None) -> tuple[float, str]:
@@ -508,12 +533,19 @@ def realistic_exit_value(pos: OpenPos, up: float | None, down: float | None, ob_
     mark = up if pos.side == "UP" else down
     if mark is None:
         return None
-    best_bid = None
+    orderbook = None
     if pos.side == "UP" and ob_up:
-        best_bid = ob_up.get("best_bid")
+        orderbook = ob_up
     elif pos.side == "DOWN" and ob_down:
-        best_bid = ob_down.get("best_bid")
-    
+        orderbook = ob_down
+
+    executable_value, _fill_ratio = estimate_book_exit_value(orderbook, pos.shares)
+    if executable_value is not None:
+        return float(executable_value)
+
+    best_bid = None
+    if orderbook:
+        best_bid = orderbook.get("best_bid")
     if best_bid is not None and float(best_bid) > 0:
         return pos.shares * float(best_bid)
     
@@ -685,9 +717,104 @@ def summarize_entry_edge(*, win_rate: float, entry_price: float, secs_left: floa
 
 def stabilize_entry_win_rate(win_rate: float, decisive_history_count: int) -> float:
     min_decisive = int(getattr(SETTINGS, "scoreboard_entry_gate_min_decisive_trades", 5))
-    if decisive_history_count < min_decisive:
-        return max(0.5, float(win_rate))
-    return float(win_rate)
+    observed = min(0.99, max(0.01, float(win_rate)))
+    if decisive_history_count >= min_decisive:
+        return observed
+    if min_decisive <= 0:
+        return observed
+    weight = max(0.0, min(1.0, float(decisive_history_count) / float(min_decisive)))
+    return 0.5 + ((observed - 0.5) * weight)
+
+
+def score_entry_candidate(
+    candidate: dict,
+    *,
+    secs_left: float | None,
+    scoreboard=None,
+) -> dict:
+    side = str(candidate.get("side") or "").strip().upper()
+    strategy_name = str(candidate.get("strategy_name") or candidate.get("reason") or "").strip()
+    if strategy_name and not strategy_name.startswith("model-"):
+        strategy_name = f"model-{strategy_name}"
+    entry_price = float(candidate.get("entry_price") or 0.0)
+    model_probability = candidate.get("model_probability")
+    signal_probability = float(model_probability) if model_probability is not None else None
+
+    strategy_win_rate = 0.5
+    strategy_trade_count = 0
+    strategy_decisive_trade_count = 0
+    if strategy_name:
+        try:
+            if scoreboard is None:
+                from core.learning import SCOREBOARD as scoreboard  # type: ignore
+            strategy_win_rate = scoreboard.get_strategy_score(strategy_name)
+            strategy_trade_count = scoreboard.get_strategy_trade_count(strategy_name)
+            strategy_decisive_trade_count = scoreboard.get_strategy_decisive_trade_count(strategy_name)
+        except Exception:
+            strategy_win_rate = 0.5
+            strategy_trade_count = 0
+            strategy_decisive_trade_count = 0
+
+    strategy_win_rate = stabilize_entry_win_rate(strategy_win_rate, strategy_decisive_trade_count)
+    effective_probability = strategy_win_rate if signal_probability is None else apply_scoreboard_aux_probability(signal_probability, strategy_win_rate)
+    entry_edge = summarize_entry_edge(
+        win_rate=effective_probability,
+        entry_price=entry_price,
+        secs_left=secs_left,
+        history_count=strategy_decisive_trade_count,
+    )
+    return {
+        "ok": bool(side in {"UP", "DOWN"} and strategy_name and entry_price > 0.0 and entry_edge["ok"]),
+        "side": side,
+        "strategy_name": strategy_name,
+        "entry_price": entry_price,
+        "signal_probability": signal_probability,
+        "strategy_win_rate": strategy_win_rate,
+        "strategy_trade_count": strategy_trade_count,
+        "strategy_decisive_trade_count": strategy_decisive_trade_count,
+        "effective_probability": effective_probability,
+        "entry_edge": entry_edge,
+    }
+
+
+def select_ranked_entry_candidate(
+    model_decision: dict,
+    *,
+    ws_velocity: float,
+    current_ws_velocity: float | None = None,
+    secs_left: float | None,
+    scoreboard=None,
+) -> tuple[dict | None, list[str]]:
+    ranked_candidates = model_decision.get("ranked_candidates")
+    if not isinstance(ranked_candidates, list) or not ranked_candidates:
+        ranked_candidates = [model_decision] if model_decision.get("ok") else []
+
+    rejection_notes: list[str] = []
+    for idx, candidate in enumerate(ranked_candidates, start=1):
+        scored = score_entry_candidate(candidate, secs_left=secs_left, scoreboard=scoreboard)
+        if entry_velocity_gate_rejects(
+            scored.get("side"),
+            scored.get("strategy_name"),
+            ws_velocity,
+            current_ws_velocity=current_ws_velocity,
+        ):
+            rejection_notes.append(
+                f"rank={idx} strategy={scored.get('strategy_name') or 'unknown'} "
+                f"rejected=velocity lag={float(ws_velocity or 0.0):.4%} "
+                f"current={float(current_ws_velocity if current_ws_velocity is not None else ws_velocity):.4%}"
+            )
+            continue
+        if not scored.get("ok"):
+            rejection_notes.append(
+                f"rank={idx} strategy={scored.get('strategy_name') or 'unknown'} "
+                f"rejected=edge raw={float(scored['entry_edge']['raw_edge']):.3f} "
+                f"required={float(scored['entry_edge']['required_edge']):.3f}"
+            )
+            continue
+        scored["rank"] = idx
+        scored["candidate_count"] = len(ranked_candidates)
+        return scored, rejection_notes
+    return None, rejection_notes
 
 
 def observed_mark_value(pos: OpenPos, up: float | None, down: float | None) -> float | None:
@@ -1458,6 +1585,11 @@ def main():
             no_entry_reason = ""
             entry_price = None
             signal_probability = None
+            strategy_win_rate = 0.5
+            strategy_trade_count = 0
+            strategy_decisive_trade_count = 0
+            entry_edge = None
+            effective_probability = None
 
             # The daily loss circuit breaker is handled properly in `can_place_order`
             # Removing the unconditional continue so open positions are still managed.
@@ -1603,43 +1735,65 @@ def main():
                             ws_bba=ws_bba, ws_trades=ws_trades,
                             poly_ob_up=poly_ob_up, poly_ob_down=poly_ob_down
                         )
-                        signal_side = model_decision.get("side") if model_decision.get("ok") else None
                         no_entry_reason = model_decision.get("reason")
-                        signal_probability = model_decision.get("model_probability") if model_decision.get("ok") else None
-                        if signal_side:
-                            signal_origin = model_decision.get("strategy_name") or model_decision.get("reason", "")
-                            if signal_origin and not signal_origin.startswith("model-"):
-                                signal_origin = f"model-{signal_origin}"
+                        _entry_ws_vel = 0.0
+                        _entry_ws_vel_now = 0.0
+                        try:
+                            _entry_ws_vel = BINANCE_WS.get_price_velocity(
+                                3.0,
+                                lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
+                            )
+                            _entry_ws_vel_now = BINANCE_WS.get_price_velocity(3.0, lag_sec=0.0)
+                        except Exception:
+                            pass
 
-                        # --- Entry Quality Gate ---
-                        # Block entry when Binance velocity is strongly opposing the signal direction.
-                        # Flat / low-velocity environments still pass (only adverse moves are blocked).
-                        if signal_side is not None:
-                            _entry_ws_vel = 0.0
-                            try:
-                                _entry_ws_vel = BINANCE_WS.get_price_velocity(
-                                    3.0,
-                                    lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
-                                )
-                            except Exception:
-                                pass
-                            if entry_velocity_gate_rejects(signal_side, signal_origin, _entry_ws_vel):
+                        chosen_candidate, candidate_rejections = select_ranked_entry_candidate(
+                            model_decision,
+                            ws_velocity=_entry_ws_vel,
+                            current_ws_velocity=_entry_ws_vel_now,
+                            secs_left=secs_left,
+                        )
+                        if chosen_candidate:
+                            signal_side = chosen_candidate.get("side")
+                            signal_origin = chosen_candidate.get("strategy_name") or ""
+                            signal_probability = chosen_candidate.get("signal_probability")
+                            entry_price = chosen_candidate.get("entry_price")
+                            strategy_win_rate = float(chosen_candidate.get("strategy_win_rate") or 0.5)
+                            strategy_trade_count = int(chosen_candidate.get("strategy_trade_count") or 0)
+                            strategy_decisive_trade_count = int(chosen_candidate.get("strategy_decisive_trade_count") or 0)
+                            effective_probability = float(chosen_candidate.get("effective_probability") or strategy_win_rate)
+                            entry_edge = chosen_candidate.get("entry_edge")
+                            rank = int(chosen_candidate.get("rank") or 1)
+                            candidate_count = int(chosen_candidate.get("candidate_count") or 1)
+                            if rank > 1:
                                 log(
-                                    f"ENTRY GATE BLOCKED: signal={signal_side} strategy={signal_origin or 'unknown'} "
-                                    f"Binance vel={_entry_ws_vel:.4%}"
+                                    f"candidate fallback | picked rank={rank}/{candidate_count} "
+                                    f"strategy={signal_origin} side={signal_side}"
                                 )
-                                no_entry_reason = f"entry_gate_velocity_mismatch_{_entry_ws_vel:.4f}"
-                                signal_side = None
-                                signal_probability = None
-                        # --------------------------
+                        else:
+                            signal_side = None
+                            signal_origin = ""
+                            signal_probability = None
+                            if candidate_rejections:
+                                no_entry_reason = candidate_rejections[0]
 
-                        if signal_side is None and secs_left is not None and 90 <= secs_left <= 240:
+                        if (
+                            signal_side is None
+                            and bool(getattr(SETTINGS, "enable_dump_trigger", False))
+                            and secs_left is not None
+                            and 90 <= secs_left <= 240
+                        ):
                             dumped_side = should_trigger_dump(prev_up, prev_down, up, down, SETTINGS.dump_move_threshold)
                             if dumped_side:
                                 signal_side = dumped_side
                                 signal_origin = "dump-trigger"
                                 no_entry_reason = ""
                                 signal_probability = None
+                                strategy_win_rate = 0.5
+                                strategy_trade_count = 0
+                                strategy_decisive_trade_count = 0
+                                effective_probability = None
+                                entry_edge = None
                                 log(f"dump trigger | side={dumped_side} prev_up={prev_up} up={up} prev_down={prev_down} down={down}")
 
                     prev_up, prev_down = up, down
@@ -2318,6 +2472,11 @@ def main():
                                 signal_side = entry_decision.side
                                 signal_origin = f"{signal_origin}+{entry_decision.reason}" if signal_origin else entry_decision.reason
                                 signal_probability = None
+                                strategy_win_rate = 0.5
+                                strategy_trade_count = 0
+                                strategy_decisive_trade_count = 0
+                                effective_probability = None
+                                entry_edge = None
                                 log(f"{entry_decision.reason} applied | consec_losses={flags.live_consec_losses} last_loss_side={flags.last_loss_side} -> side={signal_side} (WR={_rev_wr:.1%})")
                             else:
                                 log(f"loss-reversal SKIPPED: reversed side WR={_rev_wr:.1%} <= 55% threshold, keeping original signal={signal_side}")
@@ -2472,12 +2631,8 @@ def main():
                 smart_sleep(SETTINGS.poll_seconds)
                 continue
 
-            strategy_win_rate = 0.5
-            strategy_trade_count = 0
-            strategy_decisive_trade_count = 0
-            entry_edge = None
-            effective_probability = signal_probability
-            if signal_side and signal_origin and entry_price and float(entry_price) > 0:
+            if signal_side and signal_origin and entry_price and float(entry_price) > 0 and entry_edge is None:
+                effective_probability = signal_probability
                 try:
                     from core.learning import SCOREBOARD
                     strategy_win_rate = SCOREBOARD.get_strategy_score(signal_origin)
@@ -2513,6 +2668,8 @@ def main():
                     )
                     smart_sleep(SETTINGS.poll_seconds)
                     continue
+
+            if signal_side and signal_origin and entry_price and float(entry_price) > 0 and entry_edge is not None:
                 log(
                     f"entry approved | strategy={signal_origin} side={signal_side} "
                     f"modelP={(signal_probability if signal_probability is not None else strategy_win_rate):.1%} "

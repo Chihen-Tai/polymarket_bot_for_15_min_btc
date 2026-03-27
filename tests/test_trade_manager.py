@@ -15,6 +15,7 @@ from core.runner import (
     assess_entry_liquidity,
     apply_scoreboard_aux_probability,
     decide_pending_order_action,
+    entry_velocity_gate_rejects,
     entry_response_has_actionable_state,
     normalize_execution_style as normalize_runner_execution_style,
     refresh_runtime_flags,
@@ -22,6 +23,8 @@ from core.runner import (
     paper_settlement_from_last_mark,
     price_aware_kelly_fraction,
     required_trade_edge,
+    score_entry_candidate,
+    select_ranked_entry_candidate,
     stabilize_entry_win_rate,
     strategy_name_for_side,
     summarize_entry_edge,
@@ -370,6 +373,59 @@ def main():
             {"p": 100003.0, "q": 0.1, "m": True},
         ],
     )
+    class StubScoreboard:
+        def __init__(self, scores: dict[str, float], decisive: int = 20, trades: int = 40):
+            self.scores = scores
+            self.decisive = decisive
+            self.trades = trades
+
+        def get_strategy_score(self, name: str) -> float:
+            return float(self.scores.get(name, 0.5))
+
+        def get_strategy_trade_count(self, name: str) -> int:
+            return self.trades
+
+        def get_strategy_decisive_trade_count(self, name: str) -> int:
+            return self.decisive
+
+    candidate_pick, candidate_rejections = select_ranked_entry_candidate(
+        {
+            "ok": True,
+            "ranked_candidates": [
+                {
+                    "side": "DOWN",
+                    "strategy_name": "model-ws_order_flow_down",
+                    "entry_price": 0.45,
+                    "model_probability": 0.62,
+                },
+                {
+                    "side": "UP",
+                    "strategy_name": "model-ws_flash_snipe_up",
+                    "entry_price": 0.45,
+                    "model_probability": 0.58,
+                },
+            ],
+        },
+        ws_velocity=0.0005,
+        current_ws_velocity=0.0004,
+        secs_left=200,
+        scoreboard=StubScoreboard(
+            {
+                "model-ws_order_flow_down": 0.55,
+                "model-ws_flash_snipe_up": 0.56,
+            }
+        ),
+    )
+    sparse_candidate = score_entry_candidate(
+        {
+            "side": "UP",
+            "strategy_name": "model-ws_flash_snipe_up",
+            "entry_price": 0.45,
+            "model_probability": 0.52,
+        },
+        secs_left=200,
+        scoreboard=StubScoreboard({"model-ws_flash_snipe_up": 0.18}, decisive=1, trades=2),
+    )
 
     health_flags = RuntimeFlags(0, "", 0, False)
     slow_detected = observe_api_latency(health_flags, "test_call", 1600.0)
@@ -553,6 +609,7 @@ def main():
         ("decision_engine_uses_observed_prices", observed_price_decision.get("ok") and observed_price_decision.get("side") == "UP" and abs((observed_price_decision.get("entry_price") or 0.0) - 0.45) < 1e-9),
         ("decision_engine_returns_model_probability", observed_price_decision.get("ok") and (observed_price_decision.get("model_probability") or 0.0) > (observed_price_decision.get("entry_price") or 1.0)),
         ("decision_engine_prefers_better_priced_side_edge", dual_signal_decision.get("ok") and dual_signal_decision.get("side") == "DOWN" and (dual_signal_decision.get("model_edge") or 0.0) > 0.0),
+        ("decision_engine_exposes_ranked_candidates", isinstance(dual_signal_decision.get("ranked_candidates"), list) and len(dual_signal_decision.get("ranked_candidates") or []) >= 1),
         ("paper_settlement_win", paper_settlement_from_last_mark(0.72) == (1.0, "binary-win")),
         ("paper_settlement_loss", paper_settlement_from_last_mark(0.28) == (0.0, "binary-lose")),
         ("paper_settlement_neutral", paper_settlement_from_last_mark(0.50) == (0.5, "binary-neutral")),
@@ -566,7 +623,11 @@ def main():
         ("summarize_entry_edge_blocks_weak_late_trade", summarize_entry_edge(win_rate=0.56, entry_price=0.55, secs_left=140, history_count=30)["ok"] is False),
         ("summarize_entry_edge_allows_fresh_discounted_trade", summarize_entry_edge(win_rate=0.50, entry_price=0.45, secs_left=250, history_count=0)["ok"] is True),
         ("summarize_entry_edge_blocks_fresh_neutral_band_trade", summarize_entry_edge(win_rate=0.50, entry_price=0.48, secs_left=250, history_count=0)["ok"] is False),
-        ("stabilize_entry_win_rate_floors_sparse_history", abs(stabilize_entry_win_rate(0.18, 1) - 0.50) < 1e-9),
+        ("stabilize_entry_win_rate_softens_sparse_history", abs(stabilize_entry_win_rate(0.18, 1) - 0.436) < 1e-9),
+        ("candidate_fallback_selects_second_ranked_signal", candidate_pick is not None and candidate_pick.get("side") == "UP" and len(candidate_rejections) == 1),
+        ("sparse_history_candidate_still_penalized_below_neutral", abs(float(sparse_candidate.get("strategy_win_rate") or 0.0) - 0.436) < 1e-9),
+        ("entry_velocity_gate_blocks_when_current_velocity_reverses", entry_velocity_gate_rejects("UP", "model-ws_order_flow_up", 0.0003, current_ws_velocity=-0.0002, require_dual_confirmation=True) is True),
+        ("entry_velocity_gate_allows_when_lag_and_current_align", entry_velocity_gate_rejects("UP", "model-ws_order_flow_up", 0.0003, current_ws_velocity=0.0002, require_dual_confirmation=True) is False),
         ("entry_response_actionable_on_fill", entry_response_has_actionable_state({"response": {"takingAmount": "1.25"}}) is True),
         ("entry_response_actionable_on_order_id", entry_response_has_actionable_state({"response": {"orderID": "abc123"}}) is True),
         ("entry_response_not_actionable_when_empty", entry_response_has_actionable_state({"response": {}}) is False),

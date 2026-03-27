@@ -152,9 +152,9 @@ def _build_candidate(
     return result
 
 
-def _select_best_candidate(candidates: dict[str, dict]) -> Optional[dict]:
+def _rank_candidates(candidates: dict[str, dict]) -> list[dict]:
     if not candidates:
-        return None
+        return []
     ranked = sorted(
         candidates.values(),
         key=lambda candidate: (
@@ -164,8 +164,16 @@ def _select_best_candidate(candidates: dict[str, dict]) -> Optional[dict]:
         ),
         reverse=True,
     )
+    return [candidate.copy() for candidate in ranked]
+
+
+def _select_best_candidate(candidates: dict[str, dict]) -> Optional[dict]:
+    if not candidates:
+        return None
+    ranked = _rank_candidates(candidates)
     best = ranked[0].copy()
     best["candidate_count"] = len(ranked)
+    best["ranked_candidates"] = ranked
     return best
 
 

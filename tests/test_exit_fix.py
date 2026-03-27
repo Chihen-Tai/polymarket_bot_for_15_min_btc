@@ -6,17 +6,21 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from core.exchange import (
     PolymarketExchange,
     _limit_order_type,
+    estimate_book_exit_value,
     minimum_order_usd,
     order_below_minimum_shares,
+    parse_balance_allowance_available_shares,
     plan_live_order,
 )
 from core.runner import (
     ExitDecision as RunnerExitDecision,
+    OpenPos,
     entry_velocity_gate_rejects,
     effective_stop_loss_partial_fraction,
     extract_entry_cost_usd,
     is_loss_exit_reason,
     principal_extraction_complete,
+    realistic_exit_value,
     should_force_full_loss_exit,
     should_force_taker_exit,
 )
@@ -60,6 +64,19 @@ def main():
             "response": {"takingAmount": "6.46", "makingAmount": "1.938", "status": "matched"},
         },
         3.0039,
+    )
+    depth_book = {
+        "best_bid": 0.475,
+        "best_bid_size": 1.0,
+        "bid_levels": [(0.475, 1.0), (0.12, 1.0)],
+    }
+    depth_value, depth_fill_ratio = estimate_book_exit_value(depth_book, 2.0)
+    thin_value, thin_fill_ratio = estimate_book_exit_value({"bid_levels": [(0.2, 1.0)]}, 2.0)
+    depth_pos = OpenPos(slug="m", side="UP", token_id="tok2", shares=2.0, cost_usd=1.0, opened_ts=0.0)
+    realistic_value = realistic_exit_value(depth_pos, 0.52, 0.48, depth_book, None)
+    parsed_balance_shares = parse_balance_allowance_available_shares(
+        "PolyApiException[status_code=400, error_message={'error': 'not enough balance / allowance: "
+        "the balance is not enough -> balance: 1198827, order amount: 1200000'}]"
     )
 
     entry = ex.place_order("UP", 1.0, token_id_override="tok1", simulated_price=0.5)
@@ -105,6 +122,10 @@ def main():
         ("plan_live_order_rounds_up_small_notional_gap", plan_live_order(1.0, 0.4945, 0.0, 1.0) == (2.03, 1.0038)),
         ("plan_live_order_respects_five_share_minimum", plan_live_order(1.0, 0.535, 5.0, 1.0) == (5.0, 2.675)),
         ("plan_live_order_keeps_one_dollar_when_already_valid", plan_live_order(1.0, 0.2, 0.0, 1.0) == (5.0, 1.0)),
+        ("estimate_book_exit_value_sweeps_bid_depth", abs((depth_value or 0.0) - 0.595) < 1e-9 and abs(depth_fill_ratio - 1.0) < 1e-9),
+        ("estimate_book_exit_value_is_conservative_when_depth_is_thin", abs((thin_value or 0.0) - 0.2) < 1e-9 and abs(thin_fill_ratio - 0.5) < 1e-9),
+        ("realistic_exit_value_uses_depth_aware_bids", abs((realistic_value or 0.0) - 0.595) < 1e-9),
+        ("parse_balance_allowance_available_shares_handles_live_error", abs((parsed_balance_shares or 0.0) - 1.198827) < 1e-9),
         ("paper_entry_is_taker_simulated", entry.get("execution_style") == "taker-simulated"),
         ("paper_partial_close_value", abs(float(partial["actual_exit_value_usd"]) - 0.6) < 1e-9),
         ("paper_partial_close_remaining_shares", abs(float(partial["remaining_shares"]) - 1.0) < 1e-9),

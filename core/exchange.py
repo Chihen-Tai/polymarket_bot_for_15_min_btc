@@ -7,6 +7,7 @@ from typing import Any
 import time
 import os
 import json
+import re
 import requests
 
 from core.config import SETTINGS
@@ -77,6 +78,76 @@ def plan_live_order(amount_usd: float, price: float, min_shares: float, min_orde
     rounded_shares = round(_round_up_to_step(required_shares, 0.01), 2)
     actual_usd = round(rounded_shares * float(price), 4)
     return rounded_shares, actual_usd
+
+
+_BALANCE_ALLOWANCE_RE = re.compile(
+    r"balance:\s*(?P<balance>\d+)\s*,\s*order amount:\s*(?P<amount>\d+)",
+    re.IGNORECASE,
+)
+
+
+def parse_balance_allowance_available_shares(error_text: str) -> float | None:
+    text = str(error_text or "")
+    match = _BALANCE_ALLOWANCE_RE.search(text)
+    if not match:
+        return None
+    balance_units = _to_float(match.group("balance"), 0.0)
+    if balance_units <= 0.0:
+        return 0.0
+    # Polymarket errors report share balances in 1e6 precision units.
+    return balance_units / 1_000_000.0
+
+
+def _normalize_book_levels(raw_levels: Any, *, reverse: bool) -> list[tuple[float, float]]:
+    levels: list[tuple[float, float]] = []
+    for lv in (raw_levels if isinstance(raw_levels, list) else []):
+        if isinstance(lv, dict):
+            price = _to_float(lv.get("price"), 0.0)
+            size = _to_float(lv.get("size", lv.get("amount", 0.0)), 0.0)
+        elif isinstance(lv, (list, tuple)) and len(lv) >= 2:
+            price = _to_float(lv[0], 0.0)
+            size = _to_float(lv[1], 0.0)
+        else:
+            price, size = 0.0, 0.0
+        if price > 0.0 and size > 0.0:
+            levels.append((price, size))
+    levels.sort(key=lambda item: item[0], reverse=reverse)
+    return levels
+
+
+def estimate_book_exit_value(book: dict | None, shares: float) -> tuple[float | None, float]:
+    target_shares = max(0.0, float(shares or 0.0))
+    if target_shares <= 0.0:
+        return 0.0, 1.0
+    if not isinstance(book, dict):
+        return None, 0.0
+
+    bid_levels = _normalize_book_levels(book.get("bid_levels"), reverse=True)
+    if bid_levels:
+        remaining = target_shares
+        realized_value = 0.0
+        filled_shares = 0.0
+        for price, size in bid_levels:
+            take = min(remaining, size)
+            if take <= 0.0:
+                continue
+            realized_value += take * price
+            filled_shares += take
+            remaining -= take
+            if remaining <= 1e-9:
+                break
+        fill_ratio = min(1.0, filled_shares / target_shares)
+        return realized_value, fill_ratio
+
+    best_bid = _to_float(book.get("best_bid"), 0.0)
+    if best_bid <= 0.0:
+        return 0.0, 0.0
+    best_bid_size = _to_float(book.get("best_bid_size"), 0.0)
+    if best_bid_size > 0.0:
+        filled_shares = min(target_shares, best_bid_size)
+        fill_ratio = min(1.0, filled_shares / target_shares)
+        return filled_shares * best_bid, fill_ratio
+    return target_shares * best_bid, 1.0
 
 
 class PolymarketExchange:
@@ -567,7 +638,16 @@ class PolymarketExchange:
     def get_full_orderbook(self, token_id: str) -> dict:
         """獲取完整的 orderbook 來計算 Imbalance"""
         if not self.client:
-            return {"bids_volume": 1000, "asks_volume": 1000, "best_bid": 0.5, "best_ask": 0.51}
+            return {
+                "bids_volume": 1000,
+                "asks_volume": 1000,
+                "best_bid": 0.5,
+                "best_ask": 0.51,
+                "best_bid_size": 1000,
+                "best_ask_size": 1000,
+                "bid_levels": [(0.5, 1000.0)],
+                "ask_levels": [(0.51, 1000.0)],
+            }
         try:
             book = self.client.get_order_book(token_id)
             if not isinstance(book, dict):
@@ -576,11 +656,15 @@ class PolymarketExchange:
             bids_vol, asks_vol = 0.0, 0.0
             best_bid, best_ask = 0.0, 1.0
             best_bid_size, best_ask_size = 0.0, 0.0
+            bid_levels: list[tuple[float, float]] = []
+            ask_levels: list[tuple[float, float]] = []
 
             bids = book.get("bids", [])
             for lv in (bids if isinstance(bids, list) else []):
                 price = _to_float(lv.get("price") if isinstance(lv, dict) else lv[0], 0.0)
                 sz = _to_float(lv.get("size", lv.get("amount", 0)) if isinstance(lv, dict) else lv[1], 0.0)
+                if price > 0.0 and sz > 0.0:
+                    bid_levels.append((price, sz))
                 bids_vol += sz
                 if price > best_bid:
                     best_bid = price
@@ -590,10 +674,15 @@ class PolymarketExchange:
             for lv in (asks if isinstance(asks, list) else []):
                 price = _to_float(lv.get("price") if isinstance(lv, dict) else lv[0], 1.0)
                 sz = _to_float(lv.get("size", lv.get("amount", 0)) if isinstance(lv, dict) else lv[1], 0.0)
+                if price > 0.0 and sz > 0.0:
+                    ask_levels.append((price, sz))
                 asks_vol += sz
                 if price < best_ask:
                     best_ask = price
                     best_ask_size = sz
+
+            bid_levels.sort(key=lambda item: item[0], reverse=True)
+            ask_levels.sort(key=lambda item: item[0])
 
             return {
                 "bids_volume": bids_vol,
@@ -602,6 +691,8 @@ class PolymarketExchange:
                 "best_ask": best_ask,
                 "best_bid_size": best_bid_size,
                 "best_ask_size": best_ask_size,
+                "bid_levels": bid_levels,
+                "ask_levels": ask_levels,
             }
         except Exception:
             return {}
@@ -809,6 +900,13 @@ class PolymarketExchange:
                 sold_total += effective_filled
             except Exception as e:
                 last_error = str(e)
+                adjusted_remaining = parse_balance_allowance_available_shares(last_error)
+                if adjusted_remaining is not None:
+                    adjusted_remaining = max(0.0, round(adjusted_remaining - 0.0005, 6))
+                    if 0.0 < adjusted_remaining + 1e-9 < remaining:
+                        remaining = adjusted_remaining
+                        time.sleep(1)
+                        continue
                 # small delay then retry
                 time.sleep(2)
                 continue
