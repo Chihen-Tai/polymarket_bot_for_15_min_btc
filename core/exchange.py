@@ -98,6 +98,24 @@ def parse_balance_allowance_available_shares(error_text: str) -> float | None:
     return balance_units / 1_000_000.0
 
 
+def select_live_close_exit_value(
+    *,
+    usdc_received_total: float | None,
+    usdc_received_source: str,
+    cash_delta: float | None,
+    cash_delta_source: str,
+) -> tuple[float | None, str]:
+    cash_value = float(cash_delta) if cash_delta is not None else 0.0
+    response_value = float(usdc_received_total) if usdc_received_total is not None else 0.0
+    if cash_value > 0.0:
+        return cash_value, (cash_delta_source or "cash_balance_delta")
+    if response_value > 0.0:
+        return response_value, (usdc_received_source or "close_response_takingAmount")
+    return (cash_delta if cash_delta is not None else usdc_received_total), (
+        cash_delta_source if cash_delta is not None else (usdc_received_source or "close_response_unavailable")
+    )
+
+
 def _normalize_book_levels(raw_levels: Any, *, reverse: bool) -> list[tuple[float, float]]:
     levels: list[tuple[float, float]] = []
     for lv in (raw_levels if isinstance(raw_levels, list) else []):
@@ -953,9 +971,12 @@ class PolymarketExchange:
                 time.sleep(1)
 
         ok = sold_total > 0 and (last_resp is not None)
-        # Prefer USDC received from response (most accurate); fallback to cash delta
-        best_exit_value = usdc_received_total if (usdc_received_total and usdc_received_total > 0) else cash_delta
-        best_exit_source = usdc_received_source if (usdc_received_total and usdc_received_total > 0) else cash_delta_source
+        best_exit_value, best_exit_source = select_live_close_exit_value(
+            usdc_received_total=usdc_received_total,
+            usdc_received_source=usdc_received_source,
+            cash_delta=cash_delta,
+            cash_delta_source=cash_delta_source,
+        )
         if maker_filled and taker_filled:
             execution_style = "mixed"
         elif taker_filled or force_taker:

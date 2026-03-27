@@ -11,6 +11,7 @@ from core.exchange import (
     order_below_minimum_shares,
     parse_balance_allowance_available_shares,
     plan_live_order,
+    select_live_close_exit_value,
 )
 from core.runner import (
     ExitDecision as RunnerExitDecision,
@@ -93,6 +94,13 @@ def main():
         mark=0.365,
         dry_run=False,
     )
+    principal_recovery_from_rejected_actual = sane_actual_value if sane_actual_value is not None else observed_partial_value
+    live_close_value, live_close_source = select_live_close_exit_value(
+        usdc_received_total=1.3846,
+        usdc_received_source="close_response_takingAmount",
+        cash_delta=0.5877,
+        cash_delta_source="cash_balance_delta",
+    )
     parsed_balance_shares = parse_balance_allowance_available_shares(
         "PolyApiException[status_code=400, error_message={'error': 'not enough balance / allowance: "
         "the balance is not enough -> balance: 1198827, order amount: 1200000'}]"
@@ -170,6 +178,8 @@ def main():
         ("observed_exit_value_uses_sold_shares_times_mark", abs(observed_partial_value - 0.58765) < 1e-9),
         ("sanitize_live_actual_exit_value_rejects_improbable_fill", sane_actual_value is None and sane_actual_source.startswith("sanity-rejected-")),
         ("sanitize_live_actual_exit_value_accepts_close_to_mark_fill", abs((accepted_actual_value or 0.0) - 0.5877) < 1e-9 and accepted_actual_source == "close_response_takingAmount"),
+        ("rejected_actual_fill_falls_back_to_observed_mark_value", abs(principal_recovery_from_rejected_actual - observed_partial_value) < 1e-9),
+        ("live_close_exit_value_prefers_cash_delta", abs((live_close_value or 0.0) - 0.5877) < 1e-9 and live_close_source == "cash_balance_delta"),
         ("parse_balance_allowance_available_shares_handles_live_error", abs((parsed_balance_shares or 0.0) - 1.198827) < 1e-9),
         ("live_account_cache_reuses_recent_snapshot", cash_calls["count"] == 2 and value_calls["count"] == 2 and acct_first.cash == acct_second.cash == acct_third.cash == 7.0 and acct_first.equity == acct_second.equity == acct_third.equity == 10.0),
         ("paper_entry_is_taker_simulated", entry.get("execution_style") == "taker-simulated"),

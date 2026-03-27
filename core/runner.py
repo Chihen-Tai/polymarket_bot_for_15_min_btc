@@ -2188,20 +2188,28 @@ def main():
                                             realized_cost = p.cost_usd * actual_fraction
                                             p.shares -= sold_shares
                                             p.cost_usd *= max(0.0, 1.0 - actual_fraction)
-                                            
-                                            _act_val = close_resp.get("actual_exit_value_usd", 0.0)
-                                            _obs_val = sold_shares * effective_exit_value
-                                            _principal_recovered = _act_val if _act_val > 0 else _obs_val
+
+                                            _raw_act_val = close_resp.get("actual_exit_value_usd", 0.0)
+                                            _raw_act_src = str(close_resp.get("actual_exit_value_source") or "unavailable")
+                                            _act_val, _act_src = sanitize_live_actual_exit_value(
+                                                actual_exit_value_usd=_raw_act_val,
+                                                actual_exit_value_source=_raw_act_src,
+                                                sold_shares=sold_shares,
+                                                mark=mark,
+                                                dry_run=SETTINGS.dry_run,
+                                            )
+                                            _obs_val = observed_exit_value_from_mark(sold_shares=sold_shares, mark=mark)
+                                            _principal_recovered = _act_val if _act_val is not None else _obs_val
                                             principal_done = principal_extraction_complete(
                                                 _principal_recovered,
                                                 target_principal_usd,
                                             )
                                             p.has_extracted_principal = principal_done
                                             if principal_done:
-                                                remaining_runner_value = effective_exit_value * max(0.0, 1.0 - actual_fraction)
+                                                remaining_runner_value = current_value * max(0.0, 1.0 - actual_fraction)
                                                 p.runner_peak_value_usd = max(0.0, float(remaining_runner_value or 0.0))
                                                 p.runner_peak_ts = time.time()
-                                            _realized_pnl = _act_val - realized_cost if _act_val > 0 else _obs_val - realized_cost
+                                            _realized_pnl = (_act_val - realized_cost) if _act_val is not None else (_obs_val - realized_cost)
                                             risk.daily_pnl += _realized_pnl
                                             tp_reason = "take-profit-principal" if principal_done else "take-profit-principal-partial"
                                             append_event({
@@ -2214,8 +2222,8 @@ def main():
                                                 "remaining_shares": p.shares,
                                                 "realized_cost_usd": realized_cost,
                                                 "actual_exit_value_usd": _act_val,
-                                                "actual_exit_value_source": close_resp.get("actual_exit_value_source") or "unavailable",
-                                                "actual_realized_pnl_usd": _act_val - realized_cost,
+                                                "actual_exit_value_source": _act_src or "unavailable",
+                                                "actual_realized_pnl_usd": (_act_val - realized_cost) if _act_val is not None else None,
                                                 "observed_exit_value_usd": _obs_val,
                                                 "observed_exit_value_source": "observed_mark_price",
                                                 "observed_realized_pnl_usd": _obs_val - realized_cost,
@@ -2261,9 +2269,18 @@ def main():
                                         if sold_shares > 0:
                                             actual_fraction = sold_shares / p.shares
                                             realized_cost = p.cost_usd * actual_fraction
-                                            _act_val = float(close_resp.get("actual_exit_value_usd", 0.0) or 0.0)
-                                            _obs_val = sold_shares * effective_exit_value
-                                            _realized_pnl = _act_val - realized_cost if _act_val > 0 else _obs_val - realized_cost
+
+                                            _raw_act_val = close_resp.get("actual_exit_value_usd", 0.0)
+                                            _raw_act_src = str(close_resp.get("actual_exit_value_source") or "unavailable")
+                                            _act_val, _act_src = sanitize_live_actual_exit_value(
+                                                actual_exit_value_usd=_raw_act_val,
+                                                actual_exit_value_source=_raw_act_src,
+                                                sold_shares=sold_shares,
+                                                mark=mark,
+                                                dry_run=SETTINGS.dry_run,
+                                            )
+                                            _obs_val = observed_exit_value_from_mark(sold_shares=sold_shares, mark=mark)
+                                            _realized_pnl = (_act_val - realized_cost) if _act_val is not None else (_obs_val - realized_cost)
                                             risk.daily_pnl += _realized_pnl
 
                                             p.shares -= sold_shares
@@ -2279,8 +2296,8 @@ def main():
                                                 "remaining_shares": p.shares,
                                                 "realized_cost_usd": realized_cost,
                                                 "actual_exit_value_usd": _act_val,
-                                                "actual_exit_value_source": close_resp.get("actual_exit_value_source") or "unavailable",
-                                                "actual_realized_pnl_usd": _act_val - realized_cost,
+                                                "actual_exit_value_source": _act_src or "unavailable",
+                                                "actual_realized_pnl_usd": (_act_val - realized_cost) if _act_val is not None else None,
                                                 "observed_exit_value_usd": _obs_val,
                                                 "observed_exit_value_source": "observed_mark_price",
                                                 "observed_realized_pnl_usd": _obs_val - realized_cost,
