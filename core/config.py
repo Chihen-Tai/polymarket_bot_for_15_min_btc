@@ -7,7 +7,18 @@ except Exception:
         return False
 
 from pathlib import Path
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+
+def load_repo_env(repo_root: Path) -> None:
+    load_dotenv(repo_root / ".env")
+    # Local overrides are loaded after the tracked .env so pulls do not wipe secrets.
+    for name in (".env.local", ".env.secrets"):
+        path = repo_root / name
+        if path.exists():
+            load_dotenv(path, override=True)
+
+
+load_repo_env(Path(__file__).resolve().parent.parent)
 
 
 def _f(key: str, default: float) -> float:

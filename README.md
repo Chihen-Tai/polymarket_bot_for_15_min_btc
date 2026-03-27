@@ -37,14 +37,15 @@ conda activate polymarket-bot
 
 ## 設定 `.env`
 
-這個 repo 目前保留一份追蹤中的 `.env` 供本地優化使用，但 GitHub 使用者不要直接把它當成 live 模板。
+這個 repo 目前保留一份追蹤中的 `.env` 當共用基礎設定，但 GitHub 使用者不要直接把它當成 live secrets 檔。
 
 建議做法：
 
 - dry-run：參考 [.env.example](/Applications/codes/polymarket-bot-by_openclaw/.env.example)
 - live：參考 [.env.live.example](/Applications/codes/polymarket-bot-by_openclaw/.env.live.example)
-- 如果你偏好單一檔案管理，追蹤中的 [.env](/Applications/codes/polymarket-bot-by_openclaw/.env) 現在也已經補齊 live 相關欄位與運維欄位
-- 你自己的私鑰和 API 憑證只放在本機，不要 commit
+- 敏感值：從 [.env.secrets.example](/Applications/codes/polymarket-bot-by_openclaw/.env.secrets.example) 複製到你自己的 `.env.local` 或 `.env.secrets`
+- 程式會依序讀取：追蹤中的 `.env` -> 本機 `.env.local` -> 本機 `.env.secrets`
+- 所以你自己的私鑰和 API 憑證只放在本機覆蓋檔，不要 commit
 
 另外，bot 現在會自動把 `dry-run` 和 `live` 分開寫到不同的 runtime state / trade journal / run journal，不再共用同一份本地「記憶」。
 
@@ -124,6 +125,7 @@ python main.py
 如果你要先用很小部位實戰，建議：
 
 - 先從 [.env.live.example](/Applications/codes/polymarket-bot-by_openclaw/.env.live.example) 開始
+- 再把 [.env.secrets.example](/Applications/codes/polymarket-bot-by_openclaw/.env.secrets.example) 複製成 `.env.local` 或 `.env.secrets`
 - 保持 `MAX_ORDER_USD=1.0`
 - 先跑小量 live 驗證 signer / funder / API creds 都對
 
@@ -208,7 +210,7 @@ python main.py
 
 Important notes:
 
-- Edit the tracked `.env` directly
+- Keep shared defaults in the tracked `.env`, and put secrets in `.env.local` / `.env.secrets`
 - Default settings are currently optimization-oriented
 - Logs and reports are written under `data/`
 - The fastest post-run check is `data/latest_run_report.txt`
