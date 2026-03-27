@@ -575,6 +575,8 @@ def main():
         ("smart_stop_loss_after_scale_out", decide_exit(pnl_pct=-0.08, hold_sec=5, recovery_chance_low=True, has_scaled_out_loss=True).reason == "smart-stop-loss"),
         ("smart_stop_loss_at_threshold", decide_exit(pnl_pct=-0.08, hold_sec=5, recovery_chance_low=True).reason == "smart-stop-loss"),
         ("hard_stop_loss", decide_exit(pnl_pct=-0.55, hold_sec=5).reason == "hard-stop-loss"),
+        ("take_profit_uses_profit_reference_even_if_hard_stop_is_negative", decide_exit(pnl_pct=-0.05, profit_pnl_pct=0.60, hold_sec=5).reason == "take-profit-principal"),
+        ("partial_take_profit_uses_profit_reference_even_if_hard_stop_is_negative", decide_exit(pnl_pct=-0.05, profit_pnl_pct=0.35, hold_sec=5).reason == "take-profit-partial"),
         (
             "force_full_exit_on_take_profit",
             (setattr(SETTINGS, "force_full_exit_on_take_profit", True) or True)

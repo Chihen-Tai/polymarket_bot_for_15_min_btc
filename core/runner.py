@@ -169,6 +169,15 @@ def principal_extraction_complete(
     return recovered >= target * max(0.0, float(recovery_ratio))
 
 
+def principal_extraction_sell_fraction(
+    current_value_usd: float,
+    target_principal_usd: float,
+) -> float:
+    current_total_value = max(1e-9, float(current_value_usd or 0.0))
+    target = max(0.0, float(target_principal_usd or 0.0))
+    return min(0.99, target / current_total_value)
+
+
 def entry_velocity_gate_rejects(
     signal_side: str | None,
     signal_origin: str | None,
@@ -1817,10 +1826,14 @@ def main():
                         hard_stop_value = float(min(
                             [v for v in (observed_value, mark_value) if v is not None] or [0.0]
                         ))
+                        profit_reference_value = float(max(
+                            [v for v in (observed_value, mark_value) if v is not None] or [0.0]
+                        ))
                         effective_exit_value = float(effective_exit_value or 0.0)
                         update_position_excursions(p, effective_exit_value)
                         pnl_pct = (effective_exit_value - p.cost_usd) / max(p.cost_usd, 1e-9)
                         hard_stop_pnl_pct = (hard_stop_value - p.cost_usd) / max(p.cost_usd, 1e-9)
+                        profit_pnl_pct = (profit_reference_value - p.cost_usd) / max(p.cost_usd, 1e-9)
                         mfe_pnl_pct = p.max_favorable_pnl_usd / max(p.cost_usd, 1e-9)
                         runner_drawdown_pct = 0.0
                         runner_peak_age_sec = None
@@ -1842,6 +1855,7 @@ def main():
                         else:
                             exit_decision = decide_exit(
                                 pnl_pct=hard_stop_pnl_pct,
+                                profit_pnl_pct=profit_pnl_pct,
                                 hold_sec=hold_sec,
                                 secs_left=secs_left,
                                 has_scaled_out=getattr(p, "has_scaled_out", False),
@@ -2038,8 +2052,11 @@ def main():
                                 continue
 
                             if exit_decision.reason == "take-profit-principal":
-                                current_value = max(p.shares * effective_exit_value, 1e-9)
-                                sell_fraction = min(0.99, p.cost_usd / current_value)
+                                current_value = max(profit_reference_value, 1e-9)
+                                sell_fraction = principal_extraction_sell_fraction(
+                                    current_value,
+                                    p.cost_usd,
+                                )
                                 sell_shares = p.shares * sell_fraction
                                 target_principal_usd = max(p.cost_usd, 0.0)
                                 
@@ -2128,6 +2145,27 @@ def main():
                                             p.shares -= sold_shares
                                             p.cost_usd *= max(0.0, 1.0 - actual_fraction)
                                             p.has_taken_partial = True
+                                            append_event({
+                                                "kind": "exit",
+                                                "slug": p.slug,
+                                                "side": p.side,
+                                                "token_id": p.token_id,
+                                                "position_id": p.position_id,
+                                                "closed_shares": sold_shares,
+                                                "remaining_shares": p.shares,
+                                                "realized_cost_usd": realized_cost,
+                                                "actual_exit_value_usd": _act_val,
+                                                "actual_exit_value_source": close_resp.get("actual_exit_value_source") or "unavailable",
+                                                "actual_realized_pnl_usd": _act_val - realized_cost,
+                                                "observed_exit_value_usd": _obs_val,
+                                                "observed_exit_value_source": "observed_mark_price",
+                                                "observed_realized_pnl_usd": _obs_val - realized_cost,
+                                                "exit_execution_style": normalize_execution_style(close_resp.get("execution_style"), default="maker"),
+                                                "status": "partial",
+                                                "reason": "take-profit-partial",
+                                                "mfe_pnl_usd": p.max_favorable_pnl_usd,
+                                                "mae_pnl_usd": p.max_adverse_pnl_usd,
+                                            })
                                             log(f"PARTIAL PROFIT TAKEN! Sold {sold_shares:.2f} shares (+30% threshold).")
                                             maybe_record_cycle_label(state, "take-profit-partial", slug=p.slug, side=p.side)
                                 except Exception as e:
