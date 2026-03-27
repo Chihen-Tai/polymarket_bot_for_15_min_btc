@@ -161,6 +161,7 @@ class Settings:
     stalled_exit_max_mfe_pct: float = _f("STALLED_EXIT_MAX_MFE_PCT", 0.02)
     stalled_exit_min_secs_left: int = _i("STALLED_EXIT_MIN_SECS_LEFT", 45)
     same_market_reentry_min_secs_left: int = _i("SAME_MARKET_REENTRY_MIN_SECS_LEFT", 60)
+    binance_signal_lag_sec: float = _f("BINANCE_SIGNAL_LAG_SEC", 0.5)
     ws_stale_max_age_sec: float = _f("WS_STALE_MAX_AGE_SEC", 5.0)
     ws_stale_fail_safe_streak: int = _i("WS_STALE_FAIL_SAFE_STREAK", 2)
     api_slow_threshold_ms: float = _f("API_SLOW_THRESHOLD_MS", 1500.0)

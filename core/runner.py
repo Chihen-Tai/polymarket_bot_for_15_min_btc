@@ -1118,7 +1118,10 @@ def main():
                     
                     ws_vel = 0.0
                     try:
-                        ws_vel = BINANCE_WS.get_price_velocity(3.0)
+                        ws_vel = BINANCE_WS.get_price_velocity(
+                            3.0,
+                            lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
+                        )
                     except Exception:
                         pass
                         
@@ -1353,8 +1356,13 @@ def main():
                     binance_5m = ex.get_binance_5m_klines(100)
 
                     try:
-                        ws_bba = BINANCE_WS.get_bba()
-                        ws_trades = BINANCE_WS.get_recent_trades(seconds=60.0)
+                        ws_bba = BINANCE_WS.get_bba(
+                            lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0))
+                        )
+                        ws_trades = BINANCE_WS.get_recent_trades(
+                            seconds=60.0,
+                            lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
+                        )
                     except Exception:
                         ws_bba = None
                         ws_trades = None
@@ -1404,7 +1412,10 @@ def main():
                             if _entry_vel_min > 0.0:
                                 _entry_ws_vel = 0.0
                                 try:
-                                    _entry_ws_vel = BINANCE_WS.get_price_velocity(3.0)
+                                    _entry_ws_vel = BINANCE_WS.get_price_velocity(
+                                        3.0,
+                                        lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
+                                    )
                                 except Exception:
                                     pass
                                 _wrong_dir = (
@@ -1475,7 +1486,10 @@ def main():
 
                         # --- Phase 2: Advanced Loophole Exploitation ---
                         try:
-                            ws_vel = BINANCE_WS.get_price_velocity(3.0)
+                            ws_vel = BINANCE_WS.get_price_velocity(
+                                3.0,
+                                lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
+                            )
                             
                             # 1. Panic Dump Override
                             is_panic = (p.side == "UP" and ws_vel < -SETTINGS.panic_dump_velocity) or \
@@ -1507,7 +1521,10 @@ def main():
                             if _shield_vel > 0.0:
                                 _hs_ws_vel = 0.0
                                 try:
-                                    _hs_ws_vel = BINANCE_WS.get_price_velocity(3.0)
+                                    _hs_ws_vel = BINANCE_WS.get_price_velocity(
+                                        3.0,
+                                        lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
+                                    )
                                 except Exception:
                                     pass
                                 _same_dir = (
@@ -2301,7 +2318,10 @@ def main():
                 
                 force_taker_snipe = False
                 try:
-                    ws_vel = BINANCE_WS.get_price_velocity(3.0)
+                    ws_vel = BINANCE_WS.get_price_velocity(
+                        3.0,
+                        lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
+                    )
                     if (signal_side == "UP" and ws_vel > SETTINGS.taker_snipe_velocity) or \
                        (signal_side == "DOWN" and ws_vel < -SETTINGS.taker_snipe_velocity):
                         log(f"⚡ TAKER SNIPE TRIGGERED! {signal_side} Binance vel={ws_vel:.4%}")

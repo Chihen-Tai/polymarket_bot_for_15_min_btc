@@ -24,6 +24,7 @@ class BinanceWebSocket:
         
         # Thread-safe states
         self.bba = {"b": 0.0, "B": 0.0, "a": 0.0, "A": 0.0, "ts": 0.0, "u": 0} 
+        self.bba_history = deque(maxlen=2000)
         self.trades = deque(maxlen=5000)
         self.recent_prices = deque(maxlen=200)
         self.ws = None
@@ -45,6 +46,7 @@ class BinanceWebSocket:
                     self.bba["A"] = float(data.get("A", 0))  # Best Ask Qty
                     self.bba["u"] = data.get("u", 0)         # Orderbook update ID
                     self.bba["ts"] = time.time()
+                    self.bba_history.append(self.bba.copy())
                     
                     if self.bba["b"] > 0 and self.bba["a"] > 0:
                         self.recent_prices.append((self.bba["ts"], (self.bba["b"] + self.bba["a"]) / 2.0))
@@ -100,32 +102,47 @@ class BinanceWebSocket:
         if self.ws:
             self.ws.close()
 
-    def get_bba(self):
-        return self.bba.copy()
+    def get_bba(self, lag_sec: float = 0.0):
+        if lag_sec <= 0.0 or not self.bba_history:
+            return self.bba.copy()
 
-    def get_recent_trades(self, seconds: float = 60.0):
-        cutoff = time.time() - seconds
+        cutoff = time.time() - lag_sec
+        chosen = None
+        for snap in reversed(self.bba_history):
+            if snap.get("ts", 0.0) <= cutoff:
+                chosen = snap
+                break
+        return (chosen or self.bba).copy()
+
+    def get_recent_trades(self, seconds: float = 60.0, lag_sec: float = 0.0):
+        upper = time.time() - max(0.0, lag_sec)
+        cutoff = upper - seconds
         # Return a snap of recent trades within `seconds` timeout
         snapshot = list(self.trades)
-        return [t for t in snapshot if t["ts"] >= cutoff]
+        return [t for t in snapshot if cutoff <= t["ts"] <= upper]
 
-    def get_price_velocity(self, seconds: float = 3.0) -> float:
+    def get_price_velocity(self, seconds: float = 3.0, lag_sec: float = 0.0) -> float:
         """Returns the percentage change of the mid-price over the last X seconds.
         Returns 0.0 if the most recent tick is older than the requested window
         (stale / disconnected WebSocket), preventing misleading velocity signals.
         """
         if not self.recent_prices:
             return 0.0
-        now = time.time()
+        now = time.time() - max(0.0, lag_sec)
         snapshot = list(self.recent_prices)
 
+        # Only consider samples that are not newer than the requested lag.
+        eligible = [(ts, price) for ts, price in snapshot if ts <= now]
+        if not eligible:
+            return 0.0
+
         # Guard: if the newest tick is itself outside the window, data is stale
-        if now - snapshot[-1][0] > seconds:
+        if now - eligible[-1][0] > seconds:
             return 0.0
 
         # Find the OLDEST price still within the time window
         oldest_price = None
-        for ts, price in snapshot:  # oldest to newest
+        for ts, price in eligible:  # oldest to newest
             if now - ts <= seconds:
                 oldest_price = price
                 break
@@ -133,7 +150,7 @@ class BinanceWebSocket:
         if not oldest_price:
             return 0.0
 
-        current_price = snapshot[-1][1]  # newest price
+        current_price = eligible[-1][1]  # newest eligible price
         return (current_price - oldest_price) / oldest_price
 
     def get_last_update_age(self) -> float:

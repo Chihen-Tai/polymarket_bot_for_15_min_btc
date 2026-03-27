@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from core.exchange import PolymarketExchange
+from core.exchange import PolymarketExchange, _limit_order_type
 
 
 def make_paper_exchange() -> PolymarketExchange:
@@ -27,6 +27,13 @@ def make_paper_exchange() -> PolymarketExchange:
 def main():
     ex = make_paper_exchange()
 
+    class LegacyOrderType:
+        POST_ONLY = "POST_ONLY"
+        GTC = "GTC"
+
+    class ModernOrderType:
+        GTC = "GTC"
+
     value, source = ex._extract_close_usdc_received({"takingAmount": 0.9823, "makingAmount": 2.094658})
     filled, filled_source = ex._extract_close_shares_sold({"takingAmount": 0.9823, "makingAmount": 2.094658})
 
@@ -47,6 +54,8 @@ def main():
         ("close_response_value_source", source == "close_response_takingAmount"),
         ("close_response_filled_shares_from_making_amount", abs((filled or 0.0) - 2.094658) < 1e-9),
         ("close_response_filled_shares_source", filled_source == "close_response_makingAmount"),
+        ("limit_order_type_prefers_post_only_when_available", _limit_order_type(LegacyOrderType) == "POST_ONLY"),
+        ("limit_order_type_falls_back_to_gtc", _limit_order_type(ModernOrderType) == "GTC"),
         ("paper_entry_is_taker_simulated", entry.get("execution_style") == "taker-simulated"),
         ("paper_partial_close_value", abs(float(partial["actual_exit_value_usd"]) - 0.6) < 1e-9),
         ("paper_partial_close_remaining_shares", abs(float(partial["remaining_shares"]) - 1.0) < 1e-9),

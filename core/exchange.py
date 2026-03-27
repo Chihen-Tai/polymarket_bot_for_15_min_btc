@@ -34,6 +34,11 @@ def _to_float(v: Any, default: float = 0.0) -> float:
         return default
 
 
+def _limit_order_type(order_type_cls: Any):
+    """Support both old POST_ONLY enums and current py-clob-client GTC limit orders."""
+    return getattr(order_type_cls, "POST_ONLY", getattr(order_type_cls, "GTC", None))
+
+
 class PolymarketExchange:
     """
     dry-run: 本地模擬
@@ -455,7 +460,10 @@ class PolymarketExchange:
                     side=BUY,
                 )
             )
-            resp = self.client.post_order(order, OrderType.POST_ONLY)
+            limit_order_type = _limit_order_type(OrderType)
+            if limit_order_type is None:
+                raise AttributeError("py_clob_client OrderType missing both POST_ONLY and GTC")
+            resp = self.client.post_order(order, limit_order_type)
 
         return {
             "ok": True,
@@ -651,7 +659,10 @@ class PolymarketExchange:
                             side=SELL,
                         )
                     )
-                    last_resp = self.client.post_order(order, OrderType.POST_ONLY)
+                    limit_order_type = _limit_order_type(OrderType)
+                    if limit_order_type is None:
+                        raise AttributeError("py_clob_client OrderType missing both POST_ONLY and GTC")
+                    last_resp = self.client.post_order(order, limit_order_type)
                     
                     # If this is a limit order, it won't fill immediately. Sleep 3 seconds to expose liquidity to the market.
                     time.sleep(3.0)

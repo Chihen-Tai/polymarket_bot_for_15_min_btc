@@ -296,7 +296,10 @@ def explain_choose_side(
             from core.ws_binance import BINANCE_WS
             # Guard: skip if WS has been silent for > 5 seconds (disconnected)
             if BINANCE_WS.get_last_update_age() < 5.0:
-                vel = BINANCE_WS.get_price_velocity(seconds=3.0)
+                vel = BINANCE_WS.get_price_velocity(
+                    seconds=3.0,
+                    lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
+                )
                 flash_threshold = float(SETTINGS.ws_flash_snipe_threshold)
                 flash_confidence = _confidence_from_signal(abs(vel), flash_threshold, flash_threshold * 2.0)
                 flash_probability = _probability_from_confidence(flash_confidence, floor=0.54, ceiling=0.72)
