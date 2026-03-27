@@ -31,7 +31,7 @@ class Settings:
     max_order_usd: float = _f("MAX_ORDER_USD", 1.0)
     min_live_order_shares: float = _f("MIN_LIVE_ORDER_SHARES", 5.0)
     min_live_order_usd: float = _f("MIN_LIVE_ORDER_USD", 1.0)
-    live_order_auto_bump_usd: float = _f("LIVE_ORDER_AUTO_BUMP_USD", 0.05)
+    live_order_hard_cap_usd: float = _f("LIVE_ORDER_HARD_CAP_USD", 3.0)
     max_exposure_usd: float = _f("MAX_EXPOSURE_USD", 1.0)
     max_orders_per_5min: int = _i("MAX_ORDERS_PER_5MIN", 2)
     max_consec_loss: int = _i("MAX_CONSEC_LOSS", 3)

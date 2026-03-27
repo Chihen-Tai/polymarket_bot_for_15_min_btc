@@ -467,12 +467,18 @@ class PolymarketExchange:
         price_rounded = round(price, 3) 
         min_live_order_shares = float(getattr(SETTINGS, "min_live_order_shares", 5.0) or 0.0)
         min_live_order_usd = float(getattr(SETTINGS, "min_live_order_usd", 1.0) or 0.0)
+        live_order_hard_cap_usd = float(getattr(SETTINGS, "live_order_hard_cap_usd", 0.0) or 0.0)
         size_rounded, actual_order_usd = plan_live_order(
             amount_usd,
             price_rounded,
             min_live_order_shares,
             min_live_order_usd,
         )
+        if live_order_hard_cap_usd > 0.0 and actual_order_usd > live_order_hard_cap_usd + 1e-9:
+            raise ValueError(
+                f"order notional exceeds live cap: requested=${amount_usd:.2f} "
+                f"actual=${actual_order_usd:.4f} cap=${live_order_hard_cap_usd:.2f}"
+            )
 
         if force_taker:
             from py_clob_client.clob_types import MarketOrderArgs
@@ -501,6 +507,11 @@ class PolymarketExchange:
                     min_live_order_shares,
                     min_live_order_usd,
                 )
+                if live_order_hard_cap_usd > 0.0 and actual_order_usd > live_order_hard_cap_usd + 1e-9:
+                    raise ValueError(
+                        f"order notional exceeds live cap: requested=${amount_usd:.2f} "
+                        f"actual=${actual_order_usd:.4f} cap=${live_order_hard_cap_usd:.2f}"
+                    )
 
             order = self.client.create_order(
                 OrderArgs(

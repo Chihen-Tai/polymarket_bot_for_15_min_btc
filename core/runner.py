@@ -347,7 +347,11 @@ def place_entry_order_with_retry(
             latencies_ms.append((time.perf_counter() - started) * 1000.0)
             last_error = exc
             err_text = str(exc).lower()
-            if "order size below minimum" in err_text or ("lower than the minimum" in err_text and "size" in err_text):
+            if (
+                "order size below minimum" in err_text
+                or ("lower than the minimum" in err_text and "size" in err_text)
+                or "order notional exceeds live cap" in err_text
+            ):
                 raise
             if attempt >= attempts:
                 raise
@@ -843,6 +847,47 @@ def refresh_runtime_flags(flags: RuntimeFlags, open_positions: list[OpenPos], pa
     }, open_positions)
 
 
+def clear_expired_market_state(
+    current_market_slug: str,
+    open_positions: list[OpenPos],
+    pending_orders: list[PendingOrder],
+    *,
+    cancel_order=None,
+) -> tuple[list[OpenPos], list[PendingOrder], list[str]]:
+    kept_positions: list[OpenPos] = []
+    kept_pending: list[PendingOrder] = []
+    notes: list[str] = []
+
+    for pos in open_positions:
+        if pos.slug and pos.slug != current_market_slug:
+            notes.append(
+                f"clear expired live runtime position | slug={pos.slug} side={pos.side} token={pos.token_id}"
+            )
+            continue
+        kept_positions.append(pos)
+
+    for po in pending_orders:
+        if po.slug and po.slug != current_market_slug:
+            if cancel_order and po.order_id:
+                try:
+                    cancel_order(po.order_id)
+                    notes.append(
+                        f"cancel expired live pending order | slug={po.slug} side={po.side} order_id={po.order_id}"
+                    )
+                except Exception as exc:
+                    notes.append(
+                        f"drop expired live pending order | slug={po.slug} side={po.side} order_id={po.order_id} cancel_error={exc}"
+                    )
+            else:
+                notes.append(
+                    f"drop expired live pending order | slug={po.slug} side={po.side} order_id={po.order_id or 'n/a'}"
+                )
+            continue
+        kept_pending.append(po)
+
+    return kept_positions, kept_pending, notes
+
+
 def save_runtime_state(
     risk: RiskState,
     *,
@@ -1318,6 +1363,15 @@ def main():
                             open_positions.remove(gp)
                         if ghosts:
                             acct = ex.get_account()
+                    else:
+                        open_positions, pending_orders, live_cleanup_notes = clear_expired_market_state(
+                            market["slug"],
+                            open_positions,
+                            pending_orders,
+                            cancel_order=ex.cancel_order,
+                        )
+                        for note in live_cleanup_notes:
+                            log(note)
 
                             
                     token_up = market.get("token_up", "")
@@ -2217,19 +2271,26 @@ def main():
                 except Exception as e:
                     log(f"Kelly calc error: {e}")
 
+            if not SETTINGS.dry_run:
+                live_order_hard_cap_usd = float(getattr(SETTINGS, "live_order_hard_cap_usd", 0.0) or 0.0)
+                if live_order_hard_cap_usd > 0.0 and order_usd > live_order_hard_cap_usd + 1e-9:
+                    log(f"live order cap applied | requested=${order_usd:.2f} -> capped=${live_order_hard_cap_usd:.2f}")
+                    order_usd = live_order_hard_cap_usd
+
             if signal_side and token_override and entry_price and float(entry_price) > 0:
                 est_shares = order_usd / float(entry_price)
                 if not SETTINGS.dry_run:
                     min_live_order_shares = float(getattr(SETTINGS, "min_live_order_shares", 5.0) or 0.0)
                     min_live_order_usd = float(getattr(SETTINGS, "min_live_order_usd", 1.0) or 0.0)
-                    auto_bump_usd = float(getattr(SETTINGS, "live_order_auto_bump_usd", 0.05) or 0.0)
-                    rounded_est_shares, required_usd = plan_live_order(
+                    live_order_hard_cap_usd = float(getattr(SETTINGS, "live_order_hard_cap_usd", 0.0) or 0.0)
+                    requested_shares = est_shares
+                    required_shares, required_usd = plan_live_order(
                         order_usd,
                         float(entry_price),
                         min_live_order_shares,
                         min_live_order_usd,
                     )
-                    if required_usd > order_usd + auto_bump_usd + 1e-9:
+                    if live_order_hard_cap_usd > 0.0 and required_usd > live_order_hard_cap_usd + 1e-9:
                         maybe_record_cycle_label(
                             state,
                             "signal-blocked",
@@ -2238,21 +2299,23 @@ def main():
                             reason="order-size-below-minimum",
                         )
                         log(
-                            f"skip entry: order size below minimum | amount=${order_usd:.2f} "
-                            f"price={float(entry_price):.3f} est_shares={rounded_est_shares:.2f} "
+                            f"skip entry: order size below minimum | requested=${order_usd:.2f} "
+                            f"price={float(entry_price):.3f} requested_shares={requested_shares:.2f} "
+                            f"required_shares={required_shares:.2f} "
                             f"min_shares={min_live_order_shares:.2f} min_notional=${min_live_order_usd:.2f} "
-                            f"required_usd=${required_usd:.2f}"
+                            f"required_usd=${required_usd:.2f} cap_usd=${live_order_hard_cap_usd:.2f}"
                         )
                         smart_sleep(SETTINGS.poll_seconds)
                         continue
                     if required_usd > order_usd + 1e-9:
                         log(
                             f"live order auto-bump | requested=${order_usd:.2f} "
-                            f"price={float(entry_price):.3f} -> actual=${required_usd:.4f} "
-                            f"shares={rounded_est_shares:.2f}"
+                            f"price={float(entry_price):.3f} requested_shares={requested_shares:.2f} "
+                            f"-> actual=${required_usd:.4f} shares={required_shares:.2f} "
+                            f"cap_usd={live_order_hard_cap_usd:.2f}"
                         )
                         order_usd = required_usd
-                    est_shares = rounded_est_shares
+                    est_shares = required_shares
                 try:
                     entry_book_quality = assess_entry_liquidity(
                         book=ex.get_full_orderbook(token_override),
