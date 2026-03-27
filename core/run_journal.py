@@ -6,11 +6,11 @@ import os
 import signal
 import time
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 from uuid import uuid4
+from core.runtime_paths import run_journal_path
 
-RUN_JOURNAL_PATH = Path(__file__).resolve().parent.parent / "data" / "run_journal.jsonl"
+RUN_JOURNAL_PATH = run_journal_path()
 
 
 def _now_iso() -> str:

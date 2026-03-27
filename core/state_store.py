@@ -1,8 +1,8 @@
 import json
 from dataclasses import asdict
-from pathlib import Path
+from core.runtime_paths import runtime_state_path
 
-STATE_PATH = Path(__file__).resolve().parent / ".runtime_state.json"
+STATE_PATH = runtime_state_path()
 
 
 def load_state() -> dict:

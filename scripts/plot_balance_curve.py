@@ -4,6 +4,9 @@ import argparse
 import html
 import math
 import re
+import shutil
+import subprocess
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -139,10 +142,52 @@ def build_svg(points: list[tuple[datetime, float, float]], *, title: str, width:
     return "\n".join(svg)
 
 
+def render_svg_to_png(svg_text: str, output_path: Path, *, width: int = 1280, height: int = 720) -> None:
+    try:
+        import cairosvg  # type: ignore
+
+        cairosvg.svg2png(bytestring=svg_text.encode("utf-8"), write_to=str(output_path), output_width=width, output_height=height)
+        return
+    except Exception:
+        pass
+
+    qlmanage = shutil.which("qlmanage")
+    if qlmanage:
+        with tempfile.TemporaryDirectory(prefix="balance_curve_") as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            svg_path = tmpdir_path / "chart.svg"
+            svg_path.write_text(svg_text, encoding="utf-8")
+            size = max(width, height)
+            proc = subprocess.run(
+                [qlmanage, "-t", "-s", str(size), "-o", str(tmpdir_path), str(svg_path)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            png_path = tmpdir_path / "chart.svg.png"
+            if proc.returncode == 0 and png_path.exists():
+                output_path.write_bytes(png_path.read_bytes())
+                return
+
+    raise RuntimeError("PNG output requires cairosvg or a macOS Quick Look renderer (qlmanage). Use SVG output instead.")
+
+
+def write_chart(points: list[tuple[datetime, float, float]], output_path: Path, *, title: str, width: int = 1280, height: int = 720) -> None:
+    svg_text = build_svg(points, title=title, width=width, height=height)
+    suffix = output_path.suffix.lower()
+    if suffix == ".svg":
+        output_path.write_text(svg_text, encoding="utf-8")
+        return
+    if suffix == ".png":
+        render_svg_to_png(svg_text, output_path, width=width, height=height)
+        return
+    raise SystemExit(f"Unsupported output extension: {output_path.suffix}. Use .png or .svg")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Plot equity/cash over time from a bot log file.")
     ap.add_argument("log_file", help="Path to log-dryrun-*.txt or log-live-*.txt")
-    ap.add_argument("--output", help="Output SVG path (defaults to <log_file>.balance.svg)")
+    ap.add_argument("--output", help="Output chart path (defaults to <log_file>.balance.png)")
     ap.add_argument("--title", help="Optional chart title")
     args = ap.parse_args()
 
@@ -154,9 +199,9 @@ def main() -> None:
     if not points:
         raise SystemExit("No lines with equity/cash were found in the log.")
 
-    output_path = Path(args.output).expanduser().resolve() if args.output else log_path.with_suffix(".balance.svg")
+    output_path = Path(args.output).expanduser().resolve() if args.output else log_path.with_suffix(".balance.png")
     title = args.title or f"Balance Curve: {log_path.name}"
-    output_path.write_text(build_svg(points, title=title), encoding="utf-8")
+    write_chart(points, output_path, title=title)
     print(f"parsed points: {len(points)}")
     print(f"output: {output_path}")
 

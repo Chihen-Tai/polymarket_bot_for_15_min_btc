@@ -6,8 +6,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
+from core.runtime_paths import trade_journal_path
 
-JOURNAL_PATH = Path(__file__).resolve().parent.parent / "data" / "trade_journal.jsonl"
+JOURNAL_PATH = trade_journal_path()
 LOT_EPS_SHARES = 0.20
 LOT_EPS_COST_USD = 0.10
 STALE_HOURS = 6

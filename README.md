@@ -46,6 +46,8 @@ conda activate polymarket-bot
 - 如果你偏好單一檔案管理，追蹤中的 [.env](/Applications/codes/polymarket-bot-by_openclaw/.env) 現在也已經補齊 live 相關欄位與運維欄位
 - 你自己的私鑰和 API 憑證只放在本機，不要 commit
 
+另外，bot 現在會自動把 `dry-run` 和 `live` 分開寫到不同的 runtime state / trade journal / run journal，不再共用同一份本地「記憶」。
+
 目前 bot 真正會讀的 live 相關欄位主要是：
 
 - `DRY_RUN`
