@@ -17,6 +17,7 @@ from core.exchange import (
 from core.runner import (
     ExitDecision as RunnerExitDecision,
     OpenPos,
+    conservative_exit_decision_value,
     emergency_exit_retry_kwargs,
     estimate_book_entry_fill,
     executable_take_profit_value,
@@ -31,7 +32,10 @@ from core.runner import (
     principal_extraction_complete,
     realistic_exit_value,
     sanitize_live_actual_exit_value,
+    should_count_entry_toward_market_limit,
+    should_block_live_entry_for_unavailable_book,
     should_delay_soft_stop_scaleout,
+    should_trigger_binance_adverse_exit,
     should_force_taker_profit_protection,
     should_trigger_profit_reversal_exit,
     should_force_full_loss_exit,
@@ -66,6 +70,12 @@ def main():
     SETTINGS.soft_stop_adverse_velocity = 0.0003
     SETTINGS.stop_loss_partial_fraction = 0.50
     SETTINGS.live_stop_loss_partial_fraction = 0.80
+    SETTINGS.binance_adverse_exit_enabled = True
+    SETTINGS.binance_adverse_exit_confirm_sec = 3.0
+    SETTINGS.binance_adverse_exit_velocity = 0.00035
+    SETTINGS.binance_adverse_exit_max_profit_pct = 0.08
+    SETTINGS.binance_adverse_exit_min_hold_sec = 4.0
+    SETTINGS.binance_adverse_exit_require_current_confirm = True
 
     ex = make_paper_exchange()
 
@@ -129,6 +139,39 @@ def main():
     realistic_value = realistic_exit_value(depth_pos, 0.52, 0.48, depth_book, None)
     executable_profit_value = executable_take_profit_value(depth_pos, depth_book, None)
     executable_profit_without_book = executable_take_profit_value(depth_pos, None, None)
+    conservative_profitless_value = conservative_exit_decision_value(
+        OpenPos(slug="m2", side="DOWN", token_id="tok3", shares=20.0, cost_usd=1.0, opened_ts=0.0),
+        executable_exit_value=None,
+        mark_value=7.9,
+    )
+    conservative_loss_value = conservative_exit_decision_value(
+        OpenPos(slug="m3", side="UP", token_id="tok4", shares=2.0, cost_usd=1.0, opened_ts=0.0),
+        executable_exit_value=None,
+        mark_value=0.62,
+    )
+    counted_normal_entry = should_count_entry_toward_market_limit(
+        slippage_breach=False,
+        shares=2.5,
+        order_id="",
+    )
+    counted_pending_entry = should_count_entry_toward_market_limit(
+        slippage_breach=False,
+        shares=0.0,
+        order_id="ord_123",
+    )
+    counted_slippage_breach = should_count_entry_toward_market_limit(
+        slippage_breach=True,
+        shares=2.5,
+        order_id="ord_456",
+    )
+    block_missing_live_book, missing_live_book_reason = should_block_live_entry_for_unavailable_book(
+        dry_run=False,
+        entry_book_quality={"ok": True, "available": False, "reason": "book-unavailable"},
+    )
+    allow_available_live_book, allow_available_live_book_reason = should_block_live_entry_for_unavailable_book(
+        dry_run=False,
+        entry_book_quality={"ok": True, "available": True, "reason": "ok"},
+    )
     observed_partial_value = observed_exit_value_from_mark(sold_shares=1.61, mark=0.365)
     sane_actual_value, sane_actual_source = sanitize_live_actual_exit_value(
         actual_exit_value_usd=1.3846,
@@ -221,6 +264,7 @@ def main():
         ("profit_reversal_exit_skips_if_velocity_not_adverse", should_trigger_profit_reversal_exit(has_extracted_principal=False, side="UP", profit_pnl_pct=0.18, mfe_pnl_pct=0.60, current_value_usd=1.18, peak_value_usd=1.50, ws_velocity=0.0001, secs_left=120.0) is False),
         ("profit_reversal_exit_skips_risk_free_runner", should_trigger_profit_reversal_exit(has_extracted_principal=True, side="UP", profit_pnl_pct=0.18, mfe_pnl_pct=0.60, current_value_usd=1.18, peak_value_usd=1.50, ws_velocity=-0.0010, secs_left=120.0) is False),
         ("profit_reversal_full_exit_prefers_taker_live", should_force_taker_profit_protection(reason="profit-reversal-stop", dry_run=False) is True),
+        ("binance_adverse_exit_prefers_taker_live", should_force_taker_profit_protection(reason="binance-adverse-exit", dry_run=False) is True),
         ("deadline_weak_win_prefers_taker_live", should_force_taker_profit_protection(reason="deadline-exit-weak-win", dry_run=False) is True),
         ("deadline_flat_prefers_taker_live", should_force_taker_profit_protection(reason="deadline-exit-flat", dry_run=False) is True),
         (
@@ -236,6 +280,10 @@ def main():
         ("soft_stop_scaleout_does_not_wait_when_move_is_still_adverse", should_delay_soft_stop_scaleout(reason="stop-loss-scale-out", side="UP", pnl_pct=-0.10, breach_age_sec=2.0, secs_left=120.0, ws_velocity=-0.0010) is False),
         ("soft_stop_scaleout_does_not_wait_after_confirmation_window", should_delay_soft_stop_scaleout(reason="stop-loss-scale-out", side="UP", pnl_pct=-0.10, breach_age_sec=8.0, secs_left=120.0, ws_velocity=0.0) is False),
         ("soft_stop_scaleout_does_not_wait_when_loss_is_too_deep", should_delay_soft_stop_scaleout(reason="stop-loss-scale-out", side="UP", pnl_pct=-0.20, breach_age_sec=2.0, secs_left=120.0, ws_velocity=0.0) is False),
+        ("binance_adverse_exit_waits_for_confirmation_window", should_trigger_binance_adverse_exit(has_extracted_principal=False, side="UP", pnl_pct=-0.03, profit_pnl_pct=None, hold_sec=10.0, breach_age_sec=2.0, secs_left=120.0, ws_velocity=-0.0010, current_ws_velocity=-0.0011) is False),
+        ("binance_adverse_exit_triggers_after_confirmed_dual_adverse_velocity", should_trigger_binance_adverse_exit(has_extracted_principal=False, side="UP", pnl_pct=-0.03, profit_pnl_pct=None, hold_sec=10.0, breach_age_sec=3.1, secs_left=120.0, ws_velocity=-0.0010, current_ws_velocity=-0.0011) is True),
+        ("binance_adverse_exit_skips_safe_executable_profit", should_trigger_binance_adverse_exit(has_extracted_principal=False, side="UP", pnl_pct=0.02, profit_pnl_pct=0.12, hold_sec=10.0, breach_age_sec=3.1, secs_left=120.0, ws_velocity=-0.0010, current_ws_velocity=-0.0011) is False),
+        ("binance_adverse_exit_requires_current_confirmation_when_enabled", should_trigger_binance_adverse_exit(has_extracted_principal=False, side="DOWN", pnl_pct=-0.02, profit_pnl_pct=None, hold_sec=10.0, breach_age_sec=3.1, secs_left=120.0, ws_velocity=0.0010, current_ws_velocity=0.0) is False),
         ("dry_run_stop_loss_partial_fraction_unchanged", abs(effective_stop_loss_partial_fraction(dry_run=True) - 0.50) < 1e-9),
         ("live_stop_loss_partial_fraction_is_heavy", abs(effective_stop_loss_partial_fraction(dry_run=False) - 0.80) < 1e-9),
         ("runner_exports_exit_decision_for_force_close_branch", RunnerExitDecision(True, "residual-force-close").reason == "residual-force-close"),
@@ -251,6 +299,12 @@ def main():
         ("estimate_book_exit_value_is_conservative_when_depth_is_thin", abs((thin_value or 0.0) - 0.2) < 1e-9 and abs(thin_fill_ratio - 0.5) < 1e-9),
         ("realistic_exit_value_uses_depth_aware_bids", abs((realistic_value or 0.0) - 0.595) < 1e-9),
         ("executable_take_profit_value_uses_orderbook_only", abs((executable_profit_value or 0.0) - 0.595) < 1e-9 and executable_profit_without_book is None),
+        ("conservative_exit_decision_value_caps_unbacked_profit_to_cost", abs(conservative_profitless_value - 1.0) < 1e-9),
+        ("conservative_exit_decision_value_keeps_mark_for_losses", abs(conservative_loss_value - 0.62) < 1e-9),
+        ("market_limit_counts_normal_and_pending_entries", counted_normal_entry is True and counted_pending_entry is True),
+        ("market_limit_skips_entry_slippage_guard_retries", counted_slippage_breach is False),
+        ("live_entry_blocks_when_orderbook_is_unavailable", block_missing_live_book is True and missing_live_book_reason == "book-unavailable"),
+        ("live_entry_allows_usable_orderbook", allow_available_live_book is False and allow_available_live_book_reason == ""),
         ("observed_exit_value_uses_sold_shares_times_mark", abs(observed_partial_value - 0.58765) < 1e-9),
         ("sanitize_live_actual_exit_value_rejects_improbable_fill", sane_actual_value is None and sane_actual_source.startswith("sanity-rejected-")),
         ("sanitize_live_actual_exit_value_accepts_close_to_mark_fill", abs((accepted_actual_value or 0.0) - 0.5877) < 1e-9 and accepted_actual_source == "close_response_takingAmount"),

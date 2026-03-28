@@ -302,6 +302,53 @@ def main():
     finally:
         journal_analysis_mod._fetch_market_settlement = original_fetch_market_settlement
     settled_unmatched_summary = summarize_trade_pairs(settled_unmatched_rows)
+    original_funder_address = SETTINGS.funder_address
+    original_fetch_activity = journal_analysis_mod._fetch_account_trade_activity
+    original_fetch_market_settlement = journal_analysis_mod._fetch_market_settlement
+    SETTINGS.funder_address = "0xtest-user"
+    journal_analysis_mod._fetch_account_trade_activity = lambda **kwargs: [
+        {
+            "type": "TRADE",
+            "timestamp": 1773885960,
+            "asset": "tok_unresolved_activity",
+            "slug": "btc-updown-5m-1773885840",
+            "side": "BUY",
+            "size": 2.5,
+            "usdcSize": 1.0,
+            "transactionHash": "0xbuy-expiry",
+        },
+        {
+            "type": "TRADE",
+            "timestamp": 1773886140,
+            "asset": "tok_unresolved_activity",
+            "slug": "btc-updown-5m-1773885840",
+            "side": "SELL",
+            "size": 2.5,
+            "usdcSize": 0.1,
+            "transactionHash": "0xsell-expiry",
+        },
+    ]
+    journal_analysis_mod._fetch_market_settlement = lambda slug, side: (0.5, "market-expired-settlement")
+    try:
+        settled_with_activity_rows = build_trade_pairs([
+            {
+                "kind": "entry",
+                "ts": "2026-03-19T10:06:00+00:00",
+                "event_id": "entry_unresolved_activity",
+                "position_id": "pos_unresolved_activity",
+                "slug": "btc-updown-5m-1773885840",
+                "side": "DOWN",
+                "token_id": "tok_unresolved_activity",
+                "shares": 2.5,
+                "cost_usd": 1.0,
+                "execution_style": "unknown",
+            },
+        ])
+    finally:
+        SETTINGS.funder_address = original_funder_address
+        journal_analysis_mod._fetch_account_trade_activity = original_fetch_activity
+        journal_analysis_mod._fetch_market_settlement = original_fetch_market_settlement
+    settled_with_activity_summary = summarize_trade_pairs(settled_with_activity_rows)
     fee_summary_rows = build_trade_pairs([
         {
             "kind": "entry",
@@ -762,6 +809,20 @@ def main():
             "expired_unmatched_settlement_counts_as_actual",
             abs((settled_unmatched_summary["actual_available_ratio"] or 0.0) - 1.0) < 1e-9
             and abs((settled_unmatched_summary["actual_pnl"]["sum"] or 0.0) + 1.0) < 1e-9
+        ),
+        (
+            "expired_settlement_prefers_account_activity_when_available",
+            len(settled_with_activity_rows) == 1
+            and settled_with_activity_rows[0].actual_source == "account-activity-reconcile"
+            and abs((settled_with_activity_rows[0].actual_pnl_usd or 0.0) + 0.9) < 1e-9
+            and "account-activity-reconciled-leg" in settled_with_activity_rows[0].flags
+            and "market-settlement-imputed" not in settled_with_activity_rows[0].flags
+        ),
+        (
+            "expired_activity_reconcile_counts_as_high_confidence_actual",
+            abs((settled_with_activity_summary["actual_available_ratio"] or 0.0) - 1.0) < 1e-9
+            and abs((settled_with_activity_summary["actual_pnl"]["sum"] or 0.0) + 0.9) < 1e-9
+            and settled_with_activity_summary["actual_source_tier_counts"].get("high") == 1
         ),
         ("trade_pair_fee_adjusted_defaults_unknown_to_zero", len(pair_rows) == 1 and abs((pair_rows[0].fee_adjusted_actual_pnl_usd or 0.0) - 0.2) < 1e-9),
         ("trade_pair_mae_mfe", len(pair_rows) == 1 and pair_rows[0].mae_pnl_usd == -0.1 and pair_rows[0].mfe_pnl_usd == 0.2),

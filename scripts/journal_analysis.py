@@ -150,6 +150,8 @@ def _fetch_account_trade_activity(*, user: str | None, market: str | None = None
     offset = 0
     out: list[dict] = []
     try:
+        import requests
+
         while len(out) < limit:
             params: dict[str, Any] = {
                 "user": user_text,
@@ -175,7 +177,7 @@ def _fetch_account_trade_activity(*, user: str | None, market: str | None = None
     except Exception:
         out = []
 
-    out.sort(key=lambda row: _to_float(row.get("timestamp"), 0.0))
+    out.sort(key=lambda row: _f(row.get("timestamp"), 0.0))
     _ACTIVITY_CACHE[cache_key] = out
     return out
 
@@ -249,7 +251,9 @@ def reconcile_rows_with_account_activity(
     sells_cache: dict[str, list[dict]] = {}
 
     for row in rows:
-        if row.status != "residual" or "orphan-residual" not in row.flags:
+        is_orphan_residual = row.status == "residual" and "orphan-residual" in row.flags
+        is_settlement_imputed = row.actual_source == "market-settlement-lookup" or "market-settlement-imputed" in row.flags
+        if not (is_orphan_residual or is_settlement_imputed):
             continue
         market = str(row.market or "").strip()
         if not market or not row.token_id:
@@ -260,6 +264,7 @@ def reconcile_rows_with_account_activity(
 
         candidates = []
         row_dt = _parse_iso_dt(row.closed_ts)
+        target_shares = row.matched_exit_shares if row.matched_exit_shares > EPS else row.entry_shares
         ref_exit_value = (
             row.exit_recovered_actual_usd
             if row.exit_recovered_actual_usd is not None
@@ -271,15 +276,18 @@ def reconcile_rows_with_account_activity(
             matched_cost_usd = _maybe_float(sell.get("matched_cost_usd"))
             if matched_cost_usd is None:
                 continue
-            shares_diff = abs(_f(sell.get("shares"), 0.0) - row.matched_exit_shares)
-            if shares_diff > max(0.05, row.matched_exit_shares * 0.05):
+            shares_diff = abs(_f(sell.get("shares"), 0.0) - target_shares)
+            if target_shares > EPS and shares_diff > max(0.05, target_shares * 0.05):
                 continue
             value_diff = abs((_maybe_float(sell.get("usdc_size")) or 0.0) - (ref_exit_value or 0.0))
             sell_dt = _parse_iso_dt(str(sell.get("ts") or ""))
             time_diff = abs((sell_dt - row_dt).total_seconds()) if sell_dt is not None and row_dt is not None else 0.0
             if row_dt is not None and sell_dt is not None and time_diff > 3600:
                 continue
-            candidates.append((shares_diff, value_diff, time_diff, sell))
+            if is_settlement_imputed:
+                candidates.append((shares_diff, time_diff, value_diff, sell))
+            else:
+                candidates.append((shares_diff, value_diff, time_diff, sell))
 
         if not candidates:
             continue
@@ -289,20 +297,26 @@ def reconcile_rows_with_account_activity(
         if matched_cost is None or matched_cost <= EPS:
             continue
 
-        row.entry_cost_usd = matched_cost
-        row.entry_shares = _f(best.get("shares"), row.matched_exit_shares)
+        if row.entry_cost_usd <= EPS:
+            row.entry_cost_usd = matched_cost
+        if row.entry_shares <= EPS:
+            row.entry_shares = _f(best.get("shares"), target_shares)
+        if is_settlement_imputed:
+            row.matched_exit_shares = _f(best.get("shares"), target_shares)
+            row.exit_recovered_actual_usd = _maybe_float(best.get("usdc_size"))
+            row.exit_recovered_observed_usd = row.exit_recovered_actual_usd
         row.actual_pnl_usd = (
-            (row.exit_recovered_actual_usd - matched_cost)
+            (row.exit_recovered_actual_usd - row.entry_cost_usd)
             if row.exit_recovered_actual_usd is not None
             else None
         )
         row.observed_pnl_usd = (
-            (row.exit_recovered_observed_usd - matched_cost)
+            (row.exit_recovered_observed_usd - row.entry_cost_usd)
             if row.exit_recovered_observed_usd is not None
             else None
         )
         _, actual_total_fees, observed_total_fees, _ = estimate_pair_fees(
-            matched_cost_usd=matched_cost,
+            matched_cost_usd=row.entry_cost_usd,
             actual_exit_value_usd=row.exit_recovered_actual_usd,
             observed_exit_value_usd=row.exit_recovered_observed_usd,
             entry_execution_style=row.entry_execution_style,
@@ -323,7 +337,10 @@ def reconcile_rows_with_account_activity(
         )
         row.actual_source = "account-activity-reconcile"
         row.actual_source_tier = "high" if row.exit_recovered_actual_usd is not None else row.actual_source_tier
-        row.flags = list(dict.fromkeys([flag for flag in row.flags if flag != "ui-reconciliation-needed"] + ["account-activity-reconciled-leg"]))
+        row.flags = list(dict.fromkeys([
+            flag for flag in row.flags
+            if flag not in {"ui-reconciliation-needed", "market-settlement-imputed"}
+        ] + ["account-activity-reconciled-leg"]))
 
     return rows
 
@@ -457,6 +474,8 @@ def classify_actual_source_tier(source: str | None, actual_value: float | None =
     src = str(source or "").strip().lower()
     if actual_value is None:
         return "none"
+    if src == "account-activity-reconcile":
+        return "high"
     if src == "cash_balance_delta":
         return "high"
     if src == "market-settlement-lookup":

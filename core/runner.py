@@ -154,7 +154,7 @@ def maybe_log_position_watch(
     secs_left_text = "n/a" if secs_left is None else f"{secs_left:.0f}s"
     log(
         f"position watch | side={pos.side} slug={pos.slug} hold={hold_sec:.0f}s secs_left={secs_left_text} "
-        f"mark={mark_text} observed=${observed_text} profit_ref=${profit_ref_text} "
+        f"mark={mark_text} decision_ref=${observed_text} profit_ref=${profit_ref_text} "
         f"observed_return={pnl_pct:.2%} hard_stop_return={hard_stop_pnl_pct:.2%} profit_return={profit_return_text} "
         f"decision={decision} flags={flags_text}"
     )
@@ -194,6 +194,7 @@ class OpenPos:
     last_watch_log_ts: float = 0.0
     last_watch_log_sig: str = ""
     soft_stop_breach_ts: float = 0.0
+    binance_adverse_breach_ts: float = 0.0
 
     @property
     def avg_cost_per_share(self) -> float:
@@ -381,6 +382,14 @@ def entry_response_has_actionable_state(resp: dict | None) -> bool:
     return shares > 0 or bool(order_id)
 
 
+def should_count_entry_toward_market_limit(*, slippage_breach: bool, shares: float, order_id: str | None) -> bool:
+    if slippage_breach:
+        return False
+    if float(shares or 0.0) > LOT_EPS_SHARES:
+        return True
+    return bool(str(order_id or "").strip())
+
+
 LOSS_EXIT_REASONS = {
     "moonbag-drawdown-stop",
     "post-scaleout-stop-loss",
@@ -482,6 +491,54 @@ def should_trigger_profit_reversal_exit(
     return False
 
 
+def should_trigger_binance_adverse_exit(
+    *,
+    has_extracted_principal: bool,
+    side: str | None,
+    pnl_pct: float,
+    profit_pnl_pct: float | None,
+    hold_sec: float,
+    breach_age_sec: float,
+    secs_left: float | None,
+    ws_velocity: float,
+    current_ws_velocity: float | None = None,
+) -> bool:
+    if has_extracted_principal or not bool(getattr(SETTINGS, "binance_adverse_exit_enabled", True)):
+        return False
+    if hold_sec < float(getattr(SETTINGS, "binance_adverse_exit_min_hold_sec", 4.0) or 4.0):
+        return False
+    if secs_left is not None and secs_left <= float(getattr(SETTINGS, "exit_deadline_sec", 20) or 20.0) + 5.0:
+        return False
+    confirm_sec = max(0.0, float(getattr(SETTINGS, "binance_adverse_exit_confirm_sec", 3.0) or 3.0))
+    if breach_age_sec < confirm_sec:
+        return False
+    safe_profit_pnl_pct = (
+        float(profit_pnl_pct)
+        if profit_pnl_pct is not None
+        else min(float(pnl_pct or 0.0), 0.0)
+    )
+    max_safe_profit_pct = float(getattr(SETTINGS, "binance_adverse_exit_max_profit_pct", 0.08) or 0.08)
+    if safe_profit_pnl_pct > max_safe_profit_pct:
+        return False
+    adverse_velocity = abs(float(getattr(SETTINGS, "binance_adverse_exit_velocity", 0.00035) or 0.00035))
+    normalized_side = str(side or "").strip().upper()
+    lag_adverse = (
+        (normalized_side == "UP" and ws_velocity <= -adverse_velocity)
+        or (normalized_side == "DOWN" and ws_velocity >= adverse_velocity)
+    )
+    if not lag_adverse:
+        return False
+    if bool(getattr(SETTINGS, "binance_adverse_exit_require_current_confirm", True)):
+        current_vel = float(current_ws_velocity if current_ws_velocity is not None else ws_velocity)
+        current_adverse = (
+            (normalized_side == "UP" and current_vel <= -adverse_velocity)
+            or (normalized_side == "DOWN" and current_vel >= adverse_velocity)
+        )
+        if not current_adverse:
+            return False
+    return normalized_side in {"UP", "DOWN"}
+
+
 def should_force_full_loss_exit(*, reason: str | None, dry_run: bool) -> bool:
     normalized = str(reason or "").strip().lower()
     return (
@@ -504,6 +561,7 @@ def should_force_taker_profit_protection(*, reason: str | None, dry_run: bool) -
     normalized = str(reason or "").strip().lower()
     return normalized in {
         "take-profit-full",
+        "binance-adverse-exit",
         "profit-reversal-stop",
         "deadline-exit-weak-win",
         "deadline-exit-flat",
@@ -711,6 +769,20 @@ def assess_entry_liquidity(
     }
 
 
+def should_block_live_entry_for_unavailable_book(
+    *,
+    dry_run: bool,
+    entry_book_quality: dict | None,
+) -> tuple[bool, str]:
+    if dry_run:
+        return False, ""
+    if not isinstance(entry_book_quality, dict):
+        return True, "book-unavailable"
+    if bool(entry_book_quality.get("available")):
+        return False, ""
+    return True, str(entry_book_quality.get("reason") or "book-unavailable")
+
+
 def estimate_book_entry_fill(
     *,
     book: dict | None,
@@ -840,7 +912,12 @@ def realistic_exit_value(pos: OpenPos, up: float | None, down: float | None, ob_
         best_bid = orderbook.get("best_bid")
     if best_bid is not None and float(best_bid) > 0:
         return pos.shares * float(best_bid)
-    
+
+    # In live trading, missing executable book depth should not be treated as
+    # a real exit value. Otherwise optimistic marks create phantom profits.
+    if not getattr(SETTINGS, "dry_run", False):
+        return None
+
     # Without orderbook depth passed in Dry Run polling, we assume Maker/Limit orders track the mark exactly over time without massive taker penalties.
     return pos.shares * float(mark)
 
@@ -857,6 +934,21 @@ def executable_take_profit_value(pos: OpenPos, ob_up: dict | None, ob_down: dict
     if executable_value is None:
         return None
     return float(executable_value)
+
+
+def conservative_exit_decision_value(
+    pos: OpenPos,
+    *,
+    executable_exit_value: float | None,
+    mark_value: float | None,
+) -> float:
+    if executable_exit_value is not None:
+        return float(executable_exit_value)
+    if mark_value is not None:
+        # When we only have a mark, allow it to reveal downside but never to
+        # manufacture unrealized profits that cannot actually be sold.
+        return min(float(mark_value), float(pos.cost_usd))
+    return float(pos.cost_usd)
 
 
 def paper_settlement_from_last_mark(last_mark: float | None) -> tuple[float, str]:
@@ -2151,6 +2243,7 @@ def main():
                             )
                             _entry_ws_vel_now = BINANCE_WS.get_price_velocity(3.0, lag_sec=0.0)
                         except Exception:
+                            p.binance_adverse_breach_ts = 0.0
                             pass
 
                         chosen_candidate, candidate_rejections = select_ranked_entry_candidate(
@@ -2214,15 +2307,17 @@ def main():
                         if mark is None:
                             keep_positions.append(p)
                             continue
-                        observed_value = realistic_exit_value(p, up, down, poly_ob_up, poly_ob_down)
+                        executable_exit_value = realistic_exit_value(p, up, down, poly_ob_up, poly_ob_down)
                         mark_value = observed_mark_value(p, up, down)
-                        if observed_value is None and mark_value is None:
+                        if executable_exit_value is None and mark_value is None:
                             keep_positions.append(p)
                             continue
-                        effective_exit_value = observed_value if observed_value is not None else mark_value
-                        hard_stop_value = float(min(
-                            [v for v in (observed_value, mark_value) if v is not None] or [0.0]
-                        ))
+                        effective_exit_value = conservative_exit_decision_value(
+                            p,
+                            executable_exit_value=executable_exit_value,
+                            mark_value=mark_value,
+                        )
+                        hard_stop_value = float(effective_exit_value or 0.0)
                         profit_reference_value = executable_take_profit_value(
                             p,
                             poly_ob_up,
@@ -2287,7 +2382,7 @@ def main():
                             hold_sec=hold_sec,
                             secs_left=secs_left,
                             mark=mark,
-                            observed_value=observed_value,
+                            observed_value=effective_exit_value,
                             profit_reference_value=profit_reference_value,
                             exit_decision=exit_decision,
                         )
@@ -2298,6 +2393,7 @@ def main():
                                 3.0,
                                 lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
                             )
+                            ws_vel_now = BINANCE_WS.get_price_velocity(3.0, lag_sec=0.0)
                             
                             # 1. Panic Dump Override
                             is_panic = (p.side == "UP" and ws_vel < -SETTINGS.panic_dump_velocity) or \
@@ -2326,6 +2422,47 @@ def main():
                                 )
                                 exit_decision.should_close = False
                                 exit_decision.reason = ""
+
+                            binance_adverse_breach_age_sec = 0.0
+                            if should_trigger_binance_adverse_exit(
+                                has_extracted_principal=getattr(p, "has_extracted_principal", False),
+                                side=p.side,
+                                pnl_pct=hard_stop_pnl_pct,
+                                profit_pnl_pct=profit_pnl_pct,
+                                hold_sec=hold_sec,
+                                breach_age_sec=float("inf"),
+                                secs_left=secs_left,
+                                ws_velocity=ws_vel,
+                                current_ws_velocity=ws_vel_now,
+                            ):
+                                if getattr(p, "binance_adverse_breach_ts", 0.0) <= 0.0:
+                                    p.binance_adverse_breach_ts = time.time()
+                                binance_adverse_breach_age_sec = max(
+                                    0.0,
+                                    time.time() - float(getattr(p, "binance_adverse_breach_ts", 0.0) or 0.0),
+                                )
+                            else:
+                                p.binance_adverse_breach_ts = 0.0
+
+                            if should_trigger_binance_adverse_exit(
+                                has_extracted_principal=getattr(p, "has_extracted_principal", False),
+                                side=p.side,
+                                pnl_pct=hard_stop_pnl_pct,
+                                profit_pnl_pct=profit_pnl_pct,
+                                hold_sec=hold_sec,
+                                breach_age_sec=binance_adverse_breach_age_sec,
+                                secs_left=secs_left,
+                                ws_velocity=ws_vel,
+                                current_ws_velocity=ws_vel_now,
+                            ):
+                                safe_profit_text = "n/a" if profit_pnl_pct is None else f"{float(profit_pnl_pct):.2%}"
+                                log(
+                                    f"BINANCE ADVERSE EXIT: {p.side} {p.token_id[-6:]} "
+                                    f"hold={hold_sec:.0f}s pnl={hard_stop_pnl_pct:.2%} profit={safe_profit_text} "
+                                    f"breach_age={binance_adverse_breach_age_sec:.1f}s lag_vel={ws_vel:.4%} current_vel={ws_vel_now:.4%}"
+                                )
+                                exit_decision.should_close = True
+                                exit_decision.reason = "binance-adverse-exit"
 
                             if should_trigger_profit_reversal_exit(
                                 has_extracted_principal=getattr(p, "has_extracted_principal", False),
@@ -3365,6 +3502,25 @@ def main():
                 except Exception as e:
                     entry_book_quality = {"ok": True, "available": False, "reason": f"book-check-error:{e}"}
 
+                block_for_book, book_block_reason = should_block_live_entry_for_unavailable_book(
+                    dry_run=SETTINGS.dry_run,
+                    entry_book_quality=entry_book_quality,
+                )
+                if block_for_book:
+                    maybe_record_cycle_label(
+                        state,
+                        "signal-blocked",
+                        slug=last_market_slug,
+                        side=signal_side,
+                        reason="live-entry-book-unavailable",
+                    )
+                    log(
+                        f"skip entry: live entry requires usable orderbook | reason={book_block_reason} "
+                        f"side={signal_side} quoted={float(entry_price):.3f}"
+                    )
+                    smart_sleep(SETTINGS.poll_seconds)
+                    continue
+
                 if entry_book_quality and entry_book_quality.get("available") and not entry_book_quality.get("ok"):
                     reason = str(entry_book_quality.get("reason") or "book-quality-fail")
                     maybe_record_cycle_label(state, "signal-blocked", slug=last_market_slug, side=signal_side, reason=reason)
@@ -3483,7 +3639,6 @@ def main():
                     cycle_had_slow_api = observe_api_latency(flags, f"place_order#{idx}", latency_ms) or cycle_had_slow_api
                 if order_attempts > 1:
                     log(f"entry order recovered after retry | attempts={order_attempts} side={signal_side}")
-                risk.orders_this_window += 1
                 last_trade_ts = time.time()
                 risk.consec_losses = flags.live_consec_losses
                 
@@ -3688,6 +3843,12 @@ def main():
                             continue
                         opened_ts = time.time()
                         position_id = f"pos_{int(opened_ts)}_{token_id[-6:]}"
+                        if should_count_entry_toward_market_limit(
+                            slippage_breach=False,
+                            shares=shares,
+                            order_id=order_id,
+                        ):
+                            risk.orders_this_window += 1
                         open_positions.append(OpenPos(
                             slug=market["slug"],
                             side=signal_side,
@@ -3729,6 +3890,12 @@ def main():
                         maybe_record_cycle_label(state, "good-entry", slug=market["slug"], side=signal_side, reason=signal_origin or "signal")
                     else:
                         if order_id:
+                            if should_count_entry_toward_market_limit(
+                                slippage_breach=False,
+                                shares=shares,
+                                order_id=order_id,
+                            ):
+                                risk.orders_this_window += 1
                             pending_orders.append(PendingOrder(
                                 order_id=order_id,
                                 slug=market["slug"],
