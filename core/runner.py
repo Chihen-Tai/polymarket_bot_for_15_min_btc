@@ -182,6 +182,7 @@ class OpenPos:
     max_adverse_value_usd: float = 0.0
     max_favorable_pnl_usd: float = 0.0
     max_adverse_pnl_usd: float = 0.0
+    max_favorable_ts: float = 0.0
     has_scaled_out: bool = False
     has_scaled_out_loss: bool = False
     has_taken_partial: bool = False
@@ -196,6 +197,7 @@ class OpenPos:
     last_watch_log_sig: str = ""
     soft_stop_breach_ts: float = 0.0
     binance_adverse_breach_ts: float = 0.0
+    binance_profit_protect_breach_ts: float = 0.0
 
     @property
     def avg_cost_per_share(self) -> float:
@@ -583,6 +585,62 @@ def should_trigger_binance_adverse_exit(
     return normalized_side in {"UP", "DOWN"}
 
 
+def should_trigger_binance_profit_protect_exit(
+    *,
+    has_extracted_principal: bool,
+    side: str | None,
+    profit_pnl_pct: float | None,
+    take_profit_soft_pct: float,
+    hold_sec: float,
+    peak_age_sec: float | None,
+    breach_age_sec: float,
+    secs_left: float | None,
+    ws_velocity: float,
+    current_ws_velocity: float | None = None,
+) -> bool:
+    if has_extracted_principal or not bool(getattr(SETTINGS, "binance_profit_protect_enabled", True)):
+        return False
+    if profit_pnl_pct is None:
+        return False
+    if hold_sec < float(getattr(SETTINGS, "binance_profit_protect_min_hold_sec", 8.0) or 8.0):
+        return False
+    if secs_left is not None and secs_left <= float(getattr(SETTINGS, "exit_deadline_sec", 20) or 20.0) + 10.0:
+        return False
+    if peak_age_sec is None:
+        return False
+    stall_sec = max(0.0, float(getattr(SETTINGS, "binance_profit_protect_stall_sec", 8.0) or 8.0))
+    if peak_age_sec < stall_sec:
+        return False
+    confirm_sec = max(0.0, float(getattr(SETTINGS, "binance_profit_protect_confirm_sec", 2.0) or 2.0))
+    if breach_age_sec < confirm_sec:
+        return False
+    current_profit_pct = float(profit_pnl_pct or 0.0)
+    min_profit_pct = float(getattr(SETTINGS, "binance_profit_protect_min_profit_pct", 0.06) or 0.06)
+    max_profit_pct = min(
+        float(getattr(SETTINGS, "binance_profit_protect_max_profit_pct", 0.18) or 0.18),
+        max(0.0, float(take_profit_soft_pct or 0.0) - 0.01),
+    )
+    if current_profit_pct < min_profit_pct or current_profit_pct > max_profit_pct:
+        return False
+    adverse_velocity = abs(float(getattr(SETTINGS, "binance_profit_protect_velocity", 0.00025) or 0.00025))
+    normalized_side = str(side or "").strip().upper()
+    lag_adverse = (
+        (normalized_side == "UP" and ws_velocity <= -adverse_velocity)
+        or (normalized_side == "DOWN" and ws_velocity >= adverse_velocity)
+    )
+    if not lag_adverse:
+        return False
+    if bool(getattr(SETTINGS, "binance_profit_protect_require_current_confirm", True)):
+        current_vel = float(current_ws_velocity if current_ws_velocity is not None else ws_velocity)
+        current_adverse = (
+            (normalized_side == "UP" and current_vel <= -adverse_velocity)
+            or (normalized_side == "DOWN" and current_vel >= adverse_velocity)
+        )
+        if not current_adverse:
+            return False
+    return normalized_side in {"UP", "DOWN"}
+
+
 def should_force_full_loss_exit(*, reason: str | None, dry_run: bool) -> bool:
     normalized = str(reason or "").strip().lower()
     return (
@@ -619,6 +677,7 @@ def should_force_taker_profit_protection(*, reason: str | None, dry_run: bool) -
     return normalized in {
         "take-profit-full",
         "binance-adverse-exit",
+        "binance-profit-protect-exit",
         "profit-reversal-stop",
         "deadline-exit-weak-win",
         "deadline-exit-flat",
@@ -670,6 +729,15 @@ def update_runner_peak(pos: OpenPos, current_value_usd: float, *, now_ts: float 
     drawdown_pct = (value - peak) / max(peak, 1e-9)
     peak_age_sec = max(0.0, now_value - peak_ts) if peak_ts > 0 else None
     return drawdown_pct, peak_age_sec
+
+
+def favorable_peak_age_sec(pos: OpenPos, *, now_ts: float | None = None) -> float | None:
+    peak_value = max(0.0, float(getattr(pos, "max_favorable_value_usd", 0.0) or 0.0))
+    peak_ts = float(getattr(pos, "max_favorable_ts", 0.0) or 0.0)
+    if peak_value <= LOT_EPS_COST_USD or peak_ts <= 0.0:
+        return None
+    now_value = float(now_ts or time.time())
+    return max(0.0, now_value - peak_ts)
 
 
 def decide_pending_order_action(
@@ -735,6 +803,7 @@ def track_pending_fill(
         max_adverse_value_usd=cost_usd,
         max_favorable_pnl_usd=0.0,
         max_adverse_pnl_usd=0.0,
+        max_favorable_ts=opened_ts,
     ))
     append_event({
         "kind": "entry",
@@ -1030,6 +1099,19 @@ def resolve_close_remaining_shares(
     # Trust the exchange-provided residual hint over simple subtraction. This
     # keeps local state aligned after partial fills or allowance-limited sweeps.
     return hinted_remaining
+
+
+def resolve_effective_closed_shares(
+    *,
+    starting_shares: float,
+    sold_shares: float,
+    remaining_shares: float,
+) -> float:
+    starting = max(0.0, float(starting_shares or 0.0))
+    explicit_sold = min(starting, max(0.0, float(sold_shares or 0.0)))
+    remaining = min(starting, max(0.0, float(remaining_shares or 0.0)))
+    hinted_sold = max(0.0, starting - remaining)
+    return min(starting, max(explicit_sold, hinted_sold))
 
 
 def paper_settlement_from_last_mark(last_mark: float | None) -> tuple[float, str]:
@@ -1334,14 +1416,18 @@ def sanitize_live_actual_exit_value(
 def update_position_excursions(pos: OpenPos, observed_value: float | None) -> None:
     if observed_value is None:
         return
+    now_ts = time.time()
     pnl = observed_value - pos.cost_usd
     if pos.max_favorable_value_usd <= 0:
         pos.max_favorable_value_usd = observed_value
         pos.max_adverse_value_usd = observed_value
         pos.max_favorable_pnl_usd = pnl
         pos.max_adverse_pnl_usd = pnl
+        pos.max_favorable_ts = now_ts
         return
-    pos.max_favorable_value_usd = max(pos.max_favorable_value_usd, observed_value)
+    if observed_value > pos.max_favorable_value_usd + 1e-9:
+        pos.max_favorable_value_usd = observed_value
+        pos.max_favorable_ts = now_ts
     pos.max_adverse_value_usd = min(pos.max_adverse_value_usd, observed_value)
     pos.max_favorable_pnl_usd = max(pos.max_favorable_pnl_usd, pnl)
     pos.max_adverse_pnl_usd = min(pos.max_adverse_pnl_usd, pnl)
@@ -1424,7 +1510,15 @@ def merge_recovery_positions(runtime_positions: list[OpenPos], rebuilt_positions
             chosen.last_synced_initial_value = incoming.last_synced_initial_value
             chosen.last_synced_current_value = incoming.last_synced_current_value
             chosen.last_synced_cash_pnl = incoming.last_synced_cash_pnl
-        chosen.max_favorable_value_usd = max(chosen.max_favorable_value_usd, incoming.max_favorable_value_usd)
+        chosen_prev_peak = float(chosen.max_favorable_value_usd or 0.0)
+        incoming_peak = float(incoming.max_favorable_value_usd or 0.0)
+        chosen.max_favorable_value_usd = max(chosen_prev_peak, incoming_peak)
+        chosen_peak_ts = float(getattr(chosen, "max_favorable_ts", 0.0) or 0.0)
+        incoming_peak_ts = float(getattr(incoming, "max_favorable_ts", 0.0) or 0.0)
+        if incoming_peak > chosen_prev_peak + 1e-9:
+            chosen.max_favorable_ts = incoming_peak_ts
+        elif incoming_peak >= chosen_prev_peak - 1e-9:
+            chosen.max_favorable_ts = max(chosen_peak_ts, incoming_peak_ts)
         if chosen.max_adverse_value_usd <= 0:
             chosen.max_adverse_value_usd = incoming.max_adverse_value_usd
         elif incoming.max_adverse_value_usd > 0:
@@ -1549,6 +1643,7 @@ def sync_open_positions(ex, open_positions: list[OpenPos]) -> tuple[list[OpenPos
             max_adverse_value_usd=p.max_adverse_value_usd,
             max_favorable_pnl_usd=p.max_favorable_pnl_usd,
             max_adverse_pnl_usd=p.max_adverse_pnl_usd,
+            max_favorable_ts=float(getattr(p, "max_favorable_ts", p.opened_ts) or p.opened_ts or 0.0),
             has_scaled_out=getattr(p, "has_scaled_out", False),
             has_scaled_out_loss=getattr(p, "has_scaled_out_loss", False),
             has_taken_partial=getattr(p, "has_taken_partial", False),
@@ -1601,6 +1696,7 @@ def rebuild_positions_from_journal() -> tuple[list[OpenPos], list[str]]:
             max_adverse_value_usd=float(lot.get("max_adverse_value_usd", cost_usd) or cost_usd),
             max_favorable_pnl_usd=float(lot.get("max_favorable_pnl_usd", 0.0) or 0.0),
             max_adverse_pnl_usd=float(lot.get("max_adverse_pnl_usd", 0.0) or 0.0),
+            max_favorable_ts=float(lot.get("max_favorable_ts", opened_ts) or opened_ts or 0.0),
         ))
     return positions, notes_out
 
@@ -2413,6 +2509,7 @@ def main():
                             if profit_reference_value is not None
                             else None
                         )
+                        profit_peak_age_sec = favorable_peak_age_sec(p)
                         stop_loss_partial_pct = abs(float(getattr(SETTINGS, "stop_loss_partial_pct", 0.05) or 0.05))
                         stop_loss_pct = abs(float(getattr(SETTINGS, "stop_loss_pct", 0.15) or 0.15))
                         if hard_stop_pnl_pct <= -stop_loss_partial_pct and hard_stop_pnl_pct > -stop_loss_pct:
@@ -2545,6 +2642,48 @@ def main():
                                 exit_decision.should_close = True
                                 exit_decision.reason = "binance-adverse-exit"
 
+                            profit_protect_breach_age_sec = 0.0
+                            if should_trigger_binance_profit_protect_exit(
+                                has_extracted_principal=getattr(p, "has_extracted_principal", False),
+                                side=p.side,
+                                profit_pnl_pct=profit_pnl_pct,
+                                take_profit_soft_pct=float(getattr(SETTINGS, "take_profit_soft_pct", 0.35) or 0.35),
+                                hold_sec=hold_sec,
+                                peak_age_sec=profit_peak_age_sec,
+                                breach_age_sec=float("inf"),
+                                secs_left=secs_left,
+                                ws_velocity=ws_vel,
+                                current_ws_velocity=ws_vel_now,
+                            ):
+                                if getattr(p, "binance_profit_protect_breach_ts", 0.0) <= 0.0:
+                                    p.binance_profit_protect_breach_ts = time.time()
+                                profit_protect_breach_age_sec = max(
+                                    0.0,
+                                    time.time() - float(getattr(p, "binance_profit_protect_breach_ts", 0.0) or 0.0),
+                                )
+                            else:
+                                p.binance_profit_protect_breach_ts = 0.0
+
+                            if should_trigger_binance_profit_protect_exit(
+                                has_extracted_principal=getattr(p, "has_extracted_principal", False),
+                                side=p.side,
+                                profit_pnl_pct=profit_pnl_pct,
+                                take_profit_soft_pct=float(getattr(SETTINGS, "take_profit_soft_pct", 0.35) or 0.35),
+                                hold_sec=hold_sec,
+                                peak_age_sec=profit_peak_age_sec,
+                                breach_age_sec=profit_protect_breach_age_sec,
+                                secs_left=secs_left,
+                                ws_velocity=ws_vel,
+                                current_ws_velocity=ws_vel_now,
+                            ):
+                                log(
+                                    f"BINANCE PROFIT PROTECT EXIT: {p.side} {p.token_id[-6:]} "
+                                    f"profit={float(profit_pnl_pct or 0.0):.2%} peak_age={float(profit_peak_age_sec or 0.0):.1f}s "
+                                    f"breach_age={profit_protect_breach_age_sec:.1f}s lag_vel={ws_vel:.4%} current_vel={ws_vel_now:.4%}"
+                                )
+                                exit_decision.should_close = True
+                                exit_decision.reason = "binance-profit-protect-exit"
+
                             if should_trigger_profit_reversal_exit(
                                 has_extracted_principal=getattr(p, "has_extracted_principal", False),
                                 side=p.side,
@@ -2653,6 +2792,11 @@ def main():
                                                 sold_shares=sold_shares,
                                                 remaining_hint=remaining_hint,
                                             )
+                                            sold_shares = resolve_effective_closed_shares(
+                                                starting_shares=starting_shares,
+                                                sold_shares=sold_shares,
+                                                remaining_shares=resolved_remaining_shares,
+                                            )
                                             avg_cost = starting_cost / max(starting_shares, 1e-9)
                                             remaining_cost = avg_cost * resolved_remaining_shares
                                             realized_cost = max(0.0, starting_cost - remaining_cost)
@@ -2730,6 +2874,11 @@ def main():
                                                 sold_shares=sold_shares,
                                                 remaining_hint=remaining_hint,
                                             )
+                                            sold_shares = resolve_effective_closed_shares(
+                                                starting_shares=starting_shares,
+                                                sold_shares=sold_shares,
+                                                remaining_shares=resolved_remaining_shares,
+                                            )
                                             avg_cost = starting_cost / max(starting_shares, 1e-9)
                                             remaining_cost = avg_cost * resolved_remaining_shares
                                             realized_cost = max(0.0, starting_cost - remaining_cost)
@@ -2792,6 +2941,20 @@ def main():
                                                     f"stop-loss tail cleanup armed | token={p.token_id} "
                                                     f"remaining_shares={p.shares:.6f} remaining_cost={p.cost_usd:.6f}"
                                                 )
+                                            if should_block_same_market_reentry(
+                                                "stop-loss-scale-out",
+                                                remaining_shares=resolved_remaining_shares,
+                                                realized_pnl_usd=(
+                                                    (_act_val - realized_cost)
+                                                    if _act_val is not None
+                                                    else (_obs_val - realized_cost)
+                                                ),
+                                            ):
+                                                same_market_reentry_block_slug = p.slug
+                                                log(
+                                                    f"same-market reentry blocked | slug={p.slug} side={p.side} "
+                                                    "reason=stop-loss-scale-out"
+                                                )
                                             maybe_record_cycle_label(state, "stop-loss-scale-out", slug=p.slug, side=p.side)
                                 except Exception as e:
                                     log(f"Stop-loss scale-out error: {e}")
@@ -2834,6 +2997,11 @@ def main():
                                                 requested_shares=starting_shares,
                                                 sold_shares=sold_shares,
                                                 remaining_hint=remaining_hint,
+                                            )
+                                            sold_shares = resolve_effective_closed_shares(
+                                                starting_shares=starting_shares,
+                                                sold_shares=sold_shares,
+                                                remaining_shares=resolved_remaining_shares,
                                             )
                                             avg_cost = starting_cost / max(starting_shares, 1e-9)
                                             remaining_cost = avg_cost * resolved_remaining_shares
@@ -2889,6 +3057,16 @@ def main():
 
                                             if principal_done:
                                                 log(f"PRINCIPAL EXTRACTED! Sold {sold_shares:.2f} shares. Risk-Free Moonbag active.")
+                                                if should_block_same_market_reentry(
+                                                    tp_reason,
+                                                    remaining_shares=resolved_remaining_shares,
+                                                    realized_pnl_usd=_realized_pnl,
+                                                ):
+                                                    same_market_reentry_block_slug = p.slug
+                                                    log(
+                                                        f"same-market reentry blocked | slug={p.slug} side={p.side} "
+                                                        f"reason={tp_reason}"
+                                                    )
                                                 maybe_record_cycle_label(state, "take-profit-principal", slug=p.slug, side=p.side)
                                             else:
                                                 log(
@@ -2935,6 +3113,11 @@ def main():
                                                 sold_shares=sold_shares,
                                                 remaining_hint=remaining_hint,
                                             )
+                                            sold_shares = resolve_effective_closed_shares(
+                                                starting_shares=starting_shares,
+                                                sold_shares=sold_shares,
+                                                remaining_shares=resolved_remaining_shares,
+                                            )
                                             avg_cost = starting_cost / max(starting_shares, 1e-9)
                                             remaining_cost = avg_cost * resolved_remaining_shares
                                             realized_cost = max(0.0, starting_cost - remaining_cost)
@@ -2980,6 +3163,16 @@ def main():
                                                 f"PARTIAL PROFIT TAKEN! Sold {sold_shares:.2f} shares "
                                                 f"({sell_fraction:.0%} clip at +{getattr(SETTINGS, 'take_profit_soft_pct', 0.30):.0%} threshold)."
                                             )
+                                            if should_block_same_market_reentry(
+                                                "take-profit-partial",
+                                                remaining_shares=resolved_remaining_shares,
+                                                realized_pnl_usd=_realized_pnl,
+                                            ):
+                                                same_market_reentry_block_slug = p.slug
+                                                log(
+                                                    f"same-market reentry blocked | slug={p.slug} side={p.side} "
+                                                    "reason=take-profit-partial"
+                                                )
                                             maybe_record_cycle_label(state, "take-profit-partial", slug=p.slug, side=p.side)
                                     else:
                                         log(f"take-profit partial close failed: {close_resp}")
@@ -3070,6 +3263,7 @@ def main():
                                                 max_adverse_value_usd=p.max_adverse_value_usd,
                                                 max_favorable_pnl_usd=p.max_favorable_pnl_usd,
                                                 max_adverse_pnl_usd=p.max_adverse_pnl_usd,
+                                                max_favorable_ts=float(getattr(p, "max_favorable_ts", p.opened_ts) or p.opened_ts or 0.0),
                                                 has_scaled_out=getattr(p, "has_scaled_out", False),
                                                 has_scaled_out_loss=getattr(p, "has_scaled_out_loss", False),
                                                 has_taken_partial=getattr(p, "has_taken_partial", False),
@@ -3093,6 +3287,11 @@ def main():
                                             requested_shares=starting_shares,
                                             sold_shares=sold_shares,
                                             remaining_hint=remaining_hint,
+                                        )
+                                        sold_shares = resolve_effective_closed_shares(
+                                            starting_shares=starting_shares,
+                                            sold_shares=sold_shares,
+                                            remaining_shares=remaining_shares,
                                         )
                                         remaining_cost = p.avg_cost_per_share * remaining_shares
                                         realized_cost = max(0.0, starting_cost - remaining_cost)
@@ -3237,6 +3436,7 @@ def main():
                                                     max_adverse_value_usd=p.max_adverse_value_usd,
                                                     max_favorable_pnl_usd=p.max_favorable_pnl_usd,
                                                     max_adverse_pnl_usd=p.max_adverse_pnl_usd,
+                                                    max_favorable_ts=float(getattr(p, "max_favorable_ts", p.opened_ts) or p.opened_ts or 0.0),
                                                     has_scaled_out=getattr(p, "has_scaled_out", False),
                                                     has_scaled_out_loss=getattr(p, "has_scaled_out_loss", False),
                                                     has_taken_partial=getattr(p, "has_taken_partial", False),
@@ -3271,6 +3471,7 @@ def main():
                                                     max_adverse_value_usd=p.max_adverse_value_usd,
                                                     max_favorable_pnl_usd=p.max_favorable_pnl_usd,
                                                     max_adverse_pnl_usd=p.max_adverse_pnl_usd,
+                                                    max_favorable_ts=float(getattr(p, "max_favorable_ts", p.opened_ts) or p.opened_ts or 0.0),
                                                     has_scaled_out=getattr(p, "has_scaled_out", False),
                                                     has_scaled_out_loss=getattr(p, "has_scaled_out_loss", False),
                                                     has_taken_partial=getattr(p, "has_taken_partial", False),
@@ -3881,6 +4082,7 @@ def main():
                                     entry_reason="structured-hedge",
                                     source="runtime",
                                     max_favorable_value_usd=hedge_usd,
+                                    max_favorable_ts=h_ts,
                                 ))
                         except Exception as e:
                             log(f"hedge parsing error: {e}")
@@ -4007,6 +4209,7 @@ def main():
                                         max_adverse_value_usd=remaining_cost,
                                         max_favorable_pnl_usd=0.0,
                                         max_adverse_pnl_usd=0.0,
+                                        max_favorable_ts=opened_ts,
                                     ))
                                     log(
                                         f"entry slippage guard residual | side={signal_side} "
@@ -4032,6 +4235,7 @@ def main():
                                     max_adverse_value_usd=actual_entry_cost_usd,
                                     max_favorable_pnl_usd=0.0,
                                     max_adverse_pnl_usd=0.0,
+                                    max_favorable_ts=opened_ts,
                                 ))
                                 log(f"entry slippage guard close failed: {close_resp}")
                             log(f"order placed: {resp}")
@@ -4081,6 +4285,7 @@ def main():
                             max_adverse_value_usd=actual_entry_cost_usd,
                             max_favorable_pnl_usd=0.0,
                             max_adverse_pnl_usd=0.0,
+                            max_favorable_ts=opened_ts,
                         ))
                         append_event({
                             "kind": "entry",

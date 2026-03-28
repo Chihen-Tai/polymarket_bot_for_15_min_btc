@@ -172,6 +172,7 @@ def should_block_same_market_reentry(
     normalized = str(exit_reason or "").strip().lower()
     if normalized in {
         "binance-adverse-exit",
+        "binance-profit-protect-exit",
         "deadline-exit-flat",
         "deadline-exit-loss",
         "deadline-exit-weak-win",
