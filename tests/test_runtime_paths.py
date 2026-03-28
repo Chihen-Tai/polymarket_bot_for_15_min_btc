@@ -10,6 +10,7 @@ from core.runner import (
     clear_expired_market_state,
     idle_sleep_seconds,
     next_cycle_interval_seconds,
+    open_position_poll_interval_seconds,
     pending_order_poll_interval_seconds,
     sync_open_positions,
 )
@@ -172,9 +173,12 @@ def main():
             and any("sync_protect token=residual-token" in note for note in protected_notes)
         ),
         ("pending_orders_poll_every_second", abs(pending_order_poll_interval_seconds() - 1.0) < 1e-9),
-        ("next_cycle_interval_uses_fast_pending_poll", abs(next_cycle_interval_seconds(has_pending_orders=True) - 1.0) < 1e-9),
-        ("next_cycle_interval_uses_two_second_market_poll_floor", abs(next_cycle_interval_seconds(has_pending_orders=False) - 2.0) < 1e-9),
+        ("open_positions_poll_every_second", abs(open_position_poll_interval_seconds() - 1.0) < 1e-9),
+        ("next_cycle_interval_uses_fast_pending_poll", abs(next_cycle_interval_seconds(has_pending_orders=True, has_open_positions=False) - 1.0) < 1e-9),
+        ("next_cycle_interval_uses_fast_open_position_poll", abs(next_cycle_interval_seconds(has_pending_orders=False, has_open_positions=True) - 1.0) < 1e-9),
+        ("next_cycle_interval_uses_two_second_market_poll_floor", abs(next_cycle_interval_seconds(has_pending_orders=False, has_open_positions=False) - 2.0) < 1e-9),
         ("idle_sleep_prefers_fast_pending_poll", abs(idle_sleep_seconds(has_open_positions=False, has_pending_orders=True) - 1.0) < 1e-9),
+        ("idle_sleep_prefers_fast_open_position_poll", abs(idle_sleep_seconds(has_open_positions=True, has_pending_orders=False) - 1.0) < 1e-9),
     ])
 
     failed = [name for name, ok in cases if not ok]

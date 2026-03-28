@@ -63,9 +63,16 @@ def pending_order_poll_interval_seconds() -> float:
     return min(normal_poll_interval_seconds(), requested)
 
 
-def next_cycle_interval_seconds(*, has_pending_orders: bool) -> float:
+def open_position_poll_interval_seconds() -> float:
+    requested = max(0.5, float(getattr(SETTINGS, "open_position_poll_seconds", 1.0) or 1.0))
+    return min(normal_poll_interval_seconds(), requested)
+
+
+def next_cycle_interval_seconds(*, has_pending_orders: bool, has_open_positions: bool = False) -> float:
     if has_pending_orders:
         return pending_order_poll_interval_seconds()
+    if has_open_positions:
+        return open_position_poll_interval_seconds()
     return normal_poll_interval_seconds()
 
 
@@ -73,7 +80,7 @@ def idle_sleep_seconds(*, has_open_positions: bool, has_pending_orders: bool, se
     if has_pending_orders:
         return pending_order_poll_interval_seconds()
     if has_open_positions:
-        return min(1.5, normal_poll_interval_seconds())
+        return open_position_poll_interval_seconds()
     if secs_left is not None and 200 <= secs_left <= 260:
         return 1.0
     return float(getattr(SETTINGS, "poll_seconds", 3) or 3.0)
@@ -93,6 +100,62 @@ STOP_REQUEST = {"signal": None}
 def log(msg: str):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{ts}] {msg}", flush=True)
+
+
+def maybe_log_position_watch(
+    pos,
+    *,
+    pnl_pct: float,
+    hard_stop_pnl_pct: float,
+    profit_pnl_pct: float,
+    hold_sec: float,
+    secs_left: float | None,
+    mark: float | None,
+    observed_value: float | None,
+    profit_reference_value: float,
+    exit_decision: ExitDecision,
+):
+    if not getattr(SETTINGS, "position_watch_debug_enabled", True):
+        return
+
+    decision = exit_decision.reason if getattr(exit_decision, "should_close", False) else "hold"
+    interval = max(1.0, float(getattr(SETTINGS, "position_watch_log_interval_sec", 5.0) or 5.0))
+    rounded_secs_left = -1 if secs_left is None else int(secs_left // 5)
+    mark_bucket = -1 if mark is None else int(float(mark) * 1000)
+    observed_bucket = -1 if observed_value is None else int(float(observed_value) * 1000)
+    signature = (
+        f"{decision}|{int(pnl_pct * 1000)}|{int(hard_stop_pnl_pct * 1000)}|"
+        f"{int(profit_pnl_pct * 1000)}|{rounded_secs_left}|{mark_bucket}|{observed_bucket}|"
+        f"{int(bool(getattr(pos, 'force_close_only', False)))}|{int(bool(getattr(pos, 'pending_confirmation', False)))}"
+    )
+    now_ts = time.time()
+    if signature == getattr(pos, "last_watch_log_sig", "") and (now_ts - float(getattr(pos, "last_watch_log_ts", 0.0) or 0.0)) < interval:
+        return
+
+    pos.last_watch_log_sig = signature
+    pos.last_watch_log_ts = now_ts
+    flags = []
+    if getattr(pos, "pending_confirmation", False):
+        flags.append("pending-confirmation")
+    if getattr(pos, "force_close_only", False):
+        flags.append("force-close-only")
+    if getattr(pos, "has_scaled_out_loss", False):
+        flags.append("scaled-out-loss")
+    if getattr(pos, "has_taken_partial", False):
+        flags.append("partial-profit")
+    if getattr(pos, "has_extracted_principal", False):
+        flags.append("principal-extracted")
+    flags_text = ",".join(flags) if flags else "none"
+    mark_text = "n/a" if mark is None else f"{float(mark):.3f}"
+    observed_text = "n/a" if observed_value is None else f"{float(observed_value):.4f}"
+    profit_ref_text = f"{float(profit_reference_value):.4f}"
+    secs_left_text = "n/a" if secs_left is None else f"{secs_left:.0f}s"
+    log(
+        f"position watch | side={pos.side} slug={pos.slug} hold={hold_sec:.0f}s secs_left={secs_left_text} "
+        f"mark={mark_text} observed=${observed_text} profit_ref=${profit_ref_text} "
+        f"observed_return={pnl_pct:.2%} hard_stop_return={hard_stop_pnl_pct:.2%} profit_return={profit_pnl_pct:.2%} "
+        f"decision={decision} flags={flags_text}"
+    )
 
 
 @dataclass
@@ -126,6 +189,9 @@ class OpenPos:
     runner_peak_value_usd: float = 0.0
     runner_peak_ts: float = 0.0
     dust_retry_count: int = 0  # Number of times this residual lot has been kept for retry
+    last_watch_log_ts: float = 0.0
+    last_watch_log_sig: str = ""
+    soft_stop_breach_ts: float = 0.0
 
     @property
     def avg_cost_per_share(self) -> float:
@@ -316,6 +382,72 @@ def effective_stop_loss_partial_fraction(*, dry_run: bool) -> float:
     return min(0.99, max(0.01, float(configured or 0.50)))
 
 
+def should_delay_soft_stop_scaleout(
+    *,
+    reason: str | None,
+    side: str | None,
+    pnl_pct: float,
+    breach_age_sec: float,
+    secs_left: float | None,
+    ws_velocity: float,
+) -> bool:
+    if str(reason or "").strip().lower() != "stop-loss-scale-out":
+        return False
+    confirm_sec = max(0.0, float(getattr(SETTINGS, "soft_stop_confirm_sec", 0.0) or 0.0))
+    if confirm_sec <= 0.0 or breach_age_sec >= confirm_sec:
+        return False
+    exit_deadline_sec = float(getattr(SETTINGS, "exit_deadline_sec", 20) or 20.0)
+    if secs_left is not None and secs_left <= exit_deadline_sec + 5.0:
+        return False
+    partial_pct = abs(float(getattr(SETTINGS, "stop_loss_partial_pct", 0.05) or 0.05))
+    buffer_pct = abs(float(getattr(SETTINGS, "soft_stop_confirm_buffer_pct", 0.03) or 0.03))
+    if pnl_pct <= -(partial_pct + buffer_pct):
+        return False
+    adverse_velocity = abs(float(getattr(SETTINGS, "soft_stop_adverse_velocity", 0.0003) or 0.0003))
+    normalized_side = str(side or "").strip().upper()
+    if normalized_side == "UP" and ws_velocity <= -adverse_velocity:
+        return False
+    if normalized_side == "DOWN" and ws_velocity >= adverse_velocity:
+        return False
+    return True
+
+
+def should_trigger_profit_reversal_exit(
+    *,
+    has_extracted_principal: bool,
+    side: str | None,
+    profit_pnl_pct: float,
+    mfe_pnl_pct: float,
+    current_value_usd: float,
+    peak_value_usd: float,
+    ws_velocity: float,
+    secs_left: float | None,
+) -> bool:
+    if has_extracted_principal or not bool(getattr(SETTINGS, "profit_reversal_enabled", True)):
+        return False
+    if secs_left is not None and secs_left <= float(getattr(SETTINGS, "exit_deadline_sec", 20) or 20.0):
+        return False
+    min_mfe_pct = float(getattr(SETTINGS, "profit_reversal_min_mfe_pct", 0.50) or 0.50)
+    min_current_profit_pct = float(getattr(SETTINGS, "profit_reversal_min_current_profit_pct", 0.12) or 0.12)
+    if mfe_pnl_pct < min_mfe_pct or profit_pnl_pct < min_current_profit_pct:
+        return False
+    peak_value = max(float(peak_value_usd or 0.0), float(current_value_usd or 0.0))
+    current_value = max(0.0, float(current_value_usd or 0.0))
+    if peak_value <= LOT_EPS_COST_USD or current_value <= LOT_EPS_COST_USD:
+        return False
+    drawdown_pct = (current_value - peak_value) / max(peak_value, 1e-9)
+    required_drawdown_pct = abs(float(getattr(SETTINGS, "profit_reversal_drawdown_pct", 0.18) or 0.18))
+    if drawdown_pct > -required_drawdown_pct:
+        return False
+    adverse_velocity = abs(float(getattr(SETTINGS, "profit_reversal_adverse_velocity", 0.0003) or 0.0003))
+    normalized_side = str(side or "").strip().upper()
+    if normalized_side == "UP":
+        return ws_velocity <= -adverse_velocity
+    if normalized_side == "DOWN":
+        return ws_velocity >= adverse_velocity
+    return False
+
+
 def should_force_full_loss_exit(*, reason: str | None, dry_run: bool) -> bool:
     normalized = str(reason or "").strip().lower()
     return (
@@ -330,6 +462,15 @@ def should_force_taker_take_profit(*, dry_run: bool) -> bool:
     if dry_run:
         return False
     return bool(getattr(SETTINGS, "live_take_profit_force_taker", True))
+
+
+def should_force_taker_profit_protection(*, reason: str | None, dry_run: bool) -> bool:
+    if dry_run:
+        return False
+    normalized = str(reason or "").strip().lower()
+    return normalized in {"take-profit-full", "profit-reversal-stop"} and bool(
+        getattr(SETTINGS, "live_take_profit_force_taker", True)
+    )
 
 
 def should_force_taker_exit(*, reason: str | None, dry_run: bool, has_panic_dumped: bool = False) -> bool:
@@ -1500,7 +1641,10 @@ def main():
     try:
         while True:
             time_since_last_query = time.time() - last_rest_query_ts
-            cycle_interval = next_cycle_interval_seconds(has_pending_orders=bool(pending_orders))
+            cycle_interval = next_cycle_interval_seconds(
+                has_pending_orders=bool(pending_orders),
+                has_open_positions=bool(open_positions),
+            )
             if time_since_last_query < cycle_interval:
                 time.sleep(cycle_interval - time_since_last_query)
             last_rest_query_ts = time.time()
@@ -1963,6 +2107,13 @@ def main():
                         pnl_pct = (effective_exit_value - p.cost_usd) / max(p.cost_usd, 1e-9)
                         hard_stop_pnl_pct = (hard_stop_value - p.cost_usd) / max(p.cost_usd, 1e-9)
                         profit_pnl_pct = (profit_reference_value - p.cost_usd) / max(p.cost_usd, 1e-9)
+                        stop_loss_partial_pct = abs(float(getattr(SETTINGS, "stop_loss_partial_pct", 0.05) or 0.05))
+                        stop_loss_pct = abs(float(getattr(SETTINGS, "stop_loss_pct", 0.15) or 0.15))
+                        if hard_stop_pnl_pct <= -stop_loss_partial_pct and hard_stop_pnl_pct > -stop_loss_pct:
+                            if getattr(p, "soft_stop_breach_ts", 0.0) <= 0.0:
+                                p.soft_stop_breach_ts = time.time()
+                        else:
+                            p.soft_stop_breach_ts = 0.0
                         mfe_pnl_pct = p.max_favorable_pnl_usd / max(p.cost_usd, 1e-9)
                         runner_drawdown_pct = 0.0
                         runner_peak_age_sec = None
@@ -1998,6 +2149,19 @@ def main():
                                 runner_peak_value_usd=float(getattr(p, "runner_peak_value_usd", 0.0) or 0.0),
                             )
 
+                        maybe_log_position_watch(
+                            p,
+                            pnl_pct=pnl_pct,
+                            hard_stop_pnl_pct=hard_stop_pnl_pct,
+                            profit_pnl_pct=profit_pnl_pct,
+                            hold_sec=hold_sec,
+                            secs_left=secs_left,
+                            mark=mark,
+                            observed_value=observed_value,
+                            profit_reference_value=profit_reference_value,
+                            exit_decision=exit_decision,
+                        )
+
                         # --- Phase 2: Advanced Loophole Exploitation ---
                         try:
                             ws_vel = BINANCE_WS.get_price_velocity(
@@ -2013,6 +2177,48 @@ def main():
                                 exit_decision.should_close = True
                                 exit_decision.reason = "panic-dump"
                                 p.has_panic_dumped = True
+
+                            soft_stop_breach_age_sec = 0.0
+                            if getattr(p, "soft_stop_breach_ts", 0.0) > 0.0:
+                                soft_stop_breach_age_sec = max(0.0, time.time() - float(p.soft_stop_breach_ts))
+                            if should_delay_soft_stop_scaleout(
+                                reason=exit_decision.reason,
+                                side=p.side,
+                                pnl_pct=hard_stop_pnl_pct,
+                                breach_age_sec=soft_stop_breach_age_sec,
+                                secs_left=secs_left,
+                                ws_velocity=ws_vel,
+                            ):
+                                log(
+                                    f"SOFT STOP CONFIRMING: {p.side} {p.token_id[-6:]} "
+                                    f"pnl={hard_stop_pnl_pct:.2%} breach_age={soft_stop_breach_age_sec:.1f}s "
+                                    f"Binance vel={ws_vel:.4%}"
+                                )
+                                exit_decision.should_close = False
+                                exit_decision.reason = ""
+
+                            if should_trigger_profit_reversal_exit(
+                                has_extracted_principal=getattr(p, "has_extracted_principal", False),
+                                side=p.side,
+                                profit_pnl_pct=profit_pnl_pct,
+                                mfe_pnl_pct=mfe_pnl_pct,
+                                current_value_usd=effective_exit_value,
+                                peak_value_usd=float(getattr(p, "max_favorable_value_usd", effective_exit_value) or effective_exit_value),
+                                ws_velocity=ws_vel,
+                                secs_left=secs_left,
+                            ):
+                                peak_value_usd = max(
+                                    float(getattr(p, "max_favorable_value_usd", effective_exit_value) or effective_exit_value),
+                                    float(effective_exit_value or 0.0),
+                                )
+                                drawdown_pct = (float(effective_exit_value or 0.0) - peak_value_usd) / max(peak_value_usd, 1e-9)
+                                log(
+                                    f"PROFIT REVERSAL EXIT: {p.side} {p.token_id[-6:]} "
+                                    f"profit={profit_pnl_pct:.2%} mfe={mfe_pnl_pct:.2%} "
+                                    f"drawdown={drawdown_pct:.2%} Binance vel={ws_vel:.4%}"
+                                )
+                                exit_decision.should_close = True
+                                exit_decision.reason = "profit-reversal-stop"
                             
                             # 2. Let Profits Run
                             if getattr(exit_decision, "should_close", False) and exit_decision.reason in ("take-profit-partial", "take-profit-principal", "take-profit-full"):
@@ -2352,10 +2558,16 @@ def main():
                                     p.token_id,
                                     p.shares,
                                     simulated_price=float(mark) if mark is not None else None,
-                                    force_taker=should_force_taker_exit(
-                                        reason=exit_decision.reason,
-                                        dry_run=SETTINGS.dry_run,
-                                        has_panic_dumped=getattr(p, "has_panic_dumped", False),
+                                    force_taker=(
+                                        should_force_taker_exit(
+                                            reason=exit_decision.reason,
+                                            dry_run=SETTINGS.dry_run,
+                                            has_panic_dumped=getattr(p, "has_panic_dumped", False),
+                                        )
+                                        or should_force_taker_profit_protection(
+                                            reason=exit_decision.reason,
+                                            dry_run=SETTINGS.dry_run,
+                                        )
                                     ),
                                 )
                                 if close_resp.get("ok"):
@@ -2482,16 +2694,17 @@ def main():
 
                                         remaining_shares = max(max(0.0, p.shares - sold_shares), remaining_hint)
                                         remaining_cost = max(0.0, p.cost_usd - realized_cost)
+                                        quality_pnl = actual_realized_pnl_usd if actual_realized_pnl_usd is not None else observed_realized_pnl_usd
                                         if should_block_same_market_reentry(
                                             exit_decision.reason,
                                             remaining_shares=remaining_shares,
+                                            realized_pnl_usd=quality_pnl,
                                         ):
                                             same_market_reentry_block_slug = p.slug
                                             log(
                                                 f"same-market re-entry blocked | slug={p.slug} "
                                                 f"reason={exit_decision.reason} remaining_shares={remaining_shares:.6f}"
                                             )
-                                        quality_pnl = actual_realized_pnl_usd if actual_realized_pnl_usd is not None else observed_realized_pnl_usd
                                         entry_quality = "good-entry" if quality_pnl > 0 else "bad-entry" if quality_pnl < 0 else "flat-entry"
                                         exit_event = append_event({
                                             "kind": "exit",

@@ -151,20 +151,15 @@ def maybe_reverse_entry(*, signal_side: Optional[str], live_consec_losses: int, 
     return EntryDecision(signal_side, "")
 
 
-def should_block_same_market_reentry(exit_reason: str | None, *, remaining_shares: float = 0.0) -> bool:
+def should_block_same_market_reentry(
+    exit_reason: str | None,
+    *,
+    remaining_shares: float = 0.0,
+    realized_pnl_usd: Optional[float] = None,
+) -> bool:
     reason = str(exit_reason or "").strip().lower()
-    immediate_block_reasons = {
-        "stop-loss",
-        "stop-loss-full",
-        "hard-stop-loss",
-        "smart-stop-loss",
-        "post-scaleout-stop-loss",
-        "residual-force-close",
-        "max-hold-loss",
-        "max-hold-loss-extended",
-    }
-    if reason in immediate_block_reasons:
-        return True
+    if realized_pnl_usd is not None:
+        return float(realized_pnl_usd) <= 0.0
     if remaining_shares > 1e-6:
         return False
     return reason == "stalled-trade" or reason.startswith("deadline-exit-")
