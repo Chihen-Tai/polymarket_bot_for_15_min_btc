@@ -1351,6 +1351,7 @@ def select_ranked_entry_candidate(
         ranked_candidates = [model_decision] if model_decision.get("ok") else []
 
     rejection_notes: list[str] = []
+    eligible_candidates: list[dict] = []
     for idx, candidate in enumerate(ranked_candidates, start=1):
         scored = score_entry_candidate(candidate, secs_left=secs_left, scoreboard=scoreboard)
         if entry_velocity_gate_rejects(
@@ -1374,8 +1375,48 @@ def select_ranked_entry_candidate(
             continue
         scored["rank"] = idx
         scored["candidate_count"] = len(ranked_candidates)
-        return scored, rejection_notes
-    return None, rejection_notes
+        eligible_candidates.append(scored)
+    if not eligible_candidates:
+        return None, rejection_notes
+
+    def _sort_key(scored: dict) -> tuple[float, float, float, float]:
+        entry_edge = scored.get("entry_edge") or {}
+        return (
+            float(entry_edge.get("raw_edge") or 0.0),
+            float(scored.get("effective_probability") or 0.0),
+            float(scored.get("strategy_win_rate") or 0.0),
+            float(scored.get("signal_probability") or 0.0),
+        )
+
+    best_candidate = max(eligible_candidates, key=_sort_key)
+
+    if bool(getattr(SETTINGS, "entry_side_conflict_enabled", True)):
+        best_by_side: dict[str, dict] = {}
+        for scored in eligible_candidates:
+            side = str(scored.get("side") or "").strip().upper()
+            if side not in {"UP", "DOWN"}:
+                continue
+            prior = best_by_side.get(side)
+            if prior is None or _sort_key(scored) > _sort_key(prior):
+                best_by_side[side] = scored
+        if len(best_by_side) >= 2:
+            up_best = best_by_side.get("UP")
+            down_best = best_by_side.get("DOWN")
+            if up_best and down_best:
+                winner, loser = sorted((up_best, down_best), key=_sort_key, reverse=True)
+                raw_gap = float((winner.get("entry_edge") or {}).get("raw_edge") or 0.0) - float((loser.get("entry_edge") or {}).get("raw_edge") or 0.0)
+                prob_gap = float(winner.get("effective_probability") or 0.0) - float(loser.get("effective_probability") or 0.0)
+                min_edge_gap = max(0.0, float(getattr(SETTINGS, "entry_side_conflict_min_edge_gap", 0.025) or 0.025))
+                min_prob_gap = max(0.0, float(getattr(SETTINGS, "entry_side_conflict_min_prob_gap", 0.03) or 0.03))
+                if raw_gap < min_edge_gap or prob_gap < min_prob_gap:
+                    rejection_notes.append(
+                        f"rank={int(winner.get('rank') or 1)} strategy={winner.get('strategy_name') or 'unknown'} "
+                        f"rejected=side-conflict other_side={loser.get('side') or 'unknown'} "
+                        f"raw_gap={raw_gap:.3f} required_raw_gap={min_edge_gap:.3f} "
+                        f"prob_gap={prob_gap:.3f} required_prob_gap={min_prob_gap:.3f}"
+                    )
+                    return None, rejection_notes
+    return best_candidate, rejection_notes
 
 
 def observed_mark_value(pos: OpenPos, up: float | None, down: float | None) -> float | None:

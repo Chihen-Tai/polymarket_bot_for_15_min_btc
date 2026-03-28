@@ -66,6 +66,9 @@ def main():
     SETTINGS.entry_neutral_edge_penalty = 0.02
     SETTINGS.entry_micro_band_half_width = 0.01
     SETTINGS.entry_micro_edge_penalty = 0.02
+    SETTINGS.entry_side_conflict_enabled = True
+    SETTINGS.entry_side_conflict_min_edge_gap = 0.025
+    SETTINGS.entry_side_conflict_min_prob_gap = 0.03
     SETTINGS.report_assumed_taker_fee_rate = 0.0156
     SETTINGS.report_scratch_pnl_pct = 0.03
     SETTINGS.late_entry_edge_penalty = 0.015
@@ -565,6 +568,34 @@ def main():
         secs_left=200,
         scoreboard=StubScoreboard({"model-ws_flash_snipe_up": 0.18}, decisive=1, trades=2),
     )
+    side_conflict_candidate, side_conflict_rejections = select_ranked_entry_candidate(
+        {
+            "ok": True,
+            "ranked_candidates": [
+                {
+                    "side": "UP",
+                    "strategy_name": "model-ws_order_flow_up",
+                    "entry_price": 0.46,
+                    "model_probability": 0.61,
+                },
+                {
+                    "side": "DOWN",
+                    "strategy_name": "model-poly_ob_imbalance_down",
+                    "entry_price": 0.47,
+                    "model_probability": 0.60,
+                },
+            ],
+        },
+        ws_velocity=0.0,
+        current_ws_velocity=0.0,
+        secs_left=220,
+        scoreboard=StubScoreboard(
+            {
+                "model-ws_order_flow_up": 0.55,
+                "model-poly_ob_imbalance_down": 0.56,
+            }
+        ),
+    )
 
     health_flags = RuntimeFlags(0, "", 0, False)
     slow_detected = observe_api_latency(health_flags, "test_call", 1600.0)
@@ -848,6 +879,7 @@ def main():
         ("summarize_entry_edge_blocks_fresh_neutral_band_trade", summarize_entry_edge(win_rate=0.50, entry_price=0.48, secs_left=250, history_count=0)["ok"] is False),
         ("stabilize_entry_win_rate_softens_sparse_history", abs(stabilize_entry_win_rate(0.18, 1) - 0.436) < 1e-9),
         ("candidate_fallback_selects_second_ranked_signal", candidate_pick is not None and candidate_pick.get("side") == "UP" and len(candidate_rejections) == 1),
+        ("candidate_side_conflict_now_skips_coinflip_direction", side_conflict_candidate is None and any("rejected=side-conflict" in note for note in side_conflict_rejections)),
         ("sparse_history_candidate_still_penalized_below_neutral", abs(float(sparse_candidate.get("strategy_win_rate") or 0.0) - 0.436) < 1e-9),
         ("entry_velocity_gate_blocks_when_current_velocity_reverses", entry_velocity_gate_rejects("UP", "model-ws_order_flow_up", 0.0003, current_ws_velocity=-0.0002, require_dual_confirmation=True) is True),
         ("entry_velocity_gate_allows_when_lag_and_current_align", entry_velocity_gate_rejects("UP", "model-ws_order_flow_up", 0.0003, current_ws_velocity=0.0002, require_dual_confirmation=True) is False),
