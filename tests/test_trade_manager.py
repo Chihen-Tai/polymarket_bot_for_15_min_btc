@@ -233,6 +233,55 @@ def main():
         },
     ])
     orphan_residual_summary = summarize_trade_pairs(orphan_residual_rows)
+    original_funder_address = SETTINGS.funder_address
+    original_fetch_activity = journal_analysis_mod._fetch_account_trade_activity
+    SETTINGS.funder_address = "0xtest-user"
+    journal_analysis_mod._fetch_account_trade_activity = lambda **kwargs: [
+        {
+            "type": "TRADE",
+            "timestamp": 1773886440,
+            "asset": "tok_orphan",
+            "slug": "m_orphan",
+            "side": "BUY",
+            "size": 2.0,
+            "usdcSize": 1.0,
+            "transactionHash": "0xbuy",
+        },
+        {
+            "type": "TRADE",
+            "timestamp": 1773886530,
+            "asset": "tok_orphan",
+            "slug": "m_orphan",
+            "side": "SELL",
+            "size": 2.0,
+            "usdcSize": 1.2,
+            "transactionHash": "0xsell",
+        },
+    ]
+    try:
+        reconciled_orphan_rows = build_trade_pairs([
+            {
+                "kind": "exit",
+                "ts": "2026-03-19T10:15:30",
+                "event_id": "exit_orphan_reconciled",
+                "position_id": "pos_orphan_reconciled",
+                "slug": "m_orphan",
+                "side": "DOWN",
+                "token_id": "tok_orphan",
+                "closed_shares": 2.0,
+                "remaining_shares": 0.0,
+                "realized_cost_usd": 1.0,
+                "actual_exit_value_usd": 1.2,
+                "actual_exit_value_source": "cash_balance_delta",
+                "observed_exit_value_usd": 1.1,
+                "reason": "residual-force-close",
+                "exit_execution_style": "taker",
+            },
+        ])
+    finally:
+        SETTINGS.funder_address = original_funder_address
+        journal_analysis_mod._fetch_account_trade_activity = original_fetch_activity
+    reconciled_orphan_summary = summarize_trade_pairs(reconciled_orphan_rows)
     original_fetch_market_settlement = journal_analysis_mod._fetch_market_settlement
     journal_analysis_mod._fetch_market_settlement = lambda slug, side: (0.0, "market-expired-binary-loss")
     try:
@@ -621,10 +670,11 @@ def main():
         ("hard_stop_loss", decide_exit(pnl_pct=-0.55, hold_sec=5).reason == "hard-stop-loss"),
         ("take_profit_uses_profit_reference_even_if_hard_stop_is_negative", decide_exit(pnl_pct=-0.05, profit_pnl_pct=0.60, hold_sec=5).reason == "take-profit-principal"),
         ("partial_take_profit_uses_profit_reference_even_if_hard_stop_is_negative", decide_exit(pnl_pct=-0.05, profit_pnl_pct=0.35, hold_sec=5).reason == "take-profit-partial"),
+        ("take_profit_does_not_trigger_without_executable_profit_signal", decide_exit(pnl_pct=0.60, profit_pnl_pct=None, hold_sec=5).should_close is False),
         (
             "force_full_exit_on_take_profit",
             (setattr(SETTINGS, "force_full_exit_on_take_profit", True) or True)
-            and decide_exit(pnl_pct=0.31, hold_sec=5).reason == "take-profit-full"
+            and decide_exit(pnl_pct=0.31, profit_pnl_pct=0.31, hold_sec=5).reason == "take-profit-full"
             and (setattr(SETTINGS, "force_full_exit_on_take_profit", False) or True),
         ),
         ("max_hold_extended", decide_exit(pnl_pct=-0.01, hold_sec=190).reason == "max-hold-loss-extended"),
@@ -687,6 +737,18 @@ def main():
             (orphan_residual_summary["actual_pnl"]["count"] or 0) == 0
             and abs((orphan_residual_summary["actual_available_ratio"] or 0.0) - 0.0) < 1e-9
             and orphan_residual_summary["status_counts"].get("residual") == 1
+        ),
+        (
+            "account_activity_reconciles_orphan_residual_cost_basis",
+            len(reconciled_orphan_rows) == 1
+            and abs(reconciled_orphan_rows[0].entry_cost_usd - 1.0) < 1e-9
+            and abs((reconciled_orphan_rows[0].actual_pnl_usd or 0.0) - 0.2) < 1e-9
+            and "account-activity-reconciled-leg" in reconciled_orphan_rows[0].flags
+        ),
+        (
+            "account_activity_reconciled_residual_counts_as_actual",
+            abs((reconciled_orphan_summary["actual_available_ratio"] or 0.0) - 1.0) < 1e-9
+            and abs((reconciled_orphan_summary["actual_pnl"]["sum"] or 0.0) - 0.2) < 1e-9
         ),
         (
             "expired_unmatched_position_is_settled_in_report",

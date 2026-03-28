@@ -3,6 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from core.config import SETTINGS
 from core.exchange import (
     PolymarketExchange,
     _limit_order_type,
@@ -18,6 +19,7 @@ from core.runner import (
     OpenPos,
     emergency_exit_retry_kwargs,
     estimate_book_entry_fill,
+    executable_take_profit_value,
     entry_slippage_breach,
     entry_velocity_gate_rejects,
     effective_stop_loss_partial_fraction,
@@ -57,6 +59,14 @@ def make_paper_exchange() -> PolymarketExchange:
 
 
 def main():
+    # Keep these checks independent from any prior test file mutating SETTINGS.
+    SETTINGS.stop_loss_partial_pct = 0.10
+    SETTINGS.soft_stop_confirm_sec = 6.0
+    SETTINGS.soft_stop_confirm_buffer_pct = 0.03
+    SETTINGS.soft_stop_adverse_velocity = 0.0003
+    SETTINGS.stop_loss_partial_fraction = 0.50
+    SETTINGS.live_stop_loss_partial_fraction = 0.80
+
     ex = make_paper_exchange()
 
     class LegacyOrderType:
@@ -117,6 +127,8 @@ def main():
     thin_value, thin_fill_ratio = estimate_book_exit_value({"bid_levels": [(0.2, 1.0)]}, 2.0)
     depth_pos = OpenPos(slug="m", side="UP", token_id="tok2", shares=2.0, cost_usd=1.0, opened_ts=0.0)
     realistic_value = realistic_exit_value(depth_pos, 0.52, 0.48, depth_book, None)
+    executable_profit_value = executable_take_profit_value(depth_pos, depth_book, None)
+    executable_profit_without_book = executable_take_profit_value(depth_pos, None, None)
     observed_partial_value = observed_exit_value_from_mark(sold_shares=1.61, mark=0.365)
     sane_actual_value, sane_actual_source = sanitize_live_actual_exit_value(
         actual_exit_value_usd=1.3846,
@@ -238,6 +250,7 @@ def main():
         ("estimate_book_exit_value_sweeps_bid_depth", abs((depth_value or 0.0) - 0.595) < 1e-9 and abs(depth_fill_ratio - 1.0) < 1e-9),
         ("estimate_book_exit_value_is_conservative_when_depth_is_thin", abs((thin_value or 0.0) - 0.2) < 1e-9 and abs(thin_fill_ratio - 0.5) < 1e-9),
         ("realistic_exit_value_uses_depth_aware_bids", abs((realistic_value or 0.0) - 0.595) < 1e-9),
+        ("executable_take_profit_value_uses_orderbook_only", abs((executable_profit_value or 0.0) - 0.595) < 1e-9 and executable_profit_without_book is None),
         ("observed_exit_value_uses_sold_shares_times_mark", abs(observed_partial_value - 0.58765) < 1e-9),
         ("sanitize_live_actual_exit_value_rejects_improbable_fill", sane_actual_value is None and sane_actual_source.startswith("sanity-rejected-")),
         ("sanitize_live_actual_exit_value_accepts_close_to_mark_fill", abs((accepted_actual_value or 0.0) - 0.5877) < 1e-9 and accepted_actual_source == "close_response_takingAmount"),

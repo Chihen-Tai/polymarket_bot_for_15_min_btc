@@ -107,12 +107,12 @@ def maybe_log_position_watch(
     *,
     pnl_pct: float,
     hard_stop_pnl_pct: float,
-    profit_pnl_pct: float,
+    profit_pnl_pct: float | None,
     hold_sec: float,
     secs_left: float | None,
     mark: float | None,
     observed_value: float | None,
-    profit_reference_value: float,
+    profit_reference_value: float | None,
     exit_decision: ExitDecision,
 ):
     if not getattr(SETTINGS, "position_watch_debug_enabled", True):
@@ -123,9 +123,10 @@ def maybe_log_position_watch(
     rounded_secs_left = -1 if secs_left is None else int(secs_left // 5)
     mark_bucket = -1 if mark is None else int(float(mark) * 1000)
     observed_bucket = -1 if observed_value is None else int(float(observed_value) * 1000)
+    profit_bucket = -1 if profit_pnl_pct is None else int(float(profit_pnl_pct) * 1000)
     signature = (
         f"{decision}|{int(pnl_pct * 1000)}|{int(hard_stop_pnl_pct * 1000)}|"
-        f"{int(profit_pnl_pct * 1000)}|{rounded_secs_left}|{mark_bucket}|{observed_bucket}|"
+        f"{profit_bucket}|{rounded_secs_left}|{mark_bucket}|{observed_bucket}|"
         f"{int(bool(getattr(pos, 'force_close_only', False)))}|{int(bool(getattr(pos, 'pending_confirmation', False)))}"
     )
     now_ts = time.time()
@@ -148,12 +149,13 @@ def maybe_log_position_watch(
     flags_text = ",".join(flags) if flags else "none"
     mark_text = "n/a" if mark is None else f"{float(mark):.3f}"
     observed_text = "n/a" if observed_value is None else f"{float(observed_value):.4f}"
-    profit_ref_text = f"{float(profit_reference_value):.4f}"
+    profit_ref_text = "n/a" if profit_reference_value is None else f"{float(profit_reference_value):.4f}"
+    profit_return_text = "n/a" if profit_pnl_pct is None else f"{float(profit_pnl_pct):.2%}"
     secs_left_text = "n/a" if secs_left is None else f"{secs_left:.0f}s"
     log(
         f"position watch | side={pos.side} slug={pos.slug} hold={hold_sec:.0f}s secs_left={secs_left_text} "
         f"mark={mark_text} observed=${observed_text} profit_ref=${profit_ref_text} "
-        f"observed_return={pnl_pct:.2%} hard_stop_return={hard_stop_pnl_pct:.2%} profit_return={profit_pnl_pct:.2%} "
+        f"observed_return={pnl_pct:.2%} hard_stop_return={hard_stop_pnl_pct:.2%} profit_return={profit_return_text} "
         f"decision={decision} flags={flags_text}"
     )
 
@@ -446,7 +448,7 @@ def should_trigger_profit_reversal_exit(
     *,
     has_extracted_principal: bool,
     side: str | None,
-    profit_pnl_pct: float,
+    profit_pnl_pct: float | None,
     mfe_pnl_pct: float,
     current_value_usd: float,
     peak_value_usd: float,
@@ -454,6 +456,8 @@ def should_trigger_profit_reversal_exit(
     secs_left: float | None,
 ) -> bool:
     if has_extracted_principal or not bool(getattr(SETTINGS, "profit_reversal_enabled", True)):
+        return False
+    if profit_pnl_pct is None:
         return False
     if secs_left is not None and secs_left <= float(getattr(SETTINGS, "exit_deadline_sec", 20) or 20.0):
         return False
@@ -839,6 +843,20 @@ def realistic_exit_value(pos: OpenPos, up: float | None, down: float | None, ob_
     
     # Without orderbook depth passed in Dry Run polling, we assume Maker/Limit orders track the mark exactly over time without massive taker penalties.
     return pos.shares * float(mark)
+
+
+def executable_take_profit_value(pos: OpenPos, ob_up: dict | None, ob_down: dict | None) -> float | None:
+    orderbook = None
+    if pos.side == "UP" and ob_up:
+        orderbook = ob_up
+    elif pos.side == "DOWN" and ob_down:
+        orderbook = ob_down
+    if not isinstance(orderbook, dict):
+        return None
+    executable_value, _fill_ratio = estimate_book_exit_value(orderbook, pos.shares)
+    if executable_value is None:
+        return None
+    return float(executable_value)
 
 
 def paper_settlement_from_last_mark(last_mark: float | None) -> tuple[float, str]:
@@ -2205,14 +2223,20 @@ def main():
                         hard_stop_value = float(min(
                             [v for v in (observed_value, mark_value) if v is not None] or [0.0]
                         ))
-                        profit_reference_value = float(max(
-                            [v for v in (observed_value, mark_value) if v is not None] or [0.0]
-                        ))
+                        profit_reference_value = executable_take_profit_value(
+                            p,
+                            poly_ob_up,
+                            poly_ob_down,
+                        )
                         effective_exit_value = float(effective_exit_value or 0.0)
                         update_position_excursions(p, effective_exit_value)
                         pnl_pct = (effective_exit_value - p.cost_usd) / max(p.cost_usd, 1e-9)
                         hard_stop_pnl_pct = (hard_stop_value - p.cost_usd) / max(p.cost_usd, 1e-9)
-                        profit_pnl_pct = (profit_reference_value - p.cost_usd) / max(p.cost_usd, 1e-9)
+                        profit_pnl_pct = (
+                            (float(profit_reference_value) - p.cost_usd) / max(p.cost_usd, 1e-9)
+                            if profit_reference_value is not None
+                            else None
+                        )
                         stop_loss_partial_pct = abs(float(getattr(SETTINGS, "stop_loss_partial_pct", 0.05) or 0.05))
                         stop_loss_pct = abs(float(getattr(SETTINGS, "stop_loss_pct", 0.15) or 0.15))
                         if hard_stop_pnl_pct <= -stop_loss_partial_pct and hard_stop_pnl_pct > -stop_loss_pct:
@@ -2509,7 +2533,7 @@ def main():
                                 continue
 
                             if exit_decision.reason == "take-profit-principal":
-                                current_value = max(profit_reference_value, 1e-9)
+                                current_value = max(float(profit_reference_value or 0.0), 1e-9)
                                 sell_fraction = principal_extraction_sell_fraction(
                                     current_value,
                                     p.cost_usd,

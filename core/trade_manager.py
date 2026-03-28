@@ -36,15 +36,24 @@ def decide_exit(
     runner_peak_age_sec: Optional[float] = None,
     runner_peak_value_usd: float = 0.0,
 ) -> ExitDecision:
-    take_profit_pnl_pct = float(pnl_pct if profit_pnl_pct is None else max(profit_pnl_pct, pnl_pct))
+    take_profit_pnl_pct = None if profit_pnl_pct is None else float(profit_pnl_pct)
     # 1. Tiered Take Profit (Risk-Free Moonbag Strategy)
-    if not has_extracted_principal and take_profit_pnl_pct >= getattr(SETTINGS, "take_profit_hard_pct", 0.50):
+    if (
+        take_profit_pnl_pct is not None
+        and not has_extracted_principal
+        and take_profit_pnl_pct >= getattr(SETTINGS, "take_profit_hard_pct", 0.50)
+    ):
         if getattr(SETTINGS, "force_full_exit_on_take_profit", False):
             return ExitDecision(True, "take-profit-full", take_profit_pnl_pct, hold_sec)
         # Sell enough to recover principal -> guaranteed risk-free
         return ExitDecision(True, "take-profit-principal", take_profit_pnl_pct, hold_sec)
         
-    if not has_taken_partial and not has_extracted_principal and take_profit_pnl_pct >= getattr(SETTINGS, "take_profit_soft_pct", 0.30):
+    if (
+        take_profit_pnl_pct is not None
+        and not has_taken_partial
+        and not has_extracted_principal
+        and take_profit_pnl_pct >= getattr(SETTINGS, "take_profit_soft_pct", 0.30)
+    ):
         if getattr(SETTINGS, "force_full_exit_on_take_profit", False):
             return ExitDecision(True, "take-profit-full", take_profit_pnl_pct, hold_sec)
         # Sell 30% to lock in early profit and reduce anxiety

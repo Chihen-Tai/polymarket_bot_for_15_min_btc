@@ -18,6 +18,7 @@ from core.journal import read_events
 
 EPS = 1e-9
 _SETTLEMENT_CACHE: dict[tuple[str, str], tuple[float | None, str | None]] = {}
+_ACTIVITY_CACHE: dict[tuple[str, str], list[dict]] = {}
 
 
 def _f(v: Any, default: float = 0.0) -> float:
@@ -42,6 +43,19 @@ def _event_ts(ev: dict) -> datetime | None:
         return datetime.fromisoformat(raw)
     except Exception:
         return None
+
+
+def _parse_iso_dt(text: str | None) -> datetime | None:
+    raw = str(text or "").strip()
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw)
+    except Exception:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.astimezone().replace(tzinfo=dt.astimezone().tzinfo)
+    return dt.astimezone(timezone.utc)
 
 
 def _event_pair_key(ev: dict) -> str:
@@ -120,6 +134,198 @@ def _fetch_market_settlement(slug: str | None, side: str | None) -> tuple[float 
         _SETTLEMENT_CACHE[cache_key] = (None, None)
 
     return _SETTLEMENT_CACHE[cache_key]
+
+
+def _fetch_account_trade_activity(*, user: str | None, market: str | None = None, limit: int = 200) -> list[dict]:
+    user_text = str(user or "").strip()
+    market_text = str(market or "").strip()
+    if not user_text:
+        return []
+
+    cache_key = (user_text, market_text)
+    if cache_key in _ACTIVITY_CACHE:
+        return _ACTIVITY_CACHE[cache_key]
+
+    page_size = max(1, min(int(limit or 200), 500))
+    offset = 0
+    out: list[dict] = []
+    try:
+        while len(out) < limit:
+            params: dict[str, Any] = {
+                "user": user_text,
+                "type": "TRADE",
+                "limit": min(page_size, max(1, limit - len(out))),
+                "offset": offset,
+            }
+            if market_text:
+                params["market"] = market_text
+            resp = requests.get(
+                f"{SETTINGS.data_api_host}/activity",
+                params=params,
+                timeout=8,
+            )
+            resp.raise_for_status()
+            batch = resp.json() or []
+            if not isinstance(batch, list) or not batch:
+                break
+            out.extend(batch)
+            if len(batch) < params["limit"]:
+                break
+            offset += len(batch)
+    except Exception:
+        out = []
+
+    out.sort(key=lambda row: _to_float(row.get("timestamp"), 0.0))
+    _ACTIVITY_CACHE[cache_key] = out
+    return out
+
+
+def _build_activity_sell_ledger(activity_rows: list[dict]) -> list[dict]:
+    inventories: dict[str, deque[dict[str, float | str]]] = defaultdict(deque)
+    sells: list[dict] = []
+    for row in sorted(activity_rows or [], key=lambda item: _f(item.get("timestamp"), 0.0)):
+        if str(row.get("type") or "").upper() != "TRADE":
+            continue
+        asset = str(row.get("asset") or "").strip()
+        trade_side = str(row.get("side") or "").upper().strip()
+        slug = str(row.get("slug") or "").strip()
+        size = _f(row.get("size"), 0.0)
+        usdc_size = _f(row.get("usdcSize"), 0.0)
+        if not asset or size <= EPS:
+            continue
+        if trade_side == "BUY":
+            inventories[asset].append({
+                "remaining_shares": size,
+                "remaining_cost_usd": usdc_size,
+                "slug": slug,
+            })
+            continue
+        if trade_side != "SELL":
+            continue
+
+        remaining = size
+        matched_cost_usd = 0.0
+        lots = inventories.get(asset) or deque()
+        while lots and remaining > EPS:
+            lot = lots[0]
+            lot_shares = _f(lot.get("remaining_shares"), 0.0)
+            lot_cost = _f(lot.get("remaining_cost_usd"), 0.0)
+            if lot_shares <= EPS:
+                lots.popleft()
+                continue
+            matched = min(lot_shares, remaining)
+            cost_piece = lot_cost * (matched / lot_shares) if lot_cost > EPS else 0.0
+            lot["remaining_shares"] = max(0.0, lot_shares - matched)
+            lot["remaining_cost_usd"] = max(0.0, lot_cost - cost_piece)
+            matched_cost_usd += cost_piece
+            remaining -= matched
+            if _f(lot.get("remaining_shares"), 0.0) <= EPS:
+                lots.popleft()
+
+        sells.append({
+            "asset": asset,
+            "slug": slug,
+            "timestamp": _f(row.get("timestamp"), 0.0),
+            "ts": datetime.fromtimestamp(_f(row.get("timestamp"), 0.0), tz=timezone.utc).isoformat() if _f(row.get("timestamp"), 0.0) > 0 else "",
+            "shares": size,
+            "usdc_size": usdc_size,
+            "matched_cost_usd": matched_cost_usd if matched_cost_usd > EPS else None,
+            "transaction_hash": str(row.get("transactionHash") or ""),
+        })
+    return sells
+
+
+def reconcile_rows_with_account_activity(
+    rows: list[TradePairRow],
+    *,
+    user: str | None = None,
+    activity_fetcher=None,
+) -> list[TradePairRow]:
+    user_text = str(user or getattr(SETTINGS, "funder_address", "") or "").strip()
+    if not rows or not user_text:
+        return rows
+
+    fetcher = activity_fetcher or _fetch_account_trade_activity
+    sells_cache: dict[str, list[dict]] = {}
+
+    for row in rows:
+        if row.status != "residual" or "orphan-residual" not in row.flags:
+            continue
+        market = str(row.market or "").strip()
+        if not market or not row.token_id:
+            continue
+        if market not in sells_cache:
+            activity_rows = fetcher(user=user_text, market=market)
+            sells_cache[market] = _build_activity_sell_ledger(activity_rows)
+
+        candidates = []
+        row_dt = _parse_iso_dt(row.closed_ts)
+        ref_exit_value = (
+            row.exit_recovered_actual_usd
+            if row.exit_recovered_actual_usd is not None
+            else row.exit_recovered_observed_usd
+        )
+        for sell in sells_cache.get(market, []):
+            if str(sell.get("asset") or "") != row.token_id:
+                continue
+            matched_cost_usd = _maybe_float(sell.get("matched_cost_usd"))
+            if matched_cost_usd is None:
+                continue
+            shares_diff = abs(_f(sell.get("shares"), 0.0) - row.matched_exit_shares)
+            if shares_diff > max(0.05, row.matched_exit_shares * 0.05):
+                continue
+            value_diff = abs((_maybe_float(sell.get("usdc_size")) or 0.0) - (ref_exit_value or 0.0))
+            sell_dt = _parse_iso_dt(str(sell.get("ts") or ""))
+            time_diff = abs((sell_dt - row_dt).total_seconds()) if sell_dt is not None and row_dt is not None else 0.0
+            if row_dt is not None and sell_dt is not None and time_diff > 3600:
+                continue
+            candidates.append((shares_diff, value_diff, time_diff, sell))
+
+        if not candidates:
+            continue
+
+        _, _, _, best = min(candidates, key=lambda item: (item[0], item[1], item[2]))
+        matched_cost = _maybe_float(best.get("matched_cost_usd"))
+        if matched_cost is None or matched_cost <= EPS:
+            continue
+
+        row.entry_cost_usd = matched_cost
+        row.entry_shares = _f(best.get("shares"), row.matched_exit_shares)
+        row.actual_pnl_usd = (
+            (row.exit_recovered_actual_usd - matched_cost)
+            if row.exit_recovered_actual_usd is not None
+            else None
+        )
+        row.observed_pnl_usd = (
+            (row.exit_recovered_observed_usd - matched_cost)
+            if row.exit_recovered_observed_usd is not None
+            else None
+        )
+        _, actual_total_fees, observed_total_fees, _ = estimate_pair_fees(
+            matched_cost_usd=matched_cost,
+            actual_exit_value_usd=row.exit_recovered_actual_usd,
+            observed_exit_value_usd=row.exit_recovered_observed_usd,
+            entry_execution_style=row.entry_execution_style,
+            exit_execution_style=row.exit_execution_style,
+            close_reason=row.close_reason,
+        )
+        row.estimated_total_fees_actual_usd = actual_total_fees
+        row.estimated_total_fees_observed_usd = observed_total_fees
+        row.fee_adjusted_actual_pnl_usd = (
+            (row.actual_pnl_usd - actual_total_fees)
+            if row.actual_pnl_usd is not None and actual_total_fees is not None
+            else None
+        )
+        row.fee_adjusted_observed_pnl_usd = (
+            (row.observed_pnl_usd - observed_total_fees)
+            if row.observed_pnl_usd is not None and observed_total_fees is not None
+            else None
+        )
+        row.actual_source = "account-activity-reconcile"
+        row.actual_source_tier = "high" if row.exit_recovered_actual_usd is not None else row.actual_source_tier
+        row.flags = list(dict.fromkeys([flag for flag in row.flags if flag != "ui-reconciliation-needed"] + ["account-activity-reconciled-leg"]))
+
+    return rows
 
 
 @dataclass
@@ -609,6 +815,7 @@ def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
         for lot in lots:
             rows.append(_finalize_pair_row(lot["event"], str(lot["event"].get("token_id") or ""), key, lot))
 
+    rows = reconcile_rows_with_account_activity(rows)
     rows.sort(key=lambda row: (row.opened_ts or row.closed_ts or "", row.market, row.side, row.position_id))
     return rows
 
