@@ -85,8 +85,8 @@ def main():
     SETTINGS.stalled_exit_min_secs_left = 45
     SETTINGS.post_scaleout_loss_exit_delay_sec = 20
     SETTINGS.post_scaleout_loss_exit_pct = 0.10
-    SETTINGS.moonbag_drawdown_pct = 0.30
-    SETTINGS.moonbag_drawdown_window_sec = 30
+    SETTINGS.moonbag_drawdown_pct = 0.35
+    SETTINGS.moonbag_drawdown_window_sec = 45
     SETTINGS.moonbag_min_peak_value_usd = 0.10
     SETTINGS.same_market_reentry_min_secs_left = 45
     SETTINGS.ws_stale_max_age_sec = 5.0
@@ -690,17 +690,17 @@ def main():
                 runner_peak_value_usd=0.25,
             ).reason == "moonbag-drawdown-stop",
         ),
-        (
-            "moonbag_drawdown_skips_if_peak_is_stale",
-            decide_exit(
-                pnl_pct=0.05,
-                hold_sec=55,
-                has_extracted_principal=True,
-                runner_drawdown_pct=-0.35,
-                runner_peak_age_sec=45.0,
-                runner_peak_value_usd=0.25,
-            ).should_close is False,
-        ),
+            (
+                "moonbag_drawdown_skips_if_peak_is_stale",
+                decide_exit(
+                    pnl_pct=0.05,
+                    hold_sec=55,
+                    has_extracted_principal=True,
+                    runner_drawdown_pct=-0.35,
+                    runner_peak_age_sec=46.0,
+                    runner_peak_value_usd=0.25,
+                ).should_close is False,
+            ),
         (
             "moonbag_drawdown_skips_if_runner_is_tiny",
             decide_exit(
@@ -718,12 +718,12 @@ def main():
         ("take_profit_uses_profit_reference_even_if_hard_stop_is_negative", decide_exit(pnl_pct=-0.05, profit_pnl_pct=0.60, hold_sec=5).reason == "take-profit-principal"),
         ("partial_take_profit_uses_profit_reference_even_if_hard_stop_is_negative", decide_exit(pnl_pct=-0.05, profit_pnl_pct=0.35, hold_sec=5).reason == "take-profit-partial"),
         ("take_profit_does_not_trigger_without_executable_profit_signal", decide_exit(pnl_pct=0.60, profit_pnl_pct=None, hold_sec=5).should_close is False),
-        (
-            "force_full_exit_on_take_profit",
-            (setattr(SETTINGS, "force_full_exit_on_take_profit", True) or True)
-            and decide_exit(pnl_pct=0.31, profit_pnl_pct=0.31, hold_sec=5).reason == "take-profit-full"
-            and (setattr(SETTINGS, "force_full_exit_on_take_profit", False) or True),
-        ),
+            (
+                "force_full_exit_on_take_profit",
+                (setattr(SETTINGS, "force_full_exit_on_take_profit", True) or True)
+                and decide_exit(pnl_pct=0.36, profit_pnl_pct=0.36, hold_sec=5).reason == "take-profit-full"
+                and (setattr(SETTINGS, "force_full_exit_on_take_profit", False) or True),
+            ),
         ("max_hold_extended", decide_exit(pnl_pct=-0.01, hold_sec=190).reason == "max-hold-loss-extended"),
         ("max_hold_loss_low_recovery", decide_exit(pnl_pct=-0.01, hold_sec=95, recovery_chance_low=True).reason == "max-hold-loss"),
         (
@@ -735,13 +735,14 @@ def main():
         ("reenter_gate", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=50, current_market_slug="m1", blocked_market_slug="") is True),
         ("reenter_gate_respects_min_secs_left", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=40, current_market_slug="m1", blocked_market_slug="") is False),
         ("reenter_block", can_reenter_same_market(has_current_market_pos=True, closed_any=True, secs_left=80, current_market_slug="m1", blocked_market_slug="") is False),
-        ("reenter_same_market_slug_no_longer_blocks", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=80, current_market_slug="m1", blocked_market_slug="m1") is True),
+        ("reenter_same_market_slug_now_blocks", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=80, current_market_slug="m1", blocked_market_slug="m1") is False),
         ("profitable_stop_loss_does_not_block_same_market_reentry", should_block_same_market_reentry("stop-loss", remaining_shares=0.02, realized_pnl_usd=0.05) is False),
         ("losing_residual_force_close_does_not_set_extra_market_block", should_block_same_market_reentry("residual-force-close", remaining_shares=0.25, realized_pnl_usd=-0.01) is False),
         ("scale_out_alone_does_not_block_same_market_reentry", should_block_same_market_reentry("stop-loss-scale-out", remaining_shares=0.25) is False),
-        ("deadline_exit_does_not_set_extra_market_block", should_block_same_market_reentry("deadline-exit-flat", remaining_shares=0.0) is False and should_block_same_market_reentry("deadline-exit-loss", remaining_shares=0.0) is False),
-        ("break_even_exit_does_not_set_extra_market_block", should_block_same_market_reentry("take-profit-partial", remaining_shares=0.0, realized_pnl_usd=0.0) is False),
+        ("deadline_exit_now_sets_market_block", should_block_same_market_reentry("deadline-exit-flat", remaining_shares=0.0) is True and should_block_same_market_reentry("deadline-exit-loss", remaining_shares=0.0) is True),
+        ("terminal_take_profit_now_sets_market_block", should_block_same_market_reentry("take-profit-partial", remaining_shares=0.0, realized_pnl_usd=0.0) is True),
         ("non_terminal_exit_does_not_block_same_market_reentry", should_block_same_market_reentry("take-profit-partial", remaining_shares=0.5) is False),
+        ("principal_exit_blocks_same_market_reentry", should_block_same_market_reentry("take-profit-principal", remaining_shares=0.0, realized_pnl_usd=0.12) is True),
         (
             "max_orders_per_market_is_hard_cap",
             can_place_order(

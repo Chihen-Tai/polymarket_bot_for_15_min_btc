@@ -126,12 +126,12 @@ class Settings:
     live_stop_loss_partial_fraction: float = _f("LIVE_STOP_LOSS_PARTIAL_FRACTION", 0.80)
     max_hold_seconds: int = _i("MAX_HOLD_SECONDS", 180)
     take_profit_scaleout_pct: float = _f("TAKE_PROFIT_SCALEOUT_PCT", 0.03)
-    take_profit_soft_pct: float = _f("TAKE_PROFIT_SOFT_PCT", 0.25)   # Stage 1: start taking profit at +25%
-    take_profit_partial_fraction: float = _f("TAKE_PROFIT_PARTIAL_FRACTION", 0.30)
-    take_profit_hard_pct: float = _f("TAKE_PROFIT_HARD_PCT", 0.40)   # Stage 2: extract principal at +40%
-    take_profit_runner_fraction: float = _f("TAKE_PROFIT_RUNNER_FRACTION", 0.10)
-    moonbag_drawdown_pct: float = _f("MOONBAG_DRAWDOWN_PCT", 0.30)
-    moonbag_drawdown_window_sec: int = _i("MOONBAG_DRAWDOWN_WINDOW_SEC", 30)
+    take_profit_soft_pct: float = _f("TAKE_PROFIT_SOFT_PCT", 0.35)   # Stage 1: start taking profit at +35%
+    take_profit_partial_fraction: float = _f("TAKE_PROFIT_PARTIAL_FRACTION", 0.25)
+    take_profit_hard_pct: float = _f("TAKE_PROFIT_HARD_PCT", 0.55)   # Stage 2: extract principal at +55%
+    take_profit_runner_fraction: float = _f("TAKE_PROFIT_RUNNER_FRACTION", 0.20)
+    moonbag_drawdown_pct: float = _f("MOONBAG_DRAWDOWN_PCT", 0.35)
+    moonbag_drawdown_window_sec: int = _i("MOONBAG_DRAWDOWN_WINDOW_SEC", 45)
     moonbag_min_peak_value_usd: float = _f("MOONBAG_MIN_PEAK_VALUE_USD", 0.10)
     momentum_ticks: int = _i("MOMENTUM_TICKS", 3)
     momentum_min_move: float = _f("MOMENTUM_MIN_MOVE", 0.005)
@@ -171,7 +171,7 @@ class Settings:
     # Phase 2: Advanced Loophole Exploitation
     taker_snipe_velocity: float = _f("TAKER_SNIPE_VELOCITY", 0.0008)
     panic_dump_velocity: float = _f("PANIC_DUMP_VELOCITY", 0.0010)
-    tp_hold_velocity: float = _f("TP_HOLD_VELOCITY", 0.0004)
+    tp_hold_velocity: float = _f("TP_HOLD_VELOCITY", 0.00025)
 
     # Phase 3: Entry & Exit Quality Guards
     # Hard-stop shield is explicit opt-in only. Historical runs showed it could delay

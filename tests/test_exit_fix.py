@@ -35,6 +35,7 @@ from core.runner import (
     sanitize_live_actual_exit_value,
     should_count_entry_toward_market_limit,
     should_block_live_entry_for_unavailable_book,
+    should_arm_residual_force_close_after_stop_loss_scaleout,
     should_delay_soft_stop_scaleout,
     should_trigger_binance_adverse_exit,
     should_force_taker_profit_protection,
@@ -78,10 +79,10 @@ def main():
     SETTINGS.binance_adverse_exit_max_profit_pct = 0.08
     SETTINGS.binance_adverse_exit_min_hold_sec = 4.0
     SETTINGS.binance_adverse_exit_require_current_confirm = True
-    SETTINGS.take_profit_soft_pct = 0.25
-    SETTINGS.take_profit_partial_fraction = 0.30
-    SETTINGS.take_profit_hard_pct = 0.40
-    SETTINGS.take_profit_runner_fraction = 0.10
+    SETTINGS.take_profit_soft_pct = 0.35
+    SETTINGS.take_profit_partial_fraction = 0.25
+    SETTINGS.take_profit_hard_pct = 0.55
+    SETTINGS.take_profit_runner_fraction = 0.20
 
     ex = make_paper_exchange()
 
@@ -199,6 +200,21 @@ def main():
         usdc_received_source="close_response_takingAmount",
         cash_delta=0.5877,
         cash_delta_source="cash_balance_delta",
+    )
+    residual_force_close_armed = should_arm_residual_force_close_after_stop_loss_scaleout(
+        dry_run=False,
+        remaining_shares=0.42,
+        remaining_cost_usd=0.18,
+    )
+    residual_force_close_not_armed_dry_run = should_arm_residual_force_close_after_stop_loss_scaleout(
+        dry_run=True,
+        remaining_shares=0.42,
+        remaining_cost_usd=0.18,
+    )
+    residual_force_close_not_armed_for_dust = should_arm_residual_force_close_after_stop_loss_scaleout(
+        dry_run=False,
+        remaining_shares=0.0,
+        remaining_cost_usd=0.0,
     )
     parsed_balance_shares = parse_balance_allowance_available_shares(
         "PolyApiException[status_code=400, error_message={'error': 'not enough balance / allowance: "
@@ -361,15 +377,18 @@ def main():
         ("rejected_actual_fill_falls_back_to_observed_mark_value", abs(principal_recovery_from_rejected_actual - observed_partial_value) < 1e-9),
         ("live_close_exit_value_prefers_cash_delta", abs((live_close_value or 0.0) - 0.5877) < 1e-9 and live_close_source == "cash_balance_delta"),
         ("parse_balance_allowance_available_shares_handles_live_error", abs((parsed_balance_shares or 0.0) - 1.198827) < 1e-9),
+        ("stop_loss_scaleout_arms_live_tail_cleanup", residual_force_close_armed is True),
+        ("stop_loss_scaleout_tail_cleanup_skips_dry_run", residual_force_close_not_armed_dry_run is False),
+        ("stop_loss_scaleout_tail_cleanup_skips_dust", residual_force_close_not_armed_for_dust is False),
         ("live_account_cache_reuses_recent_snapshot", cash_calls["count"] == 2 and value_calls["count"] == 2 and acct_first.cash == acct_second.cash == acct_third.cash == 7.0 and acct_first.equity == acct_second.equity == acct_third.equity == 10.0),
         ("get_full_orderbook_accepts_object_style_orderbook", object_book.get("best_bid") == 0.48 and object_book.get("best_ask") == 0.49 and object_book.get("bids_volume") == 21.5 and object_book.get("asks_volume") == 18.0),
         ("has_exit_liquidity_accepts_object_style_levels", object_book_liquidity is True),
         ("close_remaining_shares_trusts_exchange_dust_hint", abs(resolved_close_remaining_dust - 0.0) < 1e-9),
         ("close_remaining_shares_preserves_non_dust_hint", abs(resolved_close_remaining_live_hint - 0.498613) < 1e-9),
-        ("take_profit_soft_pct_uses_twenty_five_percent_default", abs(float(getattr(SETTINGS, "take_profit_soft_pct", 0.0)) - 0.25) < 1e-9),
-        ("take_profit_partial_fraction_uses_thirty_percent_default", abs(float(getattr(SETTINGS, "take_profit_partial_fraction", 0.0)) - 0.30) < 1e-9),
-        ("take_profit_hard_pct_uses_forty_percent_default", abs(float(getattr(SETTINGS, "take_profit_hard_pct", 0.0)) - 0.40) < 1e-9),
-        ("take_profit_runner_fraction_uses_ten_percent_default", abs(float(getattr(SETTINGS, "take_profit_runner_fraction", 0.0)) - 0.10) < 1e-9),
+        ("take_profit_soft_pct_uses_thirty_five_percent_default", abs(float(getattr(SETTINGS, "take_profit_soft_pct", 0.0)) - 0.35) < 1e-9),
+        ("take_profit_partial_fraction_uses_twenty_five_percent_default", abs(float(getattr(SETTINGS, "take_profit_partial_fraction", 0.0)) - 0.25) < 1e-9),
+        ("take_profit_hard_pct_uses_fifty_five_percent_default", abs(float(getattr(SETTINGS, "take_profit_hard_pct", 0.0)) - 0.55) < 1e-9),
+        ("take_profit_runner_fraction_uses_twenty_percent_default", abs(float(getattr(SETTINGS, "take_profit_runner_fraction", 0.0)) - 0.20) < 1e-9),
         ("paper_entry_is_taker_simulated", entry.get("execution_style") == "taker-simulated"),
         ("paper_partial_close_value", abs(float(partial["actual_exit_value_usd"]) - 0.6) < 1e-9),
         ("paper_partial_close_remaining_shares", abs(float(partial["remaining_shares"]) - 1.0) < 1e-9),

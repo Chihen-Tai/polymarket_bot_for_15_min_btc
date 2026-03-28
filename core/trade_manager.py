@@ -166,6 +166,37 @@ def should_block_same_market_reentry(
     remaining_shares: float = 0.0,
     realized_pnl_usd: Optional[float] = None,
 ) -> bool:
+    if float(remaining_shares or 0.0) > 1e-6:
+        return False
+
+    normalized = str(exit_reason or "").strip().lower()
+    if normalized in {
+        "binance-adverse-exit",
+        "deadline-exit-flat",
+        "deadline-exit-loss",
+        "deadline-exit-weak-win",
+        "failed-follow-through",
+        "hard-stop-loss",
+        "max-hold-loss",
+        "max-hold-loss-extended",
+        "moonbag-drawdown-stop",
+        "post-scaleout-stop-loss",
+        "profit-reversal-stop",
+        "residual-force-close",
+        "smart-stop-loss",
+        "stalled-trade",
+        "stop-loss",
+        "stop-loss-full",
+        "stop-loss-scale-out",
+        "take-profit-full",
+        "take-profit-partial",
+        "take-profit-principal",
+        "take-profit-principal-partial",
+    }:
+        return True
+
+    if realized_pnl_usd is not None and float(realized_pnl_usd) < 0.0:
+        return True
     return False
 
 
@@ -178,4 +209,10 @@ def can_reenter_same_market(
     blocked_market_slug: str = "",
 ) -> bool:
     min_secs_left = float(getattr(SETTINGS, "same_market_reentry_min_secs_left", 60))
-    return bool(closed_any and (not has_current_market_pos) and secs_left is not None and secs_left >= min_secs_left)
+    if has_current_market_pos or secs_left is None or secs_left < min_secs_left:
+        return False
+    normalized_current_slug = str(current_market_slug or "").strip()
+    normalized_blocked_slug = str(blocked_market_slug or "").strip()
+    if normalized_current_slug and normalized_blocked_slug and normalized_current_slug == normalized_blocked_slug:
+        return False
+    return bool(closed_any or not normalized_blocked_slug)

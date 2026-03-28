@@ -22,7 +22,7 @@ from core.risk import RiskState, can_place_order, current_5min_key, update_windo
 from core.market_resolver import resolve_latest_btc_5m_token_ids, MarketResolutionError
 from core.run_journal import RunJournal
 from core.state_store import load_state, save_state
-from core.trade_manager import ExitDecision, decide_exit, maybe_reverse_entry
+from core.trade_manager import ExitDecision, decide_exit, maybe_reverse_entry, should_block_same_market_reentry
 from core.ws_binance import BINANCE_WS
 from core.indicators import compute_buy_sell_pressure
 from core.journal import (
@@ -590,6 +590,19 @@ def should_force_full_loss_exit(*, reason: str | None, dry_run: bool) -> bool:
         and bool(getattr(SETTINGS, "live_force_full_loss_exit", True))
         and is_loss_exit_reason(normalized)
         and normalized != "stop-loss-scale-out"
+    )
+
+
+def should_arm_residual_force_close_after_stop_loss_scaleout(
+    *,
+    dry_run: bool,
+    remaining_shares: float,
+    remaining_cost_usd: float,
+) -> bool:
+    return (
+        not dry_run
+        and float(remaining_shares or 0.0) > LOT_EPS_SHARES
+        and float(remaining_cost_usd or 0.0) > LOT_EPS_COST_USD
     )
 
 
@@ -2723,6 +2736,17 @@ def main():
                                             p.shares = resolved_remaining_shares
                                             p.cost_usd = remaining_cost
                                             p.has_scaled_out_loss = True
+                                            if should_arm_residual_force_close_after_stop_loss_scaleout(
+                                                dry_run=SETTINGS.dry_run,
+                                                remaining_shares=resolved_remaining_shares,
+                                                remaining_cost_usd=remaining_cost,
+                                            ):
+                                                p.force_close_only = True
+                                                p.has_panic_dumped = should_force_taker_exit(
+                                                    reason="residual-force-close",
+                                                    dry_run=SETTINGS.dry_run,
+                                                    has_panic_dumped=getattr(p, "has_panic_dumped", False),
+                                                )
                                             
                                             _raw_act_val = close_resp.get("actual_exit_value_usd", 0.0)
                                             _raw_act_src = str(close_resp.get("actual_exit_value_source") or "unavailable")
@@ -2763,6 +2787,11 @@ def main():
                                             })
                                             
                                             log(f"STOP-LOSS SCALED OUT! Sold {sold_shares:.2f} shares to mitigate risk.")
+                                            if getattr(p, "force_close_only", False):
+                                                log(
+                                                    f"stop-loss tail cleanup armed | token={p.token_id} "
+                                                    f"remaining_shares={p.shares:.6f} remaining_cost={p.cost_usd:.6f}"
+                                                )
                                             maybe_record_cycle_label(state, "stop-loss-scale-out", slug=p.slug, side=p.side)
                                 except Exception as e:
                                     log(f"Stop-loss scale-out error: {e}")
@@ -3161,6 +3190,20 @@ def main():
                                             f"{actual_bits} observed_pnl_usd={observed_realized_pnl_usd:+.4f} hold={hold_sec:.0f}s "
                                             f"consec_losses={flags.live_consec_losses} resp={close_resp}"
                                         )
+                                        if should_block_same_market_reentry(
+                                            exit_decision.reason,
+                                            remaining_shares=remaining_shares,
+                                            realized_pnl_usd=(
+                                                actual_realized_pnl_usd
+                                                if actual_realized_pnl_usd is not None
+                                                else observed_realized_pnl_usd
+                                            ),
+                                        ):
+                                            same_market_reentry_block_slug = p.slug
+                                            log(
+                                                f"same-market reentry blocked | slug={p.slug} side={p.side} "
+                                                f"reason={exit_decision.reason}"
+                                            )
 
                                         if p.entry_reason:
                                             from core.learning import SCOREBOARD
@@ -3698,6 +3741,18 @@ def main():
             if any(po.slug == last_market_slug for po in pending_orders):
                 maybe_record_cycle_label(state, "signal-blocked", slug=last_market_slug, side=signal_side, reason="existing-pending-order-still-open")
                 log("skip entry: existing pending order still open")
+                smart_sleep(SETTINGS.poll_seconds)
+                continue
+
+            if same_market_reentry_block_slug and same_market_reentry_block_slug == last_market_slug:
+                maybe_record_cycle_label(
+                    state,
+                    "signal-blocked",
+                    slug=last_market_slug,
+                    side=signal_side,
+                    reason="same-market-reentry-block",
+                )
+                log("skip entry: same market reentry blocked after recent terminal exit")
                 smart_sleep(SETTINGS.poll_seconds)
                 continue
 
