@@ -281,6 +281,41 @@ def principal_extraction_sell_fraction(
     return min(0.99, sell_fraction)
 
 
+def realized_exit_pnl(
+    actual_exit_value_usd: float | None,
+    observed_exit_value_usd: float,
+    realized_cost_usd: float,
+) -> float:
+    actual_value = None if actual_exit_value_usd is None else float(actual_exit_value_usd)
+    observed_value = float(observed_exit_value_usd or 0.0)
+    realized_cost = float(realized_cost_usd or 0.0)
+    recovered_value = actual_value if actual_value is not None and actual_value > 0.0 else observed_value
+    return recovered_value - realized_cost
+
+
+def reference_entry_shares(pos: OpenPos) -> float:
+    recorded = max(0.0, float(getattr(pos, "entry_shares", 0.0) or 0.0))
+    current = max(0.0, float(getattr(pos, "shares", 0.0) or 0.0))
+    if recorded > LOT_EPS_SHARES:
+        return max(recorded, current)
+    if getattr(pos, "has_taken_partial", False) and not getattr(pos, "has_extracted_principal", False):
+        partial_fraction = min(
+            0.95,
+            max(0.05, float(getattr(SETTINGS, "take_profit_partial_fraction", 0.30) or 0.30)),
+        )
+        remaining_fraction = max(1e-9, 1.0 - partial_fraction)
+        inferred = current / remaining_fraction
+        if inferred > LOT_EPS_SHARES:
+            return inferred
+    return current
+
+
+def target_runner_remaining_shares(pos: OpenPos) -> float:
+    entry_shares = reference_entry_shares(pos)
+    runner_fraction = min(0.95, max(0.0, float(getattr(SETTINGS, "take_profit_runner_fraction", 0.10) or 0.10)))
+    return max(0.0, entry_shares * runner_fraction)
+
+
 def entry_velocity_gate_rejects(
     signal_side: str | None,
     signal_origin: str | None,
@@ -982,29 +1017,6 @@ def resolve_close_remaining_shares(
     # Trust the exchange-provided residual hint over simple subtraction. This
     # keeps local state aligned after partial fills or allowance-limited sweeps.
     return hinted_remaining
-
-
-def reference_entry_shares(pos: OpenPos) -> float:
-    recorded = max(0.0, float(getattr(pos, "entry_shares", 0.0) or 0.0))
-    current = max(0.0, float(getattr(pos, "shares", 0.0) or 0.0))
-    if recorded > LOT_EPS_SHARES:
-        return max(recorded, current)
-    if getattr(pos, "has_taken_partial", False) and not getattr(pos, "has_extracted_principal", False):
-        partial_fraction = min(
-            0.95,
-            max(0.05, float(getattr(SETTINGS, "take_profit_partial_fraction", 0.60) or 0.60)),
-        )
-        remaining_fraction = max(1e-9, 1.0 - partial_fraction)
-        inferred = current / remaining_fraction
-        if inferred > LOT_EPS_SHARES:
-            return inferred
-    return current
-
-
-def target_runner_remaining_shares(pos: OpenPos) -> float:
-    entry_shares = reference_entry_shares(pos)
-    runner_fraction = min(0.95, max(0.0, float(getattr(SETTINGS, "take_profit_runner_fraction", 0.10) or 0.10)))
-    return max(0.0, entry_shares * runner_fraction)
 
 
 def paper_settlement_from_last_mark(last_mark: float | None) -> tuple[float, str]:
@@ -2645,7 +2657,11 @@ def main():
                                                 dry_run=SETTINGS.dry_run,
                                             )
                                             _obs_val = observed_exit_value_from_mark(sold_shares=sold_shares, mark=mark)
-                                            _realized_pnl = _act_val - realized_cost if _act_val > 0 else _obs_val - realized_cost
+                                            _realized_pnl = realized_exit_pnl(
+                                                _act_val,
+                                                _obs_val,
+                                                realized_cost,
+                                            )
                                             risk.daily_pnl += _realized_pnl
                                             append_event({
                                                 "kind": "exit",
@@ -2718,7 +2734,11 @@ def main():
                                                 dry_run=SETTINGS.dry_run,
                                             )
                                             _obs_val = observed_exit_value_from_mark(sold_shares=sold_shares, mark=mark)
-                                            _realized_pnl = _act_val - realized_cost if _act_val > 0 else _obs_val - realized_cost
+                                            _realized_pnl = realized_exit_pnl(
+                                                _act_val,
+                                                _obs_val,
+                                                realized_cost,
+                                            )
                                             risk.daily_pnl += _realized_pnl
                                             append_event({
                                                 "kind": "exit",
@@ -2863,7 +2883,7 @@ def main():
                                 continue
 
                             if exit_decision.reason == "take-profit-partial":
-                                sell_fraction = min(0.95, max(0.05, float(getattr(SETTINGS, "take_profit_partial_fraction", 0.60) or 0.60)))
+                                sell_fraction = min(0.95, max(0.05, float(getattr(SETTINGS, "take_profit_partial_fraction", 0.30) or 0.30)))
                                 sell_shares = p.shares * sell_fraction
                                 try:
                                     close_resp = ex.close_position(
@@ -2878,7 +2898,6 @@ def main():
                                     if close_resp.get("ok"):
                                         starting_shares = float(p.shares)
                                         starting_cost = float(p.cost_usd)
-                                        p.entry_shares = max(float(getattr(p, "entry_shares", 0.0) or 0.0), starting_shares)
                                         sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), sell_shares)
                                         if sold_shares > 0:
                                             remaining_hint = close_resp.get("remaining_shares")

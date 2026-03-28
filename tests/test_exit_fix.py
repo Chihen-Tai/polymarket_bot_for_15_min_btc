@@ -28,6 +28,7 @@ from core.runner import (
     observed_exit_value_from_mark,
     extract_entry_cost_usd,
     is_loss_exit_reason,
+    realized_exit_pnl,
     principal_extraction_sell_fraction,
     principal_extraction_complete,
     realistic_exit_value,
@@ -77,7 +78,9 @@ def main():
     SETTINGS.binance_adverse_exit_max_profit_pct = 0.08
     SETTINGS.binance_adverse_exit_min_hold_sec = 4.0
     SETTINGS.binance_adverse_exit_require_current_confirm = True
-    SETTINGS.take_profit_partial_fraction = 0.60
+    SETTINGS.take_profit_soft_pct = 0.25
+    SETTINGS.take_profit_partial_fraction = 0.30
+    SETTINGS.take_profit_hard_pct = 0.40
     SETTINGS.take_profit_runner_fraction = 0.10
 
     ex = make_paper_exchange()
@@ -293,6 +296,8 @@ def main():
                 ) - 0.75
             ) < 1e-9,
         ),
+        ("realized_exit_pnl_falls_back_to_observed_when_actual_is_none", abs(realized_exit_pnl(None, 0.18, 0.20) + 0.02) < 1e-9),
+        ("realized_exit_pnl_prefers_actual_when_present", abs(realized_exit_pnl(0.22, 0.18, 0.20) - 0.02) < 1e-9),
         ("ws_order_flow_down_blocked_on_rising_velocity", entry_velocity_gate_rejects("DOWN", "model-ws_order_flow_down", 0.0001) is True),
         ("ws_order_flow_up_blocked_on_falling_velocity", entry_velocity_gate_rejects("UP", "model-ws_order_flow_up", -0.0001) is True),
         ("ws_order_flow_down_allows_flat_or_down_velocity", entry_velocity_gate_rejects("DOWN", "model-ws_order_flow_down", 0.0) is False and entry_velocity_gate_rejects("DOWN", "model-ws_order_flow_down", -0.0001) is False),
@@ -361,7 +366,9 @@ def main():
         ("has_exit_liquidity_accepts_object_style_levels", object_book_liquidity is True),
         ("close_remaining_shares_trusts_exchange_dust_hint", abs(resolved_close_remaining_dust - 0.0) < 1e-9),
         ("close_remaining_shares_preserves_non_dust_hint", abs(resolved_close_remaining_live_hint - 0.498613) < 1e-9),
-        ("take_profit_partial_fraction_uses_sixty_percent_default", abs(float(getattr(SETTINGS, "take_profit_partial_fraction", 0.0)) - 0.60) < 1e-9),
+        ("take_profit_soft_pct_uses_twenty_five_percent_default", abs(float(getattr(SETTINGS, "take_profit_soft_pct", 0.0)) - 0.25) < 1e-9),
+        ("take_profit_partial_fraction_uses_thirty_percent_default", abs(float(getattr(SETTINGS, "take_profit_partial_fraction", 0.0)) - 0.30) < 1e-9),
+        ("take_profit_hard_pct_uses_forty_percent_default", abs(float(getattr(SETTINGS, "take_profit_hard_pct", 0.0)) - 0.40) < 1e-9),
         ("take_profit_runner_fraction_uses_ten_percent_default", abs(float(getattr(SETTINGS, "take_profit_runner_fraction", 0.0)) - 0.10) < 1e-9),
         ("paper_entry_is_taker_simulated", entry.get("execution_style") == "taker-simulated"),
         ("paper_partial_close_value", abs(float(partial["actual_exit_value_usd"]) - 0.6) < 1e-9),

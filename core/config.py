@@ -126,9 +126,9 @@ class Settings:
     live_stop_loss_partial_fraction: float = _f("LIVE_STOP_LOSS_PARTIAL_FRACTION", 0.80)
     max_hold_seconds: int = _i("MAX_HOLD_SECONDS", 180)
     take_profit_scaleout_pct: float = _f("TAKE_PROFIT_SCALEOUT_PCT", 0.03)
-    take_profit_soft_pct: float = _f("TAKE_PROFIT_SOFT_PCT", 0.30)   # Stage 1: start taking profit at +30%
-    take_profit_partial_fraction: float = _f("TAKE_PROFIT_PARTIAL_FRACTION", 0.60)
-    take_profit_hard_pct: float = _f("TAKE_PROFIT_HARD_PCT", 0.50)   # Stage 2: extract principal at +50%
+    take_profit_soft_pct: float = _f("TAKE_PROFIT_SOFT_PCT", 0.25)   # Stage 1: start taking profit at +25%
+    take_profit_partial_fraction: float = _f("TAKE_PROFIT_PARTIAL_FRACTION", 0.30)
+    take_profit_hard_pct: float = _f("TAKE_PROFIT_HARD_PCT", 0.40)   # Stage 2: extract principal at +40%
     take_profit_runner_fraction: float = _f("TAKE_PROFIT_RUNNER_FRACTION", 0.10)
     moonbag_drawdown_pct: float = _f("MOONBAG_DRAWDOWN_PCT", 0.30)
     moonbag_drawdown_window_sec: int = _i("MOONBAG_DRAWDOWN_WINDOW_SEC", 30)
@@ -240,8 +240,8 @@ class Settings:
                 stacklevel=2,
             )
             self.take_profit_soft_pct = normalized_soft
-        normalized_partial_fraction = min(0.95, max(0.05, float(self.take_profit_partial_fraction or 0.60)))
-        if abs(normalized_partial_fraction - float(self.take_profit_partial_fraction or 0.60)) > 1e-9:
+        normalized_partial_fraction = min(0.95, max(0.05, float(self.take_profit_partial_fraction or 0.30)))
+        if abs(normalized_partial_fraction - float(self.take_profit_partial_fraction or 0.30)) > 1e-9:
             warnings.warn(
                 "TAKE_PROFIT_PARTIAL_FRACTION must be between 0.05 and 0.95; "
                 f"normalizing from {self.take_profit_partial_fraction:.2f} "
