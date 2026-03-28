@@ -16,6 +16,7 @@ from core.exchange import (
 from core.runner import (
     ExitDecision as RunnerExitDecision,
     OpenPos,
+    emergency_exit_retry_kwargs,
     entry_slippage_breach,
     entry_velocity_gate_rejects,
     effective_stop_loss_partial_fraction,
@@ -190,6 +191,16 @@ def main():
         ("profit_reversal_exit_skips_if_velocity_not_adverse", should_trigger_profit_reversal_exit(has_extracted_principal=False, side="UP", profit_pnl_pct=0.18, mfe_pnl_pct=0.60, current_value_usd=1.18, peak_value_usd=1.50, ws_velocity=0.0001, secs_left=120.0) is False),
         ("profit_reversal_exit_skips_risk_free_runner", should_trigger_profit_reversal_exit(has_extracted_principal=True, side="UP", profit_pnl_pct=0.18, mfe_pnl_pct=0.60, current_value_usd=1.18, peak_value_usd=1.50, ws_velocity=-0.0010, secs_left=120.0) is False),
         ("profit_reversal_full_exit_prefers_taker_live", should_force_taker_profit_protection(reason="profit-reversal-stop", dry_run=False) is True),
+        ("deadline_weak_win_prefers_taker_live", should_force_taker_profit_protection(reason="deadline-exit-weak-win", dry_run=False) is True),
+        ("deadline_flat_prefers_taker_live", should_force_taker_profit_protection(reason="deadline-exit-flat", dry_run=False) is True),
+        (
+            "deadline_exit_emergency_retry_uses_one_second_loop",
+            emergency_exit_retry_kwargs(reason="deadline-exit-weak-win", secs_left=18.0, dry_run=False) == {
+                "retry_delay_sec": 1.0,
+                "max_attempts": 8,
+            },
+        ),
+        ("non_deadline_exit_has_no_emergency_retry", emergency_exit_retry_kwargs(reason="take-profit-principal", secs_left=18.0, dry_run=False) == {}),
         ("panic_dump_always_forces_taker", should_force_taker_exit(reason="", dry_run=True, has_panic_dumped=True) is True),
         ("soft_stop_scaleout_waits_for_confirmation_when_shallow_and_flat", should_delay_soft_stop_scaleout(reason="stop-loss-scale-out", side="UP", pnl_pct=-0.10, breach_age_sec=2.0, secs_left=120.0, ws_velocity=0.0) is True),
         ("soft_stop_scaleout_does_not_wait_when_move_is_still_adverse", should_delay_soft_stop_scaleout(reason="stop-loss-scale-out", side="UP", pnl_pct=-0.10, breach_age_sec=2.0, secs_left=120.0, ws_velocity=-0.0010) is False),

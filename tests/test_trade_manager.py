@@ -213,6 +213,26 @@ def main():
         },
     ])
     zero_actual_summary = summarize_trade_pairs(zero_actual_pair_rows)
+    original_fetch_market_settlement = journal_analysis_mod._fetch_market_settlement
+    journal_analysis_mod._fetch_market_settlement = lambda slug, side: (0.0, "market-expired-binary-loss")
+    try:
+        settled_unmatched_rows = build_trade_pairs([
+            {
+                "kind": "entry",
+                "ts": "2026-03-19T10:06:00",
+                "event_id": "entry_unresolved",
+                "position_id": "pos_unresolved",
+                "slug": "btc-updown-5m-1",
+                "side": "DOWN",
+                "token_id": "tok_unresolved",
+                "shares": 2.5,
+                "cost_usd": 1.0,
+                "execution_style": "unknown",
+            },
+        ])
+    finally:
+        journal_analysis_mod._fetch_market_settlement = original_fetch_market_settlement
+    settled_unmatched_summary = summarize_trade_pairs(settled_unmatched_rows)
     fee_summary_rows = build_trade_pairs([
         {
             "kind": "entry",
@@ -633,6 +653,19 @@ def main():
         ("trade_pair_actual_pnl", len(pair_rows) == 1 and abs((pair_rows[0].actual_pnl_usd or 0.0) - 0.2) < 1e-9),
         ("trade_pair_zero_actual_loss_is_preserved", len(zero_actual_pair_rows) == 1 and abs((zero_actual_pair_rows[0].actual_pnl_usd or 0.0) + 1.0) < 1e-9),
         ("summary_counts_zero_actual_as_available", abs((zero_actual_summary["actual_available_ratio"] or 0.0) - 1.0) < 1e-9 and abs((zero_actual_summary["actual_pnl"]["sum"] or 0.0) + 1.0) < 1e-9),
+        (
+            "expired_unmatched_position_is_settled_in_report",
+            len(settled_unmatched_rows) == 1
+            and settled_unmatched_rows[0].status == "closed"
+            and settled_unmatched_rows[0].close_reason == "market-expired-binary-loss"
+            and abs((settled_unmatched_rows[0].actual_pnl_usd or 0.0) + 1.0) < 1e-9
+            and "market-settlement-imputed" in settled_unmatched_rows[0].flags
+        ),
+        (
+            "expired_unmatched_settlement_counts_as_actual",
+            abs((settled_unmatched_summary["actual_available_ratio"] or 0.0) - 1.0) < 1e-9
+            and abs((settled_unmatched_summary["actual_pnl"]["sum"] or 0.0) + 1.0) < 1e-9
+        ),
         ("trade_pair_fee_adjusted_defaults_unknown_to_zero", len(pair_rows) == 1 and abs((pair_rows[0].fee_adjusted_actual_pnl_usd or 0.0) - 0.2) < 1e-9),
         ("trade_pair_mae_mfe", len(pair_rows) == 1 and pair_rows[0].mae_pnl_usd == -0.1 and pair_rows[0].mfe_pnl_usd == 0.2),
         ("decision_engine_uses_observed_prices", observed_price_decision.get("ok") and observed_price_decision.get("side") == "UP" and abs((observed_price_decision.get("entry_price") or 0.0) - 0.45) < 1e-9),

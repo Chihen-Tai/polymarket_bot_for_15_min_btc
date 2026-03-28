@@ -498,9 +498,33 @@ def should_force_taker_profit_protection(*, reason: str | None, dry_run: bool) -
     if dry_run:
         return False
     normalized = str(reason or "").strip().lower()
-    return normalized in {"take-profit-full", "profit-reversal-stop"} and bool(
+    return normalized in {
+        "take-profit-full",
+        "profit-reversal-stop",
+        "deadline-exit-weak-win",
+        "deadline-exit-flat",
+    } and bool(
         getattr(SETTINGS, "live_take_profit_force_taker", True)
     )
+
+
+def emergency_exit_retry_kwargs(*, reason: str | None, secs_left: float | None, dry_run: bool) -> dict[str, float | int]:
+    if dry_run or secs_left is None:
+        return {}
+    normalized = str(reason or "").strip().lower()
+    if normalized not in {
+        "deadline-exit-weak-win",
+        "deadline-exit-flat",
+        "deadline-exit-loss",
+        "residual-force-close",
+    }:
+        return {}
+    if float(secs_left) > float(getattr(SETTINGS, "exit_deadline_sec", 20) or 20):
+        return {}
+    return {
+        "retry_delay_sec": max(0.25, float(getattr(SETTINGS, "emergency_exit_retry_delay_sec", 1.0) or 1.0)),
+        "max_attempts": max(1, int(getattr(SETTINGS, "emergency_exit_max_attempts", 8) or 8)),
+    }
 
 
 def should_force_taker_exit(*, reason: str | None, dry_run: bool, has_panic_dumped: bool = False) -> bool:
@@ -2584,6 +2608,11 @@ def main():
                                 continue
 
                             try:
+                                close_retry_kwargs = emergency_exit_retry_kwargs(
+                                    reason=exit_decision.reason,
+                                    secs_left=secs_left,
+                                    dry_run=SETTINGS.dry_run,
+                                )
                                 close_resp = ex.close_position(
                                     p.token_id,
                                     p.shares,
@@ -2599,6 +2628,7 @@ def main():
                                             dry_run=SETTINGS.dry_run,
                                         )
                                     ),
+                                    **close_retry_kwargs,
                                 )
                                 if close_resp.get("ok"):
                                     sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), p.shares)

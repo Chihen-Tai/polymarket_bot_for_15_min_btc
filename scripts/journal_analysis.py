@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import csv
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import sys
 import os
@@ -17,6 +17,7 @@ from core.journal import read_events
 
 
 EPS = 1e-9
+_SETTLEMENT_CACHE: dict[tuple[str, str], tuple[float | None, str | None]] = {}
 
 
 def _f(v: Any, default: float = 0.0) -> float:
@@ -48,6 +49,77 @@ def _event_pair_key(ev: dict) -> str:
     if position_id:
         return position_id
     return str(ev.get("token_id") or "").strip()
+
+
+def _coerce_list(v: Any) -> list[Any]:
+    if isinstance(v, str):
+        try:
+            v = json.loads(v)
+        except Exception:
+            return []
+    return v if isinstance(v, list) else []
+
+
+def _market_end_dt_from_slug(slug: str | None) -> datetime | None:
+    text = str(slug or "").strip()
+    if not text:
+        return None
+    try:
+        start_epoch = int(text.split("-")[-1])
+    except Exception:
+        return None
+    return datetime.fromtimestamp(start_epoch + 300, tz=timezone.utc)
+
+
+def _fetch_market_settlement(slug: str | None, side: str | None) -> tuple[float | None, str | None]:
+    slug_text = str(slug or "").strip()
+    side_text = str(side or "").strip().lower()
+    cache_key = (slug_text, side_text)
+    if cache_key in _SETTLEMENT_CACHE:
+        return _SETTLEMENT_CACHE[cache_key]
+
+    end_dt = _market_end_dt_from_slug(slug_text)
+    if end_dt is None or datetime.now(timezone.utc) < end_dt:
+        _SETTLEMENT_CACHE[cache_key] = (None, None)
+        return _SETTLEMENT_CACHE[cache_key]
+
+    try:
+        import requests
+
+        response = requests.get(
+            "https://gamma-api.polymarket.com/markets",
+            params={"slug": slug_text},
+            timeout=8,
+        )
+        response.raise_for_status()
+        markets = response.json() or []
+        if not markets:
+            raise ValueError("market not found")
+        market = markets[0]
+        outcomes = _coerce_list(market.get("outcomes"))
+        prices = _coerce_list(market.get("outcomePrices"))
+        price_by_outcome: dict[str, float] = {}
+        for idx, outcome in enumerate(outcomes):
+            if idx >= len(prices):
+                break
+            try:
+                price_by_outcome[str(outcome or "").strip().lower()] = float(prices[idx])
+            except Exception:
+                continue
+        settlement_price = price_by_outcome.get(side_text)
+        if settlement_price is None:
+            raise ValueError("settlement price unavailable")
+        if settlement_price >= 0.99:
+            settlement_reason = "market-expired-binary-win"
+        elif settlement_price <= 0.01:
+            settlement_reason = "market-expired-binary-loss"
+        else:
+            settlement_reason = "market-expired-settlement"
+        _SETTLEMENT_CACHE[cache_key] = (settlement_price, settlement_reason)
+    except Exception:
+        _SETTLEMENT_CACHE[cache_key] = (None, None)
+
+    return _SETTLEMENT_CACHE[cache_key]
 
 
 @dataclass
@@ -181,6 +253,8 @@ def classify_actual_source_tier(source: str | None, actual_value: float | None =
         return "none"
     if src == "cash_balance_delta":
         return "high"
+    if src == "market-settlement-lookup":
+        return "medium"
     if "balance-delta" in src or "balance_delta" in src:
         return "high"
     if src in {"close_response_amount", "close_response_value", "close_response_raw_amount", "actual_close_response_value", "response_amount", "response_value"}:
@@ -545,11 +619,57 @@ def _finalize_pair_row(entry_ev: dict, token_id: str, key: str, lot: dict) -> Tr
     exit_actual = lot["exit_recovered_actual_usd"] if lot.get("has_actual") else None
     exit_observed = lot["exit_recovered_observed_usd"] if lot.get("has_observed") else None
     matched_cost = float(lot.get("matched_cost_usd") or 0.0)
-    actual_pnl = (exit_actual - matched_cost) if exit_actual is not None else None
-    observed_pnl = (exit_observed - matched_cost) if exit_observed is not None else None
+    matched_exit_shares = float(lot.get("matched_shares") or 0.0)
     entry_execution_style = normalize_execution_style(lot.get("entry_execution_style") or entry_ev.get("execution_style"))
     exit_execution_style = normalize_execution_style(lot.get("exit_execution_style"))
     close_reason = str(lot.get("close_reason") or "")
+    remaining_shares = float(lot.get("remaining_shares") or 0.0)
+    flags = list(dict.fromkeys(lot.get("flags") or []))
+    actual_source = str(lot.get("actual_source") or "unavailable")
+    actual_source_tier = str(lot.get("actual_source_tier") or "none")
+    legs = list(lot.get("legs") or [])
+    settlement_applied = False
+    settlement_closed_ts = ""
+
+    if remaining_shares > EPS:
+        settlement_price, settlement_reason = _fetch_market_settlement(
+            str(entry_ev.get("slug") or ""),
+            str(entry_ev.get("side") or ""),
+        )
+        if settlement_price is not None:
+            settlement_applied = True
+            remaining_cost = float(lot.get("remaining_cost_usd") or 0.0)
+            settlement_value = remaining_shares * settlement_price
+            matched_cost += remaining_cost
+            matched_exit_shares += remaining_shares
+            exit_actual = (exit_actual or 0.0) + settlement_value
+            exit_observed = (exit_observed or 0.0) + settlement_value
+            actual_source = "market-settlement-lookup"
+            actual_source_tier = classify_actual_source_tier(actual_source, exit_actual)
+            exit_execution_style = "expiry-settlement"
+            close_reason = settlement_reason if not close_reason else f"{close_reason}+{settlement_reason}"
+            settlement_end_dt = _market_end_dt_from_slug(str(entry_ev.get("slug") or ""))
+            settlement_closed_ts = settlement_end_dt.isoformat() if settlement_end_dt is not None else ""
+            legs.append(TradeLeg(
+                ts=settlement_closed_ts,
+                event_id=f"{key}#settlement",
+                kind="expiry_settlement",
+                shares=remaining_shares,
+                cost_usd=remaining_cost,
+                recovered_actual_usd=settlement_value,
+                recovered_observed_usd=settlement_value,
+                reason=settlement_reason,
+                source=actual_source,
+                source_tier=actual_source_tier,
+                remaining_shares=0.0,
+                mae_pnl_usd=None,
+                mfe_pnl_usd=None,
+            ))
+            remaining_shares = 0.0
+            flags.append("market-settlement-imputed")
+
+    actual_pnl = (exit_actual - matched_cost) if exit_actual is not None else None
+    observed_pnl = (exit_observed - matched_cost) if exit_observed is not None else None
     _, actual_total_fees, observed_total_fees, _ = estimate_pair_fees(
         matched_cost_usd=matched_cost,
         actual_exit_value_usd=exit_actual,
@@ -560,11 +680,9 @@ def _finalize_pair_row(entry_ev: dict, token_id: str, key: str, lot: dict) -> Tr
     )
     fee_adjusted_actual_pnl = (actual_pnl - actual_total_fees) if actual_pnl is not None and actual_total_fees is not None else None
     fee_adjusted_observed_pnl = (observed_pnl - observed_total_fees) if observed_pnl is not None and observed_total_fees is not None else None
-    remaining_shares = float(lot.get("remaining_shares") or 0.0)
-    flags = list(dict.fromkeys(lot.get("flags") or []))
     if remaining_shares > EPS:
         flags.append("open-remainder")
-    if not lot.get("exit_count"):
+    if not lot.get("exit_count") and not settlement_applied:
         flags.append("no-exit")
     return TradePairRow(
         position_id=str(entry_ev.get("position_id") or key),
@@ -573,16 +691,16 @@ def _finalize_pair_row(entry_ev: dict, token_id: str, key: str, lot: dict) -> Tr
         side=str(entry_ev.get("side") or ""),
         status=classify_pair_status(
             remaining_shares=remaining_shares,
-            has_exit=bool(lot.get("exit_count")),
-            exit_count=int(lot.get("exit_count") or 0),
-            matched_shares=float(lot.get("matched_shares") or 0.0),
+            has_exit=bool(lot.get("exit_count")) or settlement_applied,
+            exit_count=int(lot.get("exit_count") or 0) + (1 if settlement_applied else 0),
+            matched_shares=matched_exit_shares,
             entry_shares=entry_shares,
         ),
         opened_ts=str(entry_ev.get("ts") or ""),
-        closed_ts=str(lot.get("closed_ts") or ""),
+        closed_ts=settlement_closed_ts or str(lot.get("closed_ts") or ""),
         entry_cost_usd=entry_cost,
         entry_shares=entry_shares,
-        matched_exit_shares=float(lot.get("matched_shares") or 0.0),
+        matched_exit_shares=matched_exit_shares,
         exit_recovered_actual_usd=exit_actual,
         exit_recovered_observed_usd=exit_observed,
         actual_pnl_usd=actual_pnl,
@@ -591,20 +709,20 @@ def _finalize_pair_row(entry_ev: dict, token_id: str, key: str, lot: dict) -> Tr
         fee_adjusted_observed_pnl_usd=fee_adjusted_observed_pnl,
         estimated_total_fees_actual_usd=actual_total_fees,
         estimated_total_fees_observed_usd=observed_total_fees,
-        actual_source=str(lot.get("actual_source") or "unavailable"),
-        actual_source_tier=str(lot.get("actual_source_tier") or "none"),
+        actual_source=actual_source,
+        actual_source_tier=actual_source_tier,
         entry_execution_style=entry_execution_style,
         exit_execution_style=exit_execution_style,
         close_bucket=classify_close_bucket(close_reason),
         close_reason=close_reason,
         entry_quality=str(lot.get("entry_quality") or "unknown"),
         remaining_shares=remaining_shares,
-        unmatched_entry_cost_usd=float(lot.get("remaining_cost_usd") or 0.0),
+        unmatched_entry_cost_usd=float(lot.get("remaining_cost_usd") or 0.0) if remaining_shares > EPS else 0.0,
         unmatched_entry_shares=remaining_shares,
         mae_pnl_usd=lot.get("mae_pnl_usd"),
         mfe_pnl_usd=lot.get("mfe_pnl_usd"),
         flags=flags,
-        legs=list(lot.get("legs") or []),
+        legs=legs,
     )
 
 

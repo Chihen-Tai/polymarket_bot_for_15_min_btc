@@ -788,7 +788,15 @@ class PolymarketExchange:
         except Exception:
             return []
 
-    def close_position(self, token_id: str, shares: float, simulated_price: float | None = None, force_taker: bool = False) -> dict:
+    def close_position(
+        self,
+        token_id: str,
+        shares: float,
+        simulated_price: float | None = None,
+        force_taker: bool = False,
+        max_attempts: int | None = None,
+        retry_delay_sec: float | None = None,
+    ) -> dict:
         if self.dry_run:
             if simulated_price is not None and simulated_price >= 0:
                 best_bid = simulated_price
@@ -836,6 +844,8 @@ class PolymarketExchange:
         cash_before = self._get_cash_balance()
         remaining = float(shares)
         attempts = 0
+        attempt_limit = max(1, int(max_attempts or 8))
+        retry_sleep = max(0.0, float(2.0 if retry_delay_sec is None else retry_delay_sec))
         last_resp = None
         last_error = None
         sold_total = 0.0
@@ -845,7 +855,7 @@ class PolymarketExchange:
         maker_filled = False
         taker_filled = False
         
-        while remaining > 0.0001 and attempts < 8:
+        while remaining > 0.0001 and attempts < attempt_limit:
             attempts += 1
             # For aggressive taker exits, keep sweeping the full residual size.
             # Shrinking chunks creates dust-like leftovers that are hard to clear.
@@ -935,7 +945,7 @@ class PolymarketExchange:
 
                 effective_filled = min(chunk, max(0.0, float(filled_shares or 0.0)))
                 if effective_filled <= 0:
-                    time.sleep(2)
+                    time.sleep(retry_sleep)
                     continue
 
                 shares_sold_per_attempt.append(effective_filled)
@@ -948,13 +958,13 @@ class PolymarketExchange:
                     adjusted_remaining = max(0.0, round(adjusted_remaining - 0.0005, 6))
                     if 0.0 < adjusted_remaining + 1e-9 < remaining:
                         remaining = adjusted_remaining
-                        time.sleep(1)
+                        time.sleep(min(1.0, retry_sleep) if retry_sleep > 0 else 0.0)
                         continue
                 # small delay then retry
-                time.sleep(2)
+                time.sleep(retry_sleep)
                 continue
 
-            time.sleep(2)
+            time.sleep(retry_sleep)
 
         cash_after = None
         cash_delta = None
@@ -968,7 +978,7 @@ class PolymarketExchange:
                         cash_delta_source = "cash_balance_delta"
                         break
                     cash_delta_source = "cash_balance_non_positive"
-                time.sleep(1)
+                time.sleep(min(1.0, retry_sleep) if retry_sleep > 0 else 0.0)
 
         ok = sold_total > 0 and (last_resp is not None)
         best_exit_value, best_exit_source = select_live_close_exit_value(
