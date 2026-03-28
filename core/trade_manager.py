@@ -56,7 +56,7 @@ def decide_exit(
     ):
         if getattr(SETTINGS, "force_full_exit_on_take_profit", False):
             return ExitDecision(True, "take-profit-full", take_profit_pnl_pct, hold_sec)
-        # Sell 30% to lock in early profit and reduce anxiety
+        # Sell the configured first clip to lock in gains and cut exposure.
         return ExitDecision(True, "take-profit-partial", take_profit_pnl_pct, hold_sec)
 
     if has_extracted_principal:

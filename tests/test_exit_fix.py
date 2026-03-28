@@ -41,6 +41,7 @@ from core.runner import (
     should_force_full_loss_exit,
     should_force_taker_take_profit,
     should_force_taker_exit,
+    resolve_close_remaining_shares,
 )
 
 
@@ -76,6 +77,8 @@ def main():
     SETTINGS.binance_adverse_exit_max_profit_pct = 0.08
     SETTINGS.binance_adverse_exit_min_hold_sec = 4.0
     SETTINGS.binance_adverse_exit_require_current_confirm = True
+    SETTINGS.take_profit_partial_fraction = 0.60
+    SETTINGS.take_profit_runner_fraction = 0.10
 
     ex = make_paper_exchange()
 
@@ -239,6 +242,16 @@ def main():
     object_book_ex.client = ObjectBookClient()
     object_book = object_book_ex.get_full_orderbook("tok-object-book")
     object_book_liquidity = object_book_ex.has_exit_liquidity("tok-object-book", 10.0)
+    resolved_close_remaining_dust = resolve_close_remaining_shares(
+        requested_shares=1.550382,
+        sold_shares=0.91,
+        remaining_hint=0.0,
+    )
+    resolved_close_remaining_live_hint = resolve_close_remaining_shares(
+        requested_shares=1.758613,
+        sold_shares=1.26,
+        remaining_hint=0.498613,
+    )
 
     entry = ex.place_order("UP", 1.0, token_id_override="tok1", simulated_price=0.5)
     partial = ex.close_position("tok1", 1.0, simulated_price=0.6)
@@ -269,6 +282,17 @@ def main():
         ("principal_extraction_rejects_tiny_partial_fill", principal_extraction_complete(0.0286, 1.0) is False),
         ("principal_extraction_accepts_near_full_recovery", principal_extraction_complete(0.97, 1.0) is True),
         ("principal_extraction_sell_fraction_uses_total_position_value", abs(principal_extraction_sell_fraction(1.6, 1.0) - 0.625) < 1e-9),
+        (
+            "principal_extraction_sell_fraction_respects_final_runner_target",
+            abs(
+                principal_extraction_sell_fraction(
+                    0.8,
+                    0.4,
+                    current_shares=4.0,
+                    target_remaining_shares=1.0,
+                ) - 0.75
+            ) < 1e-9,
+        ),
         ("ws_order_flow_down_blocked_on_rising_velocity", entry_velocity_gate_rejects("DOWN", "model-ws_order_flow_down", 0.0001) is True),
         ("ws_order_flow_up_blocked_on_falling_velocity", entry_velocity_gate_rejects("UP", "model-ws_order_flow_up", -0.0001) is True),
         ("ws_order_flow_down_allows_flat_or_down_velocity", entry_velocity_gate_rejects("DOWN", "model-ws_order_flow_down", 0.0) is False and entry_velocity_gate_rejects("DOWN", "model-ws_order_flow_down", -0.0001) is False),
@@ -335,6 +359,10 @@ def main():
         ("live_account_cache_reuses_recent_snapshot", cash_calls["count"] == 2 and value_calls["count"] == 2 and acct_first.cash == acct_second.cash == acct_third.cash == 7.0 and acct_first.equity == acct_second.equity == acct_third.equity == 10.0),
         ("get_full_orderbook_accepts_object_style_orderbook", object_book.get("best_bid") == 0.48 and object_book.get("best_ask") == 0.49 and object_book.get("bids_volume") == 21.5 and object_book.get("asks_volume") == 18.0),
         ("has_exit_liquidity_accepts_object_style_levels", object_book_liquidity is True),
+        ("close_remaining_shares_trusts_exchange_dust_hint", abs(resolved_close_remaining_dust - 0.0) < 1e-9),
+        ("close_remaining_shares_preserves_non_dust_hint", abs(resolved_close_remaining_live_hint - 0.498613) < 1e-9),
+        ("take_profit_partial_fraction_uses_sixty_percent_default", abs(float(getattr(SETTINGS, "take_profit_partial_fraction", 0.0)) - 0.60) < 1e-9),
+        ("take_profit_runner_fraction_uses_ten_percent_default", abs(float(getattr(SETTINGS, "take_profit_runner_fraction", 0.0)) - 0.10) < 1e-9),
         ("paper_entry_is_taker_simulated", entry.get("execution_style") == "taker-simulated"),
         ("paper_partial_close_value", abs(float(partial["actual_exit_value_usd"]) - 0.6) < 1e-9),
         ("paper_partial_close_remaining_shares", abs(float(partial["remaining_shares"]) - 1.0) < 1e-9),

@@ -1018,7 +1018,7 @@ class PolymarketExchange:
             "mode": "live",
             "requested_shares": shares,
             "closed_shares": sold_total,
-            "remaining_shares": max(0.0, float(shares) - sold_total),
+            "remaining_shares": max(0.0, float(remaining)),
             "attempts": attempts,
             "response": last_resp,
             "error": None if ok else (last_error or "no fill"),

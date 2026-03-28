@@ -188,6 +188,7 @@ class OpenPos:
     has_extracted_principal: bool = False
     has_panic_dumped: bool = False
     force_close_only: bool = False
+    entry_shares: float = 0.0
     runner_peak_value_usd: float = 0.0
     runner_peak_ts: float = 0.0
     dust_retry_count: int = 0  # Number of times this residual lot has been kept for retry
@@ -266,10 +267,18 @@ def principal_extraction_complete(
 def principal_extraction_sell_fraction(
     current_value_usd: float,
     target_principal_usd: float,
+    *,
+    current_shares: float | None = None,
+    target_remaining_shares: float | None = None,
 ) -> float:
     current_total_value = max(1e-9, float(current_value_usd or 0.0))
     target = max(0.0, float(target_principal_usd or 0.0))
-    return min(0.99, target / current_total_value)
+    sell_fraction = max(0.0, target / current_total_value)
+    if current_shares is not None and target_remaining_shares is not None:
+        shares_now = max(1e-9, float(current_shares or 0.0))
+        desired_remaining = min(shares_now, max(0.0, float(target_remaining_shares or 0.0)))
+        sell_fraction = max(sell_fraction, 1.0 - (desired_remaining / shares_now))
+    return min(0.99, sell_fraction)
 
 
 def entry_velocity_gate_rejects(
@@ -667,6 +676,7 @@ def track_pending_fill(
         side=po.side,
         token_id=po.token_id,
         shares=shares,
+        entry_shares=shares,
         cost_usd=cost_usd,
         opened_ts=opened_ts,
         position_id=position_id,
@@ -949,6 +959,52 @@ def conservative_exit_decision_value(
         # manufacture unrealized profits that cannot actually be sold.
         return min(float(mark_value), float(pos.cost_usd))
     return float(pos.cost_usd)
+
+
+def resolve_close_remaining_shares(
+    *,
+    requested_shares: float,
+    sold_shares: float,
+    remaining_hint: float | None,
+) -> float:
+    requested = max(0.0, float(requested_shares or 0.0))
+    sold = min(requested, max(0.0, float(sold_shares or 0.0)))
+    local_remaining = max(0.0, requested - sold)
+    if remaining_hint is None:
+        return 0.0 if local_remaining <= LOT_EPS_SHARES else local_remaining
+    try:
+        hinted_remaining = float(remaining_hint or 0.0)
+    except Exception:
+        hinted_remaining = local_remaining
+    hinted_remaining = min(requested, max(0.0, hinted_remaining))
+    if hinted_remaining <= LOT_EPS_SHARES:
+        return 0.0
+    # Trust the exchange-provided residual hint over simple subtraction. This
+    # keeps local state aligned after partial fills or allowance-limited sweeps.
+    return hinted_remaining
+
+
+def reference_entry_shares(pos: OpenPos) -> float:
+    recorded = max(0.0, float(getattr(pos, "entry_shares", 0.0) or 0.0))
+    current = max(0.0, float(getattr(pos, "shares", 0.0) or 0.0))
+    if recorded > LOT_EPS_SHARES:
+        return max(recorded, current)
+    if getattr(pos, "has_taken_partial", False) and not getattr(pos, "has_extracted_principal", False):
+        partial_fraction = min(
+            0.95,
+            max(0.05, float(getattr(SETTINGS, "take_profit_partial_fraction", 0.60) or 0.60)),
+        )
+        remaining_fraction = max(1e-9, 1.0 - partial_fraction)
+        inferred = current / remaining_fraction
+        if inferred > LOT_EPS_SHARES:
+            return inferred
+    return current
+
+
+def target_runner_remaining_shares(pos: OpenPos) -> float:
+    entry_shares = reference_entry_shares(pos)
+    runner_fraction = min(0.95, max(0.0, float(getattr(SETTINGS, "take_profit_runner_fraction", 0.10) or 0.10)))
+    return max(0.0, entry_shares * runner_fraction)
 
 
 def paper_settlement_from_last_mark(last_mark: float | None) -> tuple[float, str]:
@@ -2562,12 +2618,21 @@ def main():
                                 try:
                                     close_resp = ex.close_position(p.token_id, sell_shares, simulated_price=float(mark) if mark is not None else None)
                                     if close_resp.get("ok"):
+                                        starting_shares = float(p.shares)
+                                        starting_cost = float(p.cost_usd)
                                         sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), sell_shares)
                                         if sold_shares > 0:
-                                            actual_fraction = sold_shares / p.shares
-                                            realized_cost = p.cost_usd * actual_fraction
-                                            p.shares -= sold_shares
-                                            p.cost_usd *= max(0.0, 1.0 - actual_fraction)
+                                            remaining_hint = close_resp.get("remaining_shares")
+                                            resolved_remaining_shares = resolve_close_remaining_shares(
+                                                requested_shares=starting_shares,
+                                                sold_shares=sold_shares,
+                                                remaining_hint=remaining_hint,
+                                            )
+                                            avg_cost = starting_cost / max(starting_shares, 1e-9)
+                                            remaining_cost = avg_cost * resolved_remaining_shares
+                                            realized_cost = max(0.0, starting_cost - remaining_cost)
+                                            p.shares = resolved_remaining_shares
+                                            p.cost_usd = remaining_cost
                                             p.has_scaled_out = True
                                             
                                             _raw_act_val = close_resp.get("actual_exit_value_usd", 0.0)
@@ -2589,7 +2654,7 @@ def main():
                                                 "token_id": p.token_id,
                                                 "position_id": p.position_id,
                                                 "closed_shares": sold_shares,
-                                                "remaining_shares": p.shares,
+                                                "remaining_shares": resolved_remaining_shares,
                                                 "realized_cost_usd": realized_cost,
                                                 "actual_exit_value_usd": _act_val,
                                                 "actual_exit_value_source": _act_src or "unavailable",
@@ -2608,7 +2673,13 @@ def main():
                                             maybe_record_cycle_label(state, "scale-out", slug=p.slug, side=p.side)
                                 except Exception as e:
                                     log(f"Scale-out error: {e}")
-                                keep_positions.append(p)
+                                if p.shares > LOT_EPS_SHARES and p.cost_usd > LOT_EPS_COST_USD:
+                                    keep_positions.append(p)
+                                else:
+                                    log(
+                                        f"drop residual after scale-out | token={p.token_id} "
+                                        f"remaining_shares={p.shares:.6f} remaining_cost={p.cost_usd:.6f}"
+                                    )
                                 continue
 
                             if exit_decision.reason == "stop-loss-scale-out":
@@ -2620,12 +2691,21 @@ def main():
                                 try:
                                     close_resp = ex.close_position(p.token_id, sell_shares, simulated_price=float(mark) if mark is not None else None)
                                     if close_resp.get("ok"):
+                                        starting_shares = float(p.shares)
+                                        starting_cost = float(p.cost_usd)
                                         sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), sell_shares)
                                         if sold_shares > 0:
-                                            actual_fraction = sold_shares / p.shares
-                                            realized_cost = p.cost_usd * actual_fraction
-                                            p.shares -= sold_shares
-                                            p.cost_usd *= max(0.0, 1.0 - actual_fraction)
+                                            remaining_hint = close_resp.get("remaining_shares")
+                                            resolved_remaining_shares = resolve_close_remaining_shares(
+                                                requested_shares=starting_shares,
+                                                sold_shares=sold_shares,
+                                                remaining_hint=remaining_hint,
+                                            )
+                                            avg_cost = starting_cost / max(starting_shares, 1e-9)
+                                            remaining_cost = avg_cost * resolved_remaining_shares
+                                            realized_cost = max(0.0, starting_cost - remaining_cost)
+                                            p.shares = resolved_remaining_shares
+                                            p.cost_usd = remaining_cost
                                             p.has_scaled_out_loss = True
                                             
                                             _raw_act_val = close_resp.get("actual_exit_value_usd", 0.0)
@@ -2647,7 +2727,7 @@ def main():
                                                 "token_id": p.token_id,
                                                 "position_id": p.position_id,
                                                 "closed_shares": sold_shares,
-                                                "remaining_shares": p.shares,
+                                                "remaining_shares": resolved_remaining_shares,
                                                 "realized_cost_usd": realized_cost,
                                                 "actual_exit_value_usd": _act_val,
                                                 "actual_exit_value_source": _act_src or "unavailable",
@@ -2666,14 +2746,24 @@ def main():
                                             maybe_record_cycle_label(state, "stop-loss-scale-out", slug=p.slug, side=p.side)
                                 except Exception as e:
                                     log(f"Stop-loss scale-out error: {e}")
-                                keep_positions.append(p)
+                                if p.shares > LOT_EPS_SHARES and p.cost_usd > LOT_EPS_COST_USD:
+                                    keep_positions.append(p)
+                                else:
+                                    log(
+                                        f"drop residual after stop-loss scale-out | token={p.token_id} "
+                                        f"remaining_shares={p.shares:.6f} remaining_cost={p.cost_usd:.6f}"
+                                    )
                                 continue
 
                             if exit_decision.reason == "take-profit-principal":
                                 current_value = max(float(profit_reference_value or 0.0), 1e-9)
+                                p.entry_shares = max(float(getattr(p, "entry_shares", 0.0) or 0.0), float(p.shares or 0.0))
+                                target_runner_shares = target_runner_remaining_shares(p)
                                 sell_fraction = principal_extraction_sell_fraction(
                                     current_value,
                                     p.cost_usd,
+                                    current_shares=p.shares,
+                                    target_remaining_shares=target_runner_shares,
                                 )
                                 sell_shares = p.shares * sell_fraction
                                 target_principal_usd = max(p.cost_usd, 0.0)
@@ -2686,12 +2776,22 @@ def main():
                                         force_taker=True,
                                     )
                                     if close_resp.get("ok"):
+                                        starting_shares = float(p.shares)
+                                        starting_cost = float(p.cost_usd)
                                         sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), sell_shares)
                                         if sold_shares > 0:
-                                            actual_fraction = sold_shares / p.shares
-                                            realized_cost = p.cost_usd * actual_fraction
-                                            p.shares -= sold_shares
-                                            p.cost_usd *= max(0.0, 1.0 - actual_fraction)
+                                            remaining_hint = close_resp.get("remaining_shares")
+                                            resolved_remaining_shares = resolve_close_remaining_shares(
+                                                requested_shares=starting_shares,
+                                                sold_shares=sold_shares,
+                                                remaining_hint=remaining_hint,
+                                            )
+                                            avg_cost = starting_cost / max(starting_shares, 1e-9)
+                                            remaining_cost = avg_cost * resolved_remaining_shares
+                                            realized_cost = max(0.0, starting_cost - remaining_cost)
+                                            actual_fraction = sold_shares / max(starting_shares, 1e-9)
+                                            p.shares = resolved_remaining_shares
+                                            p.cost_usd = remaining_cost
 
                                             _raw_act_val = close_resp.get("actual_exit_value_usd", 0.0)
                                             _raw_act_src = str(close_resp.get("actual_exit_value_source") or "unavailable")
@@ -2723,7 +2823,7 @@ def main():
                                                 "token_id": p.token_id,
                                                 "position_id": p.position_id,
                                                 "closed_shares": sold_shares,
-                                                "remaining_shares": p.shares,
+                                                "remaining_shares": resolved_remaining_shares,
                                                 "realized_cost_usd": realized_cost,
                                                 "actual_exit_value_usd": _act_val,
                                                 "actual_exit_value_source": _act_src or "unavailable",
@@ -2745,18 +2845,25 @@ def main():
                                                 log(
                                                     f"principal extraction incomplete | side={p.side} "
                                                     f"recovered=${_principal_recovered:.4f} target=${target_principal_usd:.4f} "
-                                                    f"sold_shares={sold_shares:.4f} remaining_shares={p.shares:.4f}"
+                                                    f"sold_shares={sold_shares:.4f} remaining_shares={p.shares:.4f} "
+                                                    f"runner_target={target_runner_shares:.4f}"
                                                 )
                                                 maybe_record_cycle_label(state, "take-profit-principal-partial", slug=p.slug, side=p.side)
                                     else:
                                         log(f"take-profit principal close failed: {close_resp}")
                                 except Exception as e:
                                     log(f"Take-profit principal error: {e}")
-                                keep_positions.append(p)
+                                if p.shares > LOT_EPS_SHARES and p.cost_usd > LOT_EPS_COST_USD:
+                                    keep_positions.append(p)
+                                else:
+                                    log(
+                                        f"drop residual after principal extraction | token={p.token_id} "
+                                        f"remaining_shares={p.shares:.6f} remaining_cost={p.cost_usd:.6f}"
+                                    )
                                 continue
 
                             if exit_decision.reason == "take-profit-partial":
-                                sell_fraction = 0.30
+                                sell_fraction = min(0.95, max(0.05, float(getattr(SETTINGS, "take_profit_partial_fraction", 0.60) or 0.60)))
                                 sell_shares = p.shares * sell_fraction
                                 try:
                                     close_resp = ex.close_position(
@@ -2769,10 +2876,20 @@ def main():
                                         ),
                                     )
                                     if close_resp.get("ok"):
+                                        starting_shares = float(p.shares)
+                                        starting_cost = float(p.cost_usd)
+                                        p.entry_shares = max(float(getattr(p, "entry_shares", 0.0) or 0.0), starting_shares)
                                         sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), sell_shares)
                                         if sold_shares > 0:
-                                            actual_fraction = sold_shares / p.shares
-                                            realized_cost = p.cost_usd * actual_fraction
+                                            remaining_hint = close_resp.get("remaining_shares")
+                                            resolved_remaining_shares = resolve_close_remaining_shares(
+                                                requested_shares=starting_shares,
+                                                sold_shares=sold_shares,
+                                                remaining_hint=remaining_hint,
+                                            )
+                                            avg_cost = starting_cost / max(starting_shares, 1e-9)
+                                            remaining_cost = avg_cost * resolved_remaining_shares
+                                            realized_cost = max(0.0, starting_cost - remaining_cost)
 
                                             _raw_act_val = close_resp.get("actual_exit_value_usd", 0.0)
                                             _raw_act_src = str(close_resp.get("actual_exit_value_source") or "unavailable")
@@ -2787,8 +2904,8 @@ def main():
                                             _realized_pnl = (_act_val - realized_cost) if _act_val is not None else (_obs_val - realized_cost)
                                             risk.daily_pnl += _realized_pnl
 
-                                            p.shares -= sold_shares
-                                            p.cost_usd *= max(0.0, 1.0 - actual_fraction)
+                                            p.shares = resolved_remaining_shares
+                                            p.cost_usd = remaining_cost
                                             p.has_taken_partial = True
                                             append_event({
                                                 "kind": "exit",
@@ -2797,7 +2914,7 @@ def main():
                                                 "token_id": p.token_id,
                                                 "position_id": p.position_id,
                                                 "closed_shares": sold_shares,
-                                                "remaining_shares": p.shares,
+                                                "remaining_shares": resolved_remaining_shares,
                                                 "realized_cost_usd": realized_cost,
                                                 "actual_exit_value_usd": _act_val,
                                                 "actual_exit_value_source": _act_src or "unavailable",
@@ -2811,13 +2928,22 @@ def main():
                                                 "mfe_pnl_usd": p.max_favorable_pnl_usd,
                                                 "mae_pnl_usd": p.max_adverse_pnl_usd,
                                             })
-                                            log(f"PARTIAL PROFIT TAKEN! Sold {sold_shares:.2f} shares (+30% threshold).")
+                                            log(
+                                                f"PARTIAL PROFIT TAKEN! Sold {sold_shares:.2f} shares "
+                                                f"({sell_fraction:.0%} clip at +{getattr(SETTINGS, 'take_profit_soft_pct', 0.30):.0%} threshold)."
+                                            )
                                             maybe_record_cycle_label(state, "take-profit-partial", slug=p.slug, side=p.side)
                                     else:
                                         log(f"take-profit partial close failed: {close_resp}")
                                 except Exception as e:
                                     log(f"Take-profit partial error: {e}")
-                                keep_positions.append(p)
+                                if p.shares > LOT_EPS_SHARES and p.cost_usd > LOT_EPS_COST_USD:
+                                    keep_positions.append(p)
+                                else:
+                                    log(
+                                        f"drop residual after take-profit partial | token={p.token_id} "
+                                        f"remaining_shares={p.shares:.6f} remaining_cost={p.cost_usd:.6f}"
+                                    )
                                 continue
 
                             try:
@@ -2844,8 +2970,10 @@ def main():
                                     **close_retry_kwargs,
                                 )
                                 if close_resp.get("ok"):
-                                    sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), p.shares)
-                                    remaining_hint = max(0.0, float(close_resp.get("remaining_shares", p.shares - sold_shares) or 0.0))
+                                    starting_shares = float(p.shares)
+                                    starting_cost = float(p.cost_usd)
+                                    sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), starting_shares)
+                                    remaining_hint = close_resp.get("remaining_shares")
                                     if sold_shares <= 0:
                                         flags.close_fail_streak += 1
                                         if urgent_exit:
@@ -2913,8 +3041,13 @@ def main():
                                     else:
                                         flags.close_fail_streak = 0
                                         closed_any = True
-                                        close_fraction = sold_shares / max(p.shares, 1e-9)
-                                        realized_cost = p.cost_usd * close_fraction
+                                        remaining_shares = resolve_close_remaining_shares(
+                                            requested_shares=starting_shares,
+                                            sold_shares=sold_shares,
+                                            remaining_hint=remaining_hint,
+                                        )
+                                        remaining_cost = p.avg_cost_per_share * remaining_shares
+                                        realized_cost = max(0.0, starting_cost - remaining_cost)
                                         observed_exit_value_usd = observed_exit_value_from_mark(
                                             sold_shares=sold_shares,
                                             mark=mark,
@@ -2965,8 +3098,6 @@ def main():
                                             flags.last_loss_side = ""
                                         risk.consec_losses = flags.live_consec_losses
 
-                                        remaining_shares = max(max(0.0, p.shares - sold_shares), remaining_hint)
-                                        remaining_cost = max(0.0, p.cost_usd - realized_cost)
                                         quality_pnl = actual_realized_pnl_usd if actual_realized_pnl_usd is not None else observed_realized_pnl_usd
                                         entry_quality = "good-entry" if quality_pnl > 0 else "bad-entry" if quality_pnl < 0 else "flat-entry"
                                         exit_event = append_event({
@@ -3669,6 +3800,7 @@ def main():
                                     side=hedge_side,
                                     token_id=hedge_token_id,
                                     shares=h_shares,
+                                    entry_shares=h_shares,
                                     cost_usd=hedge_usd,
                                     opened_ts=h_ts,
                                     position_id=f"pos_{int(h_ts)}_{hedge_token_id[-6:]}",
@@ -3735,8 +3867,16 @@ def main():
                                 sold_shares = min(float(close_resp.get("closed_shares", 0.0) or 0.0), shares)
                                 close_fraction = sold_shares / max(shares, 1e-9)
                                 realized_cost = actual_entry_cost_usd * close_fraction
-                                remaining_shares = max(0.0, shares - sold_shares)
-                                remaining_cost = max(0.0, actual_entry_cost_usd - realized_cost)
+                                remaining_shares = resolve_close_remaining_shares(
+                                    requested_shares=shares,
+                                    sold_shares=sold_shares,
+                                    remaining_hint=close_resp.get("remaining_shares"),
+                                )
+                                remaining_cost = max(
+                                    0.0,
+                                    (actual_entry_cost_usd / max(shares, 1e-9)) * remaining_shares,
+                                )
+                                realized_cost = max(0.0, actual_entry_cost_usd - remaining_cost)
                                 _raw_act_val = close_resp.get("actual_exit_value_usd", 0.0)
                                 _raw_act_src = str(close_resp.get("actual_exit_value_source") or "unavailable")
                                 _act_val, _act_src = sanitize_live_actual_exit_value(
@@ -3782,6 +3922,7 @@ def main():
                                         side=signal_side,
                                         token_id=token_id,
                                         shares=remaining_shares,
+                                        entry_shares=shares,
                                         cost_usd=remaining_cost,
                                         opened_ts=opened_ts,
                                         position_id=position_id,
@@ -3805,6 +3946,7 @@ def main():
                                     side=signal_side,
                                     token_id=token_id,
                                     shares=shares,
+                                    entry_shares=shares,
                                     cost_usd=actual_entry_cost_usd,
                                     opened_ts=opened_ts,
                                     position_id=position_id,
@@ -3854,6 +3996,7 @@ def main():
                             side=signal_side,
                             token_id=token_id,
                             shares=shares,
+                            entry_shares=shares,
                             cost_usd=actual_entry_cost_usd,
                             opened_ts=opened_ts,
                             position_id=position_id,

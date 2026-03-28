@@ -29,5 +29,7 @@ artifacts/
 
 # User Data
 data/
+market_data/*
+!market_data/.gitkeep
 *.csv
 *拷貝.txt
