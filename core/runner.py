@@ -707,6 +707,58 @@ def assess_entry_liquidity(
     }
 
 
+def estimate_book_entry_fill(
+    *,
+    book: dict | None,
+    amount_usd: float,
+) -> tuple[float | None, float, float]:
+    target_notional = max(0.0, float(amount_usd or 0.0))
+    if target_notional <= 0.0:
+        return 0.0, 0.0, 1.0
+    if not isinstance(book, dict):
+        return None, 0.0, 0.0
+
+    ask_levels = book.get("ask_levels")
+    if isinstance(ask_levels, list) and ask_levels:
+        remaining_notional = target_notional
+        spent_notional = 0.0
+        acquired_shares = 0.0
+        for lv in ask_levels:
+            if not isinstance(lv, (list, tuple)) or len(lv) < 2:
+                continue
+            try:
+                ask_price = float(lv[0] or 0.0)
+                ask_size = float(lv[1] or 0.0)
+            except Exception:
+                continue
+            if ask_price <= 0.0 or ask_size <= 0.0:
+                continue
+            level_notional = ask_price * ask_size
+            take_notional = min(remaining_notional, level_notional)
+            if take_notional <= 0.0:
+                continue
+            acquired_shares += take_notional / ask_price
+            spent_notional += take_notional
+            remaining_notional -= take_notional
+            if remaining_notional <= 1e-9:
+                break
+
+        fill_ratio = min(1.0, spent_notional / target_notional) if target_notional > 0.0 else 1.0
+        if acquired_shares > 0.0:
+            return spent_notional / acquired_shares, acquired_shares, fill_ratio
+        return None, 0.0, fill_ratio
+
+    best_ask = float(book.get("best_ask", 0.0) or 0.0)
+    if best_ask <= 0.0:
+        return None, 0.0, 0.0
+    best_ask_size = float(book.get("best_ask_size", 0.0) or 0.0)
+    acquired_shares = target_notional / best_ask
+    fill_ratio = 1.0
+    if best_ask_size > 0.0:
+        fill_ratio = min(1.0, best_ask_size / max(acquired_shares, 1e-9))
+    return best_ask, acquired_shares, fill_ratio
+
+
 def place_entry_order_with_retry(
     ex: PolymarketExchange,
     side: str,
@@ -3148,6 +3200,8 @@ def main():
 
             order_usd = SETTINGS.max_order_usd
             entry_book_quality: dict[str, float | bool | str | None] | None = None
+            estimated_market_entry_avg_price: float | None = None
+            estimated_market_entry_shares: float = 0.0
             if getattr(SETTINGS, "use_kelly_sizing", False) and signal_origin:
                 try:
                     win_rate = effective_probability if effective_probability is not None else strategy_win_rate
@@ -3179,6 +3233,9 @@ def main():
 
             if signal_side and token_override and entry_price and float(entry_price) > 0:
                 est_shares = order_usd / float(entry_price)
+                entry_book = None
+                estimated_market_entry_avg_price = None
+                estimated_market_entry_shares = 0.0
                 if not SETTINGS.dry_run:
                     min_live_order_shares = float(getattr(SETTINGS, "min_live_order_shares", 5.0) or 0.0)
                     min_live_order_usd = float(getattr(SETTINGS, "min_live_order_usd", 1.0) or 0.0)
@@ -3242,9 +3299,40 @@ def main():
                             )
                             order_usd = required_usd
                         est_shares = required_shares
+                    entry_book = ex.get_full_orderbook(token_override)
+                    if live_market_entry:
+                        (
+                            estimated_market_entry_avg_price,
+                            estimated_market_entry_shares,
+                            _estimated_market_entry_fill_ratio,
+                        ) = estimate_book_entry_fill(book=entry_book, amount_usd=order_usd)
+                        if (
+                            estimated_market_entry_avg_price is not None
+                            and float(estimated_market_entry_avg_price) > 0.0
+                        ):
+                            estimated_slippage_breach, estimated_slippage_premium_pct = entry_slippage_breach(
+                                expected_entry_price=float(entry_price),
+                                actual_avg_price=float(estimated_market_entry_avg_price),
+                                dry_run=False,
+                            )
+                            if estimated_slippage_breach:
+                                maybe_record_cycle_label(
+                                    state,
+                                    "signal-blocked",
+                                    slug=last_market_slug,
+                                    side=signal_side,
+                                    reason="entry-slippage-precheck",
+                                )
+                                log(
+                                    f"skip entry: entry-slippage-precheck | side={signal_side} "
+                                    f"quoted={float(entry_price):.3f} est_avg={float(estimated_market_entry_avg_price):.3f} "
+                                    f"premium={estimated_slippage_premium_pct:.2%} est_shares={estimated_market_entry_shares:.4f}"
+                                )
+                                smart_sleep(SETTINGS.poll_seconds)
+                                continue
                 try:
                     entry_book_quality = assess_entry_liquidity(
-                        book=ex.get_full_orderbook(token_override),
+                        book=entry_book if entry_book is not None else ex.get_full_orderbook(token_override),
                         est_shares=est_shares,
                         max_spread=float(getattr(SETTINGS, "entry_max_spread", 0.0)),
                         min_best_ask_multiple=float(getattr(SETTINGS, "entry_min_best_ask_multiple", 0.0)),
@@ -3420,14 +3508,17 @@ def main():
                     if shares > 0 and token_id:
                         slippage_breach = False
                         slippage_premium_pct = 0.0
-                        if entry_price and float(entry_price) > 0:
+                        slippage_expected_price = float(entry_price) if entry_price and float(entry_price) > 0 else 0.0
+                        if estimated_market_entry_avg_price is not None and float(estimated_market_entry_avg_price) > 0.0:
+                            slippage_expected_price = float(estimated_market_entry_avg_price)
+                        if slippage_expected_price > 0:
                             slippage_breach, slippage_premium_pct = entry_slippage_breach(
-                                expected_entry_price=float(entry_price),
+                                expected_entry_price=slippage_expected_price,
                                 actual_avg_price=actual_entry_avg_price,
                                 dry_run=SETTINGS.dry_run,
                             )
                         if slippage_breach:
-                            expected_price = float(entry_price)
+                            expected_price = float(slippage_expected_price)
                             actual_avg_price = float(actual_entry_avg_price or 0.0)
                             maybe_record_cycle_label(
                                 state,

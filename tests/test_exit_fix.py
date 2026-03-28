@@ -17,6 +17,7 @@ from core.runner import (
     ExitDecision as RunnerExitDecision,
     OpenPos,
     emergency_exit_retry_kwargs,
+    estimate_book_entry_fill,
     entry_slippage_breach,
     entry_velocity_gate_rejects,
     effective_stop_loss_partial_fraction,
@@ -91,6 +92,20 @@ def main():
     slippage_ok, slippage_ok_premium = entry_slippage_breach(
         expected_entry_price=0.475,
         actual_avg_price=0.52,
+        dry_run=False,
+    )
+    estimated_entry_avg, estimated_entry_shares, estimated_entry_fill_ratio = estimate_book_entry_fill(
+        book={"ask_levels": [(0.85, 2.0)]},
+        amount_usd=1.0,
+    )
+    prechecked_slippage_breach, prechecked_slippage_premium = entry_slippage_breach(
+        expected_entry_price=0.525,
+        actual_avg_price=estimated_entry_avg,
+        dry_run=False,
+    )
+    postcheck_with_estimated_expected, postcheck_with_estimated_premium = entry_slippage_breach(
+        expected_entry_price=estimated_entry_avg,
+        actual_avg_price=0.85,
         dry_run=False,
     )
     depth_book = {
@@ -172,6 +187,9 @@ def main():
         ("entry_implied_avg_price_uses_cost_divided_by_shares", abs((implied_entry_avg_price or 0.0) - 0.8) < 1e-9),
         ("entry_slippage_breach_detects_extreme_live_fill", slippage_breach is True and abs(slippage_premium - ((0.8 / 0.475) - 1.0)) < 1e-9),
         ("entry_slippage_breach_allows_normal_fill", slippage_ok is False and slippage_ok_premium < 0.18),
+        ("estimate_book_entry_fill_uses_ask_depth", abs((estimated_entry_avg or 0.0) - 0.85) < 1e-9 and abs(estimated_entry_shares - (1.0 / 0.85)) < 1e-9 and abs(estimated_entry_fill_ratio - 1.0) < 1e-9),
+        ("entry_slippage_precheck_blocks_too_expensive_market_fill", prechecked_slippage_breach is True and prechecked_slippage_premium > 0.18),
+        ("entry_slippage_postcheck_accepts_fill_near_prechecked_avg", postcheck_with_estimated_expected is False and abs(postcheck_with_estimated_premium) < 1e-9),
         ("principal_extraction_rejects_tiny_partial_fill", principal_extraction_complete(0.0286, 1.0) is False),
         ("principal_extraction_accepts_near_full_recovery", principal_extraction_complete(0.97, 1.0) is True),
         ("principal_extraction_sell_fraction_uses_total_position_value", abs(principal_extraction_sell_fraction(1.6, 1.0) - 0.625) < 1e-9),
