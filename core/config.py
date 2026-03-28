@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+import warnings
 try:
     from dotenv import load_dotenv
 except Exception:
@@ -209,6 +210,24 @@ class Settings:
     # entry_velocity_min: block entry if Binance velocity is strongly opposing signal.
     # Only blocks adverse moves; flat/zero velocity still allows entry. Set 0.0 to disable.
     entry_velocity_min: float = _f("ENTRY_VELOCITY_MIN", 0.0002)
+
+    def __post_init__(self) -> None:
+        if self.take_profit_hard_pct <= self.take_profit_soft_pct:
+            normalized_soft = min(
+                self.take_profit_soft_pct,
+                max(0.05, self.take_profit_hard_pct - 0.20),
+            )
+            if normalized_soft >= self.take_profit_hard_pct:
+                normalized_soft = max(0.05, self.take_profit_hard_pct * 0.6)
+            warnings.warn(
+                "TAKE_PROFIT_HARD_PCT must be greater than TAKE_PROFIT_SOFT_PCT; "
+                f"normalizing soft threshold from {self.take_profit_soft_pct:.2f} "
+                f"to {normalized_soft:.2f} while keeping hard threshold at "
+                f"{self.take_profit_hard_pct:.2f}.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            self.take_profit_soft_pct = normalized_soft
 
 
 SETTINGS = Settings()
