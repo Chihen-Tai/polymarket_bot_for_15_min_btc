@@ -1262,7 +1262,7 @@ def price_aware_kelly_fraction(win_rate: float, entry_price: float) -> float:
 
 def apply_scoreboard_aux_probability(model_probability: float, scoreboard_win_rate: float) -> float:
     aux_weight = max(0.0, float(getattr(SETTINGS, "scoreboard_aux_weight", 0.0)))
-    adjusted = float(model_probability) + ((float(scoreboard_win_rate) - 0.5) * aux_weight)
+    adjusted = ((1.0 - aux_weight) * float(model_probability)) + (aux_weight * float(scoreboard_win_rate))
     return min(0.99, max(0.01, adjusted))
 
 
@@ -1304,6 +1304,7 @@ def score_entry_candidate(
     model_probability = candidate.get("model_probability")
     signal_probability = float(model_probability) if model_probability is not None else None
 
+    raw_strategy_win_rate = 0.5
     strategy_win_rate = 0.5
     strategy_trade_count = 0
     strategy_decisive_trade_count = 0
@@ -1311,14 +1312,23 @@ def score_entry_candidate(
         try:
             if scoreboard is None:
                 from core.learning import SCOREBOARD as scoreboard  # type: ignore
-            strategy_win_rate = scoreboard.get_strategy_score(strategy_name)
+            raw_strategy_win_rate = scoreboard.get_strategy_score(strategy_name)
+            strategy_win_rate = raw_strategy_win_rate
             strategy_trade_count = scoreboard.get_strategy_trade_count(strategy_name)
             strategy_decisive_trade_count = scoreboard.get_strategy_decisive_trade_count(strategy_name)
         except Exception:
+            raw_strategy_win_rate = 0.5
             strategy_win_rate = 0.5
             strategy_trade_count = 0
             strategy_decisive_trade_count = 0
 
+    min_decisive = int(getattr(SETTINGS, "scoreboard_entry_gate_min_decisive_trades", 5))
+    min_wr = float(getattr(SETTINGS, "scoreboard_min_win_rate", 0.40))
+    aux_blocked = (
+        strategy_decisive_trade_count >= min_decisive
+        and float(raw_strategy_win_rate or 0.5) < min_wr
+        and "ws_flash_snipe" not in strategy_name
+    )
     strategy_win_rate = stabilize_entry_win_rate(strategy_win_rate, strategy_decisive_trade_count)
     effective_probability = strategy_win_rate if signal_probability is None else apply_scoreboard_aux_probability(signal_probability, strategy_win_rate)
     entry_edge = summarize_entry_edge(
@@ -1328,16 +1338,19 @@ def score_entry_candidate(
         history_count=strategy_decisive_trade_count,
     )
     return {
-        "ok": bool(side in {"UP", "DOWN"} and strategy_name and entry_price > 0.0 and entry_edge["ok"]),
+        "ok": bool(side in {"UP", "DOWN"} and strategy_name and entry_price > 0.0 and entry_edge["ok"] and not aux_blocked),
         "side": side,
         "strategy_name": strategy_name,
         "entry_price": entry_price,
         "signal_probability": signal_probability,
+        "raw_strategy_win_rate": raw_strategy_win_rate,
         "strategy_win_rate": strategy_win_rate,
         "strategy_trade_count": strategy_trade_count,
         "strategy_decisive_trade_count": strategy_decisive_trade_count,
         "effective_probability": effective_probability,
         "entry_edge": entry_edge,
+        "aux_blocked": aux_blocked,
+        "block_reason": "low-auxWR-hard-block" if aux_blocked else "",
     }
 
 
@@ -1367,6 +1380,14 @@ def select_ranked_entry_candidate(
                 f"rank={idx} strategy={scored.get('strategy_name') or 'unknown'} "
                 f"rejected=velocity lag={float(ws_velocity or 0.0):.4%} "
                 f"current={float(current_ws_velocity if current_ws_velocity is not None else ws_velocity):.4%}"
+            )
+            continue
+        if scored.get("aux_blocked"):
+            rejection_notes.append(
+                f"rank={idx} strategy={scored.get('strategy_name') or 'unknown'} "
+                f"rejected=low-auxWR-hard-block raw_auxWR={float(scored.get('raw_strategy_win_rate') or 0.0):.1%} "
+                f"min_required={float(getattr(SETTINGS, 'scoreboard_min_win_rate', 0.40) or 0.40):.1%} "
+                f"decisive={int(scored.get('strategy_decisive_trade_count') or 0)}"
             )
             continue
         if not scored.get("ok"):
@@ -3784,10 +3805,11 @@ def main():
                 strategy_win_rate = stabilize_entry_win_rate(strategy_win_rate, strategy_decisive_trade_count)
 
                 # Hard-block gate: if we have enough history and the raw win rate is terrible, block regardless of model
+                # SNIPER PASS: Exempt flash snipe from this win-rate gate since it buys cheap tickets for skewed payouts
                 _min_decisive = int(getattr(SETTINGS, "scoreboard_entry_gate_min_decisive_trades", 5))
                 _min_wr = float(getattr(SETTINGS, "scoreboard_min_win_rate", 0.40))
                 _raw_scoreboard_wr = SCOREBOARD.get_strategy_score(signal_origin) if signal_origin else 0.5
-                if strategy_decisive_trade_count >= _min_decisive and _raw_scoreboard_wr < _min_wr:
+                if strategy_decisive_trade_count >= _min_decisive and _raw_scoreboard_wr < _min_wr and "ws_flash_snipe" not in str(signal_origin):
                     maybe_record_cycle_label(
                         state,
                         "signal-blocked",

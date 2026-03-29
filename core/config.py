@@ -97,6 +97,7 @@ class Settings:
     entry_window_min_sec: float = _f("ENTRY_WINDOW_MIN_SEC", 120.0)
     entry_window_max_sec: float = _f("ENTRY_WINDOW_MAX_SEC", 999999.0)
     min_entry_price: float = _f("MIN_ENTRY_PRICE", 0.35)
+    snipe_min_entry_price: float = _f("SNIPE_MIN_ENTRY_PRICE", 0.05)
     max_entry_price: float = _f("MAX_ENTRY_PRICE", 0.75)
     entry_slippage_guard_enabled: bool = _b("ENTRY_SLIPPAGE_GUARD_ENABLED", True)
     entry_max_actual_slippage_pct: float = _f("ENTRY_MAX_ACTUAL_SLIPPAGE_PCT", 0.18)

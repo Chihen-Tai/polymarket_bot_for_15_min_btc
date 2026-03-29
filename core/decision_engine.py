@@ -93,7 +93,6 @@ def mean_reversion_signal(yes_price: Optional[float], yes_window: deque) -> tupl
 _MOMENTUM_EXEMPT = frozenset([
     "ws_order_flow_up", "ws_order_flow_down",
     "ws_flash_snipe_up", "ws_flash_snipe_down",
-    "poly_ob_imbalance_up", "poly_ob_imbalance_down",
     "time_snipe_up", "time_snipe_down",
     "binance_macd_rsi_up", "binance_macd_rsi_down",
     "cex_oracle_pump", "cex_oracle_dump", # Exempt front-running to ensure early entry!
@@ -223,10 +222,14 @@ def explain_choose_side(
         base_result["reason"] = "too_late_in_market"
         return base_result
 
-    valid_up = up is not None and SETTINGS.min_entry_price <= float(up) <= SETTINGS.max_entry_price
-    valid_down = down is not None and SETTINGS.min_entry_price <= float(down) <= SETTINGS.max_entry_price
+    regular_valid_up = up is not None and SETTINGS.min_entry_price <= float(up) <= SETTINGS.max_entry_price
+    regular_valid_down = down is not None and SETTINGS.min_entry_price <= float(down) <= SETTINGS.max_entry_price
 
-    if not valid_up and not valid_down:
+    _snipe_min = float(getattr(SETTINGS, "snipe_min_entry_price", 0.05))
+    snipe_valid_up = up is not None and _snipe_min <= float(up) <= SETTINGS.max_entry_price
+    snipe_valid_down = down is not None and _snipe_min <= float(down) <= SETTINGS.max_entry_price
+
+    if not regular_valid_up and not regular_valid_down and not snipe_valid_up and not snipe_valid_down:
         base_result["reason"] = f"prices_out_of_bounds_up{up}_down{down}"
         return base_result
 
@@ -282,7 +285,7 @@ def explain_choose_side(
             poly_up_imbalance = _check_imbalance(poly_ob_up) if poly_ob_up else 0.5
             poly_down_imbalance = _check_imbalance(poly_ob_down) if poly_ob_down else 0.5
 
-            if ofi_ratio > ofi_threshold and valid_up:
+            if ofi_ratio > ofi_threshold and regular_valid_up:
                 # Binance says UP: Polymarket UP token must also have bid pressure > 0.55
                 if poly_up_imbalance >= 0.55:
                     r = _build_candidate(
@@ -295,7 +298,7 @@ def explain_choose_side(
                         extras={"ofi_ratio": ofi_ratio, "poly_up_imbalance": poly_up_imbalance},
                     )
                     candidates["ws_order_flow_up"] = r
-            elif ofi_ratio < (1.0 - ofi_threshold) and valid_down:
+            elif ofi_ratio < (1.0 - ofi_threshold) and regular_valid_down:
                 # Binance says DOWN: Polymarket DOWN token must also have bid pressure > 0.55
                 if poly_down_imbalance >= 0.55:
                     r = _build_candidate(
@@ -323,7 +326,7 @@ def explain_choose_side(
                 flash_threshold = float(SETTINGS.ws_flash_snipe_threshold)
                 flash_confidence = _confidence_from_signal(abs(vel), flash_threshold, flash_threshold * 2.0)
                 flash_probability = _probability_from_confidence(flash_confidence, floor=0.54, ceiling=0.72)
-                if vel > SETTINGS.ws_flash_snipe_threshold and valid_up:
+                if vel > SETTINGS.ws_flash_snipe_threshold and snipe_valid_up:
                     r = _build_candidate(
                         base_result,
                         side="UP",
@@ -334,7 +337,7 @@ def explain_choose_side(
                         extras={"velocity_3s": vel},
                     )
                     candidates["ws_flash_snipe_up"] = r
-                elif vel < -SETTINGS.ws_flash_snipe_threshold and valid_down:
+                elif vel < -SETTINGS.ws_flash_snipe_threshold and snipe_valid_down:
                     r = _build_candidate(
                         base_result,
                         side="DOWN",
@@ -354,7 +357,7 @@ def explain_choose_side(
         imbalance_down = _check_imbalance(poly_ob_down)
         
         # If bids dominate asks heavily (lowered threshold 0.85→0.78 to increase trade frequency)
-        if imbalance_up > 0.78 and valid_up:
+        if imbalance_up > 0.78 and regular_valid_up:
             imbalance_confidence = _confidence_from_signal(imbalance_up - 0.5, 0.28, 0.5)
             imbalance_probability = _probability_from_confidence(imbalance_confidence, floor=0.53, ceiling=0.72)
             r = _build_candidate(
@@ -367,7 +370,7 @@ def explain_choose_side(
                 extras={"orderbook_imbalance": imbalance_up},
             )
             candidates["poly_ob_imbalance_up"] = r
-        elif imbalance_down > 0.78 and valid_down:
+        if imbalance_down > 0.78 and regular_valid_down:
             imbalance_confidence = _confidence_from_signal(imbalance_down - 0.5, 0.28, 0.5)
             imbalance_probability = _probability_from_confidence(imbalance_confidence, floor=0.53, ceiling=0.72)
             r = _build_candidate(
@@ -424,7 +427,7 @@ def explain_choose_side(
     if mr:
         side = mr
         entry_price = up if side == "UP" else down
-        if (side == "UP" and valid_up) or (side == "DOWN" and valid_down):
+        if (side == "UP" and regular_valid_up) or (side == "DOWN" and regular_valid_down):
             mr_confidence = _confidence_from_signal(
                 abs(float(mr_zscore or 0.0)),
                 float(SETTINGS.zscore_threshold),
