@@ -1086,21 +1086,14 @@ def resolve_close_remaining_shares(
     sold_shares: float,
     remaining_hint: float | None,
 ) -> float:
+    # BUGFIX: `remaining_hint` from `close_position` returns the unfilled chunk of the *sell order target*.
+    # Since `requested_shares` here implies the total `starting_shares` of the position (e.g. 10 shares total, but we only sold 4),
+    # trusting `remaining_hint` destroys the position balance mathematically when partial-scaling or moonbagging.
+    # The true remaining balance is ALWAYS strictly starting_shares - sold_shares.
     requested = max(0.0, float(requested_shares or 0.0))
     sold = min(requested, max(0.0, float(sold_shares or 0.0)))
     local_remaining = max(0.0, requested - sold)
-    if remaining_hint is None:
-        return 0.0 if local_remaining <= LOT_EPS_SHARES else local_remaining
-    try:
-        hinted_remaining = float(remaining_hint or 0.0)
-    except Exception:
-        hinted_remaining = local_remaining
-    hinted_remaining = min(requested, max(0.0, hinted_remaining))
-    if hinted_remaining <= LOT_EPS_SHARES:
-        return 0.0
-    # Trust the exchange-provided residual hint over simple subtraction. This
-    # keeps local state aligned after partial fills or allowance-limited sweeps.
-    return hinted_remaining
+    return 0.0 if local_remaining <= LOT_EPS_SHARES else local_remaining
 
 
 def resolve_effective_closed_shares(
