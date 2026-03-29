@@ -789,6 +789,7 @@ def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
                 closed_ts=str(ev.get("ts") or ""),
                 entry_cost_usd=0.0,
                 entry_shares=0.0,
+                matched_cost_usd=0.0,
                 matched_exit_shares=remaining,
                 exit_recovered_actual_usd=actual_piece,
                 exit_recovered_observed_usd=observed_piece,

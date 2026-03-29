@@ -500,6 +500,8 @@ def main():
             {"p": 100002.0, "q": 1.0, "m": False},
             {"p": 100003.0, "q": 0.2, "m": True},
         ],
+        poly_ob_up={"bids_volume": 9.0, "asks_volume": 1.0},
+        poly_ob_down={"bids_volume": 5.0, "asks_volume": 5.0},
     )
     dual_signal_decision = explain_choose_side(
         market={
@@ -598,6 +600,29 @@ def main():
                 "model-ws_order_flow_up": 0.55,
                 "model-poly_ob_imbalance_down": 0.56,
             }
+        ),
+    )
+    low_aux_wr_candidate, low_aux_wr_rejections = select_ranked_entry_candidate(
+        {
+            "ok": True,
+            "ranked_candidates": [
+                {
+                    "side": "DOWN",
+                    "strategy_name": "model-ws_order_flow_down",
+                    "entry_price": 0.45,
+                    "model_probability": 0.72,
+                },
+            ],
+        },
+        ws_velocity=-0.0005,
+        current_ws_velocity=-0.0004,
+        secs_left=200,
+        scoreboard=StubScoreboard(
+            {
+                "model-ws_order_flow_down": 0.20,
+            },
+            decisive=20,
+            trades=40,
         ),
     )
 
@@ -872,8 +897,8 @@ def main():
         ("paper_settlement_loss", paper_settlement_from_last_mark(0.28) == (0.0, "binary-lose")),
         ("paper_settlement_neutral", paper_settlement_from_last_mark(0.50) == (0.5, "binary-neutral")),
         ("price_aware_kelly_fraction", abs(price_aware_kelly_fraction(0.60, 0.45) - (((0.60 - 0.45) / (1.0 - 0.45)) / 4.0)) < 1e-9),
-        ("apply_scoreboard_aux_probability_stays_small", abs(apply_scoreboard_aux_probability(0.62, 0.20) - 0.59) < 1e-9),
-        ("required_trade_edge_relaxes_for_fresh_strategy", abs(required_trade_edge(0.45, 250, history_count=0) - 0.005) < 1e-9),
+        ("apply_scoreboard_aux_probability_blends_model_and_aux_wr", abs(apply_scoreboard_aux_probability(0.62, 0.20) - 0.578) < 1e-9),
+        ("required_trade_edge_respects_fee_floor_even_for_fresh_strategy", abs(required_trade_edge(0.45, 250, history_count=0) - 0.03744) < 1e-9),
         ("required_trade_edge_penalizes_late_rich_price_under_wide_window", abs(required_trade_edge(0.70, 150, history_count=30) - 0.065) < 1e-9),
         ("required_trade_edge_skips_late_penalty_at_150_under_natural_window", abs(natural_window_edge - 0.05) < 1e-9),
         ("required_trade_edge_penalizes_center_prices", abs(required_trade_edge(0.50, 250, history_count=30) - 0.06) < 1e-9),
@@ -884,6 +909,7 @@ def main():
         ("stabilize_entry_win_rate_softens_sparse_history", abs(stabilize_entry_win_rate(0.18, 1) - 0.436) < 1e-9),
         ("candidate_fallback_selects_second_ranked_signal", candidate_pick is not None and candidate_pick.get("side") == "UP" and len(candidate_rejections) == 1),
         ("candidate_side_conflict_now_skips_coinflip_direction", side_conflict_candidate is None and any("rejected=side-conflict" in note for note in side_conflict_rejections)),
+        ("candidate_low_aux_wr_hard_block_now_applies_in_ranked_path", low_aux_wr_candidate is None and any("rejected=low-auxWR-hard-block" in note for note in low_aux_wr_rejections)),
         ("sparse_history_candidate_still_penalized_below_neutral", abs(float(sparse_candidate.get("strategy_win_rate") or 0.0) - 0.436) < 1e-9),
         ("entry_velocity_gate_blocks_when_current_velocity_reverses", entry_velocity_gate_rejects("UP", "model-ws_order_flow_up", 0.0003, current_ws_velocity=-0.0002, require_dual_confirmation=True) is True),
         ("entry_velocity_gate_allows_when_lag_and_current_align", entry_velocity_gate_rejects("UP", "model-ws_order_flow_up", 0.0003, current_ws_velocity=0.0002, require_dual_confirmation=True) is False),
