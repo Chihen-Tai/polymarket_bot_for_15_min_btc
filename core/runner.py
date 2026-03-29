@@ -1242,6 +1242,14 @@ def required_trade_edge(entry_price: float, secs_left: float | None, history_cou
     if center_distance <= float(getattr(SETTINGS, "entry_micro_band_half_width", 0.0)):
         required += float(getattr(SETTINGS, "entry_micro_edge_penalty", 0.0))
 
+    # Fee floor: required edge must at minimum cover taker fees on both entry and expected exit
+    # entry_fee ≈ fee_rate * entry_price; exit_fee ≈ fee_rate * (1 - entry_price) on a win
+    # Conservative: use 2x fee_rate as floor (covers round-trip taker cost)
+    taker_fee_rate = float(getattr(SETTINGS, "report_assumed_taker_fee_rate", 0.0156))
+    fee_floor_buffer = float(getattr(SETTINGS, "entry_fee_floor_buffer", 1.0))  # multiplier on 2x fee
+    fee_floor = taker_fee_rate * 2.0 * fee_floor_buffer
+    required = max(required, fee_floor)
+
     return required
 
 
