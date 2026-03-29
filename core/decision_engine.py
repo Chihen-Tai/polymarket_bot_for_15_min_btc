@@ -96,6 +96,7 @@ _MOMENTUM_EXEMPT = frozenset([
     "time_snipe_up", "time_snipe_down",
     "binance_macd_rsi_up", "binance_macd_rsi_down",
     "cex_oracle_pump", "cex_oracle_dump", # Exempt front-running to ensure early entry!
+    "liquidation_fade_up", "liquidation_fade_down", # Exempt mean-reverting liquidations
 ])
 
 
@@ -396,29 +397,50 @@ def explain_choose_side(
     #         candidates["time_snipe_down"] = r
 
     # Strategy 10: Binance MACD & RSI Momentum (disabled: continuous state trigger causes naive entries)
-    # if binance_5m and len(binance_5m) >= 30:
-    #     try:
-    #         from core.indicators import calc_rsi, calc_macd
-    #         closes = [c['close'] for c in binance_5m]
-    #         rsi = calc_rsi(closes, period=14)
-    #         macd_res = calc_macd(closes)
-    #         
-    #         if rsi is not None and macd_res is not None:
-    #             macd_line, signal_line, hist = macd_res
-    #             
-    #             # Bullish momentum on Binance
-    #             if rsi < 70 and hist > 0 and valid_up:
-    #                 r = base_result.copy()
-    #                 r.update({"ok": True, "side": "UP", "reason": "model-binance_macd_rsi_up", "entry_price": up})
-    #                 candidates["binance_macd_rsi_up"] = r
-    #             
-    #             # Bearish momentum on Binance
-    #             elif rsi > 30 and hist < 0 and valid_down:
-    #                 r = base_result.copy()
-    #                 r.update({"ok": True, "side": "DOWN", "reason": "model-binance_macd_rsi_down", "entry_price": down})
-    #                 candidates["binance_macd_rsi_down"] = r
+    # ... (disabled block remains) ...
     #     except Exception:
     #         pass
+
+    # Strategy 11: Binance Liquidation Fader
+    try:
+        from core.ws_binance import BINANCE_WS
+        if getattr(SETTINGS, "liquidation_fade_min_usd", 0.0) > 0 and BINANCE_WS.get_last_update_age() < 5.0:
+            window = float(getattr(SETTINGS, "liquidation_fade_window_sec", 20.0))
+            lqs = BINANCE_WS.get_recent_liquidations(seconds=window)
+            if lqs:
+                long_liq_usd = sum(lq["usd_size"] for lq in lqs if lq["side"] == "SELL")
+                short_liq_usd = sum(lq["usd_size"] for lq in lqs if lq["side"] == "BUY")
+                min_thresh = float(SETTINGS.liquidation_fade_min_usd)
+                
+                # If massive long liquidations (price spikes down), we fade by buying UP
+                if long_liq_usd >= min_thresh and regular_valid_up:
+                    fade_confidence = _clamp(long_liq_usd / (min_thresh * 3.0), 0.6, 1.0) # Scale confidence
+                    r = _build_candidate(
+                        base_result,
+                        side="UP",
+                        strategy_key="liquidation_fade_up",
+                        entry_price=float(up),
+                        model_probability=0.75, # High fixed probability for liquidation fade
+                        signal_confidence=fade_confidence,
+                        extras={"long_liq_usd": long_liq_usd},
+                    )
+                    candidates["liquidation_fade_up"] = r
+                    
+                # If massive short liquidations (price spikes up), we fade by buying DOWN
+                elif short_liq_usd >= min_thresh and regular_valid_down:
+                    fade_confidence = _clamp(short_liq_usd / (min_thresh * 3.0), 0.6, 1.0)
+                    r = _build_candidate(
+                        base_result,
+                        side="DOWN",
+                        strategy_key="liquidation_fade_down",
+                        entry_price=float(down),
+                        model_probability=0.75,
+                        signal_confidence=fade_confidence,
+                        extras={"short_liq_usd": short_liq_usd},
+                    )
+                    candidates["liquidation_fade_down"] = r
+    except Exception:
+        pass
 
     # Mean Reversion
     mr, mr_zscore = mean_reversion_signal(up, yes_window)

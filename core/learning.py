@@ -80,18 +80,28 @@ class StrategyScoreboard:
         wins = PRIOR_WINS
         losses = PRIOR_LOSSES
         neutral_band = self._neutral_band()
+        decay = getattr(SETTINGS, "scoreboard_decay_factor", 0.95)
 
         # Weight by PnL magnitude: a +50% win counts more than a +1% win.
         # Scale factor 5.0 keeps the prior (1 win + 1 loss) meaningful.
         _SCALE = 5.0
-        for t in trades:
+        
+        # We iterate backwards. The most recent decisive trade has a decay power of 0 (weight x 1.0).
+        # The next most recent decisive trade has a decay power of 1 (weight x 0.95), etc.
+        decay_power = 0
+        for t in reversed(trades):
             if abs(t.pnl_pct) <= neutral_band:
                 continue
-            weight = 1.0 + abs(t.pnl_pct) * _SCALE
+            
+            decay_mult = (decay ** decay_power)
+            weight = (1.0 + abs(t.pnl_pct) * _SCALE) * decay_mult
+            
             if t.pnl_pct > neutral_band:
                 wins += weight
             else:
                 losses += weight
+                
+            decay_power += 1
 
         total = wins + losses
         win_rate = wins / total

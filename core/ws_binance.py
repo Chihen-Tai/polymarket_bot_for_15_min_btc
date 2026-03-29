@@ -20,13 +20,14 @@ class BinanceWebSocket:
         if getattr(self, "_initialized", False):
             return
         self.symbol = symbol.lower()
-        self.ws_url = f"wss://fstream.binance.com/stream?streams={self.symbol}@bookTicker/{self.symbol}@aggTrade"
+        self.ws_url = f"wss://fstream.binance.com/stream?streams={self.symbol}@bookTicker/{self.symbol}@aggTrade/{self.symbol}@forceOrder"
         
         # Thread-safe states
         self.bba = {"b": 0.0, "B": 0.0, "a": 0.0, "A": 0.0, "ts": 0.0, "u": 0} 
         self.bba_history = deque(maxlen=2000)
         self.trades = deque(maxlen=5000)
         self.recent_prices = deque(maxlen=200)
+        self.liquidations = deque(maxlen=200)
         self.ws = None
         self.thread = None
         self.running = False
@@ -59,6 +60,23 @@ class BinanceWebSocket:
                     "m": bool(data.get("m", False)),
                     "ts": time.time()
                 })
+                
+            elif stream.endswith("@forceOrder"):
+                # "S": "SELL" means a long position was liquidated (downward spike).
+                # "S": "BUY" means a short position was liquidated (upward spike).
+                o = data.get("o", {})
+                if o:
+                    price = float(o.get("p", 0.0))
+                    qty = float(o.get("q", 0.0))
+                    usd_size = price * qty
+                    side = o.get("S", "")
+                    if usd_size > 0:
+                        self.liquidations.append({
+                            "side": side,
+                            "usd_size": usd_size,
+                            "p": price,
+                            "ts": time.time()
+                        })
         except Exception as e:
             logger.debug(f"WS Msg Parse Error: {e}")
 
@@ -158,6 +176,14 @@ class BinanceWebSocket:
         if not self.recent_prices:
             return float('inf')
         return time.time() - self.recent_prices[-1][0]
+
+    def get_recent_liquidations(self, seconds: float = 20.0) -> list[dict]:
+        """Returns all liquidations that occurred within the last `seconds`."""
+        if not self.liquidations:
+            return []
+        cutoff = time.time() - seconds
+        snapshot = list(self.liquidations)
+        return [lq for lq in snapshot if lq["ts"] >= cutoff]
 
 
 # Global singleton instance

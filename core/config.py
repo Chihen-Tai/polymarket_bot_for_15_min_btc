@@ -91,6 +91,7 @@ class Settings:
     scoreboard_entry_gate_min_decisive_trades: int = _i("SCOREBOARD_ENTRY_GATE_MIN_DECISIVE_TRADES", 5)
     scoreboard_aux_weight: float = _f("SCOREBOARD_AUX_WEIGHT", 0.10)
     scoreboard_min_win_rate: float = _f("SCOREBOARD_MIN_WIN_RATE", 0.40)  # hard-block gate: block entry if auxWR < this and enough history
+    scoreboard_decay_factor: float = _f("SCOREBOARD_DECAY_FACTOR", 0.95)
     entry_fee_floor_buffer: float = _f("ENTRY_FEE_FLOOR_BUFFER", 1.0)  # multiplier on 2x taker fee floor for required_edge
     zscore_window: int = _i("ZSCORE_WINDOW", 20)
     zscore_threshold: float = _f("ZSCORE_THRESHOLD", 2.0)
@@ -124,6 +125,8 @@ class Settings:
     hedge_sum_target: float = _f("HEDGE_SUM_TARGET", 0.95)
     hedge_ratio: float = _f("HEDGE_RATIO", 0.0)
     ws_flash_snipe_threshold: float = _f("WS_FLASH_SNIPE_THRESHOLD", 0.003)
+    liquidation_fade_min_usd: float = _f("LIQUIDATION_FADE_MIN_USD", 500000.0)
+    liquidation_fade_window_sec: float = _f("LIQUIDATION_FADE_WINDOW_SEC", 20.0)
     hedge_max_wait_sec: int = _i("HEDGE_MAX_WAIT_SEC", 90)
     stop_loss_pct: float = _f("STOP_LOSS_PCT", 0.18)
     smart_stop_loss_enabled: bool = _b("SMART_STOP_LOSS_ENABLED", True)
