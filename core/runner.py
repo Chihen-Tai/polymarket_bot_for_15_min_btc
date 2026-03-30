@@ -2640,6 +2640,11 @@ def main():
                                 min_sell_time = float(getattr(SETTINGS, "early_underdog_exit_lock_time", 150.0))
                                 if secs_left is not None and secs_left > min_sell_time:
                                     exit_decision = ExitDecision(False, "early-underdog-lock", hard_stop_pnl_pct, hold_sec)
+                                else:
+                                    max_stop_loss = -abs(float(getattr(SETTINGS, "early_underdog_let_ride_loss_pct", 0.35)))
+                                    # 如果虧損過大 (小於 -35%)，而且目前決定要止損 (stop)，強制取消止損讓它躺平 (let ride)
+                                    if hard_stop_pnl_pct < max_stop_loss and exit_decision.should_close and "stop" in exit_decision.reason:
+                                        exit_decision = ExitDecision(False, "early-underdog-let-ride", hard_stop_pnl_pct, hold_sec)
 
                         maybe_log_position_watch(
                             p,
