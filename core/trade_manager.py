@@ -121,6 +121,9 @@ def decide_exit(
             if getattr(SETTINGS, "force_full_exit_on_stop_loss_scaleout", False):
                 return ExitDecision(True, "stop-loss-full", pnl_pct, hold_sec)
             return ExitDecision(True, "stop-loss-scale-out", pnl_pct, hold_sec)
+    if secs_left is not None and secs_left <= getattr(SETTINGS, "exit_deadline_profit_sec", 45):
+        if pnl_pct > 0:
+            return ExitDecision(True, "deadline-take-profit-full", pnl_pct, hold_sec)
 
     if secs_left is not None and secs_left <= getattr(SETTINGS, "exit_deadline_sec", 20):
         if pnl_pct < 0:
