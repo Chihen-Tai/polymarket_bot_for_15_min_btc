@@ -1,0 +1,51 @@
+{
+  "collector_started_at": "2026-03-29T11:38:59.258",
+  "pre_seconds": 30.0,
+  "post_seconds": 30.0,
+  "poll_sec": 1.0,
+  "event": {
+    "run_id": "run_1774751040_412731_470cbf",
+    "ts": "2026-03-29T11:38:57",
+    "event_id": "exit_f12f4456d620",
+    "kind": "exit",
+    "slug": "btc-updown-5m-1774755300",
+    "side": "DOWN",
+    "token_id": "75677236080734176551263020027283383617924173483271557382606024792055403370708",
+    "position_id": "pos_1774755471_370708",
+    "closed_shares": 0.5700310000000002,
+    "remaining_shares": 3.240531,
+    "realized_cost_usd": 0.14820748996900013,
+    "actual_exit_value_usd": null,
+    "actual_exit_value_source": "sanity-rejected-cash_balance_delta",
+    "actual_realized_pnl_usd": null,
+    "actual_realized_return_pct": null,
+    "actual_close_response_value": 0.8008700000000001,
+    "actual_close_response_value_source": "close_response_takingAmount",
+    "actual_close_response_amount_fields": {
+      "shares_sold_per_attempt": "[0.370031, 0.12, 0.08]"
+    },
+    "observed_mark_price": 0.235,
+    "observed_exit_value_usd": 0.13395728500000004,
+    "observed_exit_value_source": "observed_mark_price",
+    "observed_realized_pnl_usd": -0.014250204969000091,
+    "observed_realized_return_pct": -0.09615036980911518,
+    "pnl_source": "observed_mark_estimate",
+    "exit_execution_style": "mixed",
+    "reason": "stop-loss-full",
+    "entry_quality": "bad-entry",
+    "mae_pnl_usd": -0.11431304943800003,
+    "mfe_pnl_usd": 0.0,
+    "mae_value_usd": 0.87642926,
+    "mfe_value_usd": 0.999999
+  },
+  "market": {
+    "question": "Bitcoin Up or Down - March 28, 11:35PM-11:40PM ET",
+    "slug": "btc-updown-5m-1774755300",
+    "condition_id": "0xfe8f7158a659fa31363093311f3a42caef9fe2015281a79ad185011448f7f445",
+    "token_up": "55669371792954566681148535306766451766597229543298814292094588932501429911003",
+    "token_down": "75677236080734176551263020027283383617924173483271557382606024792055403370708",
+    "outcomes": "[\"Up\", \"Down\"]",
+    "outcomePrices": "[\"0.455\", \"0.545\"]",
+    "endDate": "2026-03-29T03:40:00Z"
+  }
+}

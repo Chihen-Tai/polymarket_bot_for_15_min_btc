@@ -1,0 +1,154 @@
+[log] Output mirrored to: /home/allen/Desktop/bot/polymarket_bot_for_5_min_btc/data/log-live-2026-03-29T06-01-48.txt
+[2026-03-29 06:01:49] bot started | dry_run=False
+[2026-03-29 06:01:51] market switched => btc-updown-5m-1774735200
+[2026-03-29 06:01:53] no entry | slug=btc-updown-5m-1774735200 reason=too_early_in_market secs_left=187.638903 up=0.255 down=0.735
+[2026-03-29 06:01:53] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:01:53] EVENT INTERRUPT: OFI=0.11 Vol=$59404 -> forcing fast poll
+[2026-03-29 06:01:54] no entry | slug=btc-updown-5m-1774735200 reason=too_early_in_market secs_left=186.125752 up=0.265 down=0.745
+[2026-03-29 06:01:54] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:01:59] no entry | slug=btc-updown-5m-1774735200 reason=too_early_in_market secs_left=180.950782 up=0.235 down=0.745
+[2026-03-29 06:01:59] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:03] no entry | slug=btc-updown-5m-1774735200 reason=no_valid_signals secs_left=177.348778 up=0.255 down=0.725
+[2026-03-29 06:02:03] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:07] slow api | call=get_account latency_ms=2332 threshold_ms=2200
+[2026-03-29 06:02:09] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.161 required=0.015 secs_left=171.455417 up=0.32 down=0.685
+[2026-03-29 06:02:09] slow api streak | streak=1 last_latency_ms=2332
+[2026-03-29 06:02:09] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:10] EVENT INTERRUPT: OFI=0.23 Vol=$1097789 -> forcing fast poll
+[2026-03-29 06:02:11] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.102 required=0.015 secs_left=168.891439 up=0.285 down=0.715
+[2026-03-29 06:02:11] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:11] EVENT INTERRUPT: OFI=0.23 Vol=$1104249 -> forcing fast poll
+[2026-03-29 06:02:15] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.090 required=0.015 secs_left=165.148503 up=0.285 down=0.715
+[2026-03-29 06:02:15] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:15] EVENT INTERRUPT: OFI=0.19 Vol=$1341614 -> forcing fast poll
+[2026-03-29 06:02:17] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.081 required=0.015 secs_left=163.605923 up=0.275 down=0.71
+[2026-03-29 06:02:17] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:17] EVENT INTERRUPT: OFI=0.20 Vol=$1350938 -> forcing fast poll
+[2026-03-29 06:02:19] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=velocity lag=0.0000% current=0.0006% secs_left=161.580134 up=0.295 down=0.685
+[2026-03-29 06:02:19] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:19] EVENT INTERRUPT: OFI=0.22 Vol=$1427666 -> forcing fast poll
+[2026-03-29 06:02:22] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.044 required=0.010 secs_left=157.924233 up=0.365 down=0.635
+[2026-03-29 06:02:22] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:22] EVENT INTERRUPT: OFI=0.27 Vol=$1574068 -> forcing fast poll
+[2026-03-29 06:02:24] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.038 required=0.010 secs_left=156.358212 up=0.355 down=0.61
+[2026-03-29 06:02:24] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:29] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.013 required=0.010 secs_left=150.992235 up=0.385 down=0.615
+[2026-03-29 06:02:29] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:29] EVENT INTERRUPT: OFI=0.20 Vol=$2755672 -> forcing fast poll
+[2026-03-29 06:02:31] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=velocity lag=0.0021% current=0.0021% secs_left=149.308488 up=0.3 down=0.715
+[2026-03-29 06:02:31] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:31] EVENT INTERRUPT: OFI=0.22 Vol=$2825740 -> forcing fast poll
+[2026-03-29 06:02:33] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.099 required=0.015 secs_left=147.370618 up=0.305 down=0.715
+[2026-03-29 06:02:33] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:33] EVENT INTERRUPT: OFI=0.22 Vol=$2837729 -> forcing fast poll
+[2026-03-29 06:02:37] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.109 required=0.015 secs_left=143.593842 up=0.245 down=0.735
+[2026-03-29 06:02:37] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:37] EVENT INTERRUPT: OFI=0.20 Vol=$3195545 -> forcing fast poll
+[2026-03-29 06:02:38] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.128 required=0.015 secs_left=142.040676 up=0.255 down=0.755
+[2026-03-29 06:02:38] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:38] EVENT INTERRUPT: OFI=0.18 Vol=$3489604 -> forcing fast poll
+[2026-03-29 06:02:40] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.109 required=0.015 secs_left=139.993743 up=0.255 down=0.745
+[2026-03-29 06:02:40] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:40] EVENT INTERRUPT: OFI=0.18 Vol=$3548149 -> forcing fast poll
+[2026-03-29 06:02:44] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.088 required=0.015 secs_left=136.383079 up=0.275 down=0.72
+[2026-03-29 06:02:44] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:44] EVENT INTERRUPT: OFI=0.19 Vol=$3586447 -> forcing fast poll
+[2026-03-29 06:02:45] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.078 required=0.015 secs_left=134.767701 up=0.295 down=0.705
+[2026-03-29 06:02:45] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:45] EVENT INTERRUPT: OFI=0.20 Vol=$3639464 -> forcing fast poll
+[2026-03-29 06:02:47] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.100 required=0.015 secs_left=132.743672 up=0.265 down=0.715
+[2026-03-29 06:02:47] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:47] EVENT INTERRUPT: OFI=0.22 Vol=$3883836 -> forcing fast poll
+[2026-03-29 06:02:51] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.110 required=0.015 secs_left=129.148245 up=0.275 down=0.725
+[2026-03-29 06:02:51] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:51] EVENT INTERRUPT: OFI=0.22 Vol=$3864658 -> forcing fast poll
+[2026-03-29 06:02:53] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.114 required=0.015 secs_left=127.550181 up=0.255 down=0.805
+[2026-03-29 06:02:53] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:53] EVENT INTERRUPT: OFI=0.07 Vol=$17396977 -> forcing fast poll
+[2026-03-29 06:02:55] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.084 required=0.015 secs_left=125.586549 up=0.215 down=0.775
+[2026-03-29 06:02:55] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:55] EVENT INTERRUPT: OFI=0.06 Vol=$17318330 -> forcing fast poll
+[2026-03-29 06:02:58] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.064 required=0.015 secs_left=121.930871 up=0.245 down=0.755
+[2026-03-29 06:02:58] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:02:58] EVENT INTERRUPT: OFI=0.06 Vol=$17318939 -> forcing fast poll
+[2026-03-29 06:03:00] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=velocity lag=0.0000% current=0.0009% secs_left=120.383641 up=0.225 down=0.775
+[2026-03-29 06:03:00] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:03:00] EVENT INTERRUPT: OFI=0.09 Vol=$17748210 -> forcing fast poll
+[2026-03-29 06:03:02] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.048 required=0.015 secs_left=118.488376 up=0.265 down=0.725
+[2026-03-29 06:03:02] no signal | equity=4.06 cash=4.06
+[2026-03-29 06:03:02] EVENT INTERRUPT: OFI=0.10 Vol=$17888174 -> forcing fast poll
+[2026-03-29 06:03:06] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=69.4% auxWR=13.9% effectiveP=67.6% price=0.625 raw_edge=0.051 required=0.010
+[2026-03-29 06:03:08] entry retry scheduled | side=DOWN attempt=2/3 reason=PolyApiException[status_code=400, error_message={'error': 'no orders found to match with FAK order. FAK orders are partially filled or killed if no match is found.'}]
+[2026-03-29 06:03:11] entry order recovered after retry | attempts=2 side=DOWN
+[2026-03-29 06:03:11] order placed: {'ok': True, 'mode': 'live', 'side': 'DOWN', 'requested_amount_usd': 1.0, 'amount_usd': 0.999999, 'planned_amount_usd': 1.0, 'actual_entry_cost_usd': 0.999999, 'actual_entry_cost_source': 'entry_response_makingAmount', 'execution_style': 'taker', 'response': {'errorMsg': '', 'orderID': '0xb6b411a013902d3f9512f3b388e5d0908a6642f402b22ea091f95130626e246e', 'takingAmount': '1.5873', 'makingAmount': '0.999999', 'status': 'matched', 'transactionsHashes': ['0xafdd4b96e90693352bbdec6f856a9bb637fdeb18b4ef3a14cb70a0cff314c25f'], 'success': True}}
+[2026-03-29 06:03:11] EVENT INTERRUPT: OFI=0.11 Vol=$17818653 -> forcing fast poll
+[2026-03-29 06:03:13] sync_hold token=45881318289123641885445027287044904276999520184384652915948515263203001788160 slug=btc-updown-5m-1774735200 reason=missing-live-position age_sec=2.1 miss_count=1
+[2026-03-29 06:03:15] position watch | side=DOWN slug=btc-updown-5m-1774735200 hold=4s secs_left=105s mark=0.545 decision_ref=$0.8413 profit_ref=$0.8413 observed_return=-15.87% hard_stop_return=-15.87% profit_return=-15.87% decision=stop-loss-scale-out flags=pending-confirmation
+[2026-03-29 06:03:15] SOFT STOP CONFIRMING: DOWN 788160 pnl=-15.87% breach_age=0.0s Binance vel=0.0000%
+[2026-03-29 06:03:15] stop-loss warning | side=DOWN observed_return=-15.87% hold=4s
+[2026-03-29 06:03:16] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=68.0% auxWR=13.9% effectiveP=66.2% price=0.545 raw_edge=0.117 required=0.005
+[2026-03-29 06:03:16] skip entry: existing position still open
+[2026-03-29 06:03:16] EVENT INTERRUPT: OFI=0.13 Vol=$18590581 -> forcing fast poll
+[2026-03-29 06:03:17] sync_hold token=45881318289123641885445027287044904276999520184384652915948515263203001788160 slug=btc-updown-5m-1774735200 reason=missing-live-position age_sec=5.4 miss_count=2
+[2026-03-29 06:03:18] position watch | side=DOWN slug=btc-updown-5m-1774735200 hold=7s secs_left=102s mark=0.605 decision_ref=$0.9524 profit_ref=$0.9524 observed_return=-4.76% hard_stop_return=-4.76% profit_return=-4.76% decision=hold flags=pending-confirmation
+[2026-03-29 06:03:19] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=67.9% auxWR=13.9% effectiveP=66.1% price=0.605 raw_edge=0.056 required=0.010
+[2026-03-29 06:03:19] skip entry: spread-too-wide | spread=0.060 ask1=68.24 askDepth=36063.31 needShares=1.65
+[2026-03-29 06:03:19] EVENT INTERRUPT: OFI=0.12 Vol=$18461326 -> forcing fast poll
+[2026-03-29 06:03:22] sync_hold token=45881318289123641885445027287044904276999520184384652915948515263203001788160 slug=btc-updown-5m-1774735200 reason=missing-live-position age_sec=10.2 miss_count=3
+[2026-03-29 06:03:23] position watch | side=DOWN slug=btc-updown-5m-1774735200 hold=12s secs_left=97s mark=0.505 decision_ref=$0.7936 profit_ref=$0.7936 observed_return=-20.63% hard_stop_return=-20.63% profit_return=-20.63% decision=stop-loss-scale-out flags=pending-confirmation
+[2026-03-29 06:03:23] stop-loss warning | side=DOWN observed_return=-20.63% hold=12s
+[2026-03-29 06:03:33] STOP-LOSS SCALED OUT! Sold 1.27 shares to mitigate risk.
+[2026-03-29 06:03:33] drop residual after stop-loss scale-out | token=45881318289123641885445027287044904276999520184384652915948515263203001788160 remaining_shares=0.000000 remaining_cost=0.000000
+[2026-03-29 06:03:33] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=velocity lag=0.0004% current=0.0004% secs_left=96.993676 up=0.485 down=0.505
+[2026-03-29 06:03:33] no signal | equity=3.77 cash=3.06
+[2026-03-29 06:03:33] EVENT INTERRUPT: OFI=0.12 Vol=$18082879 -> forcing fast poll
+[2026-03-29 06:03:36] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.023 required=0.020 secs_left=84.338559 up=0.33 down=0.685
+[2026-03-29 06:03:36] no signal | equity=4.41 cash=3.69
+[2026-03-29 06:03:36] EVENT INTERRUPT: OFI=0.13 Vol=$17865070 -> forcing fast poll
+[2026-03-29 06:03:37] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.043 required=0.020 secs_left=82.711773 up=0.305 down=0.705
+[2026-03-29 06:03:37] no signal | equity=4.41 cash=3.69
+[2026-03-29 06:03:37] EVENT INTERRUPT: OFI=0.13 Vol=$17827975 -> forcing fast poll
+[2026-03-29 06:03:39] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.075 required=0.020 secs_left=80.710709 up=0.315 down=0.735
+[2026-03-29 06:03:39] no signal | equity=4.41 cash=3.69
+[2026-03-29 06:03:39] EVENT INTERRUPT: OFI=0.13 Vol=$17576962 -> forcing fast poll
+[2026-03-29 06:03:43] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.054 required=0.020 secs_left=77.005582 up=0.265 down=0.715
+[2026-03-29 06:03:43] no signal | equity=3.69 cash=3.69
+[2026-03-29 06:03:43] EVENT INTERRUPT: OFI=0.13 Vol=$17516572 -> forcing fast poll
+[2026-03-29 06:03:45] no entry | slug=btc-updown-5m-1774735200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.053 required=0.020 secs_left=75.430586 up=0.315 down=0.715
+[2026-03-29 06:03:45] no signal | equity=3.69 cash=3.69
+[2026-03-29 06:03:45] EVENT INTERRUPT: OFI=0.13 Vol=$17488145 -> forcing fast poll
+[2026-03-29 06:03:47] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=67.9% auxWR=13.9% effectiveP=66.1% price=0.565 raw_edge=0.096 required=0.010
+[2026-03-29 06:03:48] skip entry: entry-slippage-precheck | side=DOWN quoted=0.565 est_avg=0.750 premium=32.74% est_shares=1.3333
+[2026-03-29 06:03:48] EVENT INTERRUPT: OFI=0.17 Vol=$18344108 -> forcing fast poll
+[2026-03-29 06:03:52] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=65.7% auxWR=13.9% effectiveP=63.9% price=0.585 raw_edge=0.054 required=0.010
+[2026-03-29 06:03:54] order placed: {'ok': True, 'mode': 'live', 'side': 'DOWN', 'requested_amount_usd': 1.0, 'amount_usd': 0.999998, 'planned_amount_usd': 1.0, 'actual_entry_cost_usd': 0.999998, 'actual_entry_cost_source': 'entry_response_makingAmount', 'execution_style': 'taker', 'response': {'errorMsg': '', 'orderID': '0x1f52b58e63a4747277db3afc3d1b776450afd47013b6b002d4749db8d3e1b483', 'takingAmount': '1.724136', 'makingAmount': '0.999998', 'status': 'matched', 'transactionsHashes': ['0xc3992fd1ca5dfb2856273e8c7fc53c98059b8c7b0c01ec252f22e578be4ab995'], 'success': True}}
+[2026-03-29 06:03:57] sync_hold token=45881318289123641885445027287044904276999520184384652915948515263203001788160 slug=btc-updown-5m-1774735200 reason=missing-live-position age_sec=3.2 miss_count=1
+[2026-03-29 06:03:59] position watch | side=DOWN slug=btc-updown-5m-1774735200 hold=5s secs_left=62s mark=0.555 decision_ref=$0.9483 profit_ref=$0.9483 observed_return=-5.17% hard_stop_return=-5.17% profit_return=-5.17% decision=hold flags=pending-confirmation
+[2026-03-29 06:03:59] loss-reversal SKIPPED: reversed side WR=13.9% <= 55% threshold, keeping original signal=UP
+[2026-03-29 06:03:59] entry approved | strategy=model-ws_order_flow_up side=UP modelP=54.5% auxWR=15.0% effectiveP=52.8% price=0.445 raw_edge=0.083 required=0.010
+[2026-03-29 06:04:00] skip entry: spread-too-wide | spread=0.050 ask1=939.72 askDepth=43764.76 needShares=2.25
+[2026-03-29 06:04:05] position watch | side=DOWN slug=btc-updown-5m-1774735200 hold=12s secs_left=55s mark=0.615 decision_ref=$1.2226 profit_ref=$1.2226 observed_return=3.75% hard_stop_return=3.75% profit_return=3.75% decision=hold flags=none
+[2026-03-29 06:04:05] no entry | slug=btc-updown-5m-1774735200 reason=no_valid_signals secs_left=54.732842 up=0.385 down=0.615
+[2026-03-29 06:04:05] no signal | equity=4.19 cash=2.69
+[2026-03-29 06:04:09] position watch | side=DOWN slug=btc-updown-5m-1774735200 hold=15s secs_left=51s mark=0.625 decision_ref=$1.2427 profit_ref=$1.2427 observed_return=5.45% hard_stop_return=5.45% profit_return=5.45% decision=hold flags=none
+[2026-03-29 06:04:09] no entry | slug=btc-updown-5m-1774735200 reason=no_valid_signals secs_left=50.942452 up=0.395 down=0.625
+[2026-03-29 06:04:09] no signal | equity=4.19 cash=2.69
+[2026-03-29 06:04:15] position watch | side=DOWN slug=btc-updown-5m-1774735200 hold=21s secs_left=45s mark=0.535 decision_ref=$1.0623 profit_ref=$1.0623 observed_return=-9.86% hard_stop_return=-9.86% profit_return=-9.86% decision=hold flags=none
+[2026-03-29 06:04:15] no entry | slug=btc-updown-5m-1774735200 reason=no_valid_signals secs_left=45.245429 up=0.465 down=0.535
+[2026-03-29 06:04:15] no signal | equity=4.19 cash=2.69
+[2026-03-29 06:04:19] position watch | side=DOWN slug=btc-updown-5m-1774735200 hold=25s secs_left=41s mark=0.465 decision_ref=$0.9220 profit_ref=$0.9220 observed_return=-21.77% hard_stop_return=-21.77% profit_return=-21.77% decision=stop-loss-scale-out flags=none
+[2026-03-29 06:04:19] stop-loss warning | side=DOWN observed_return=-21.77% hold=25s
+[2026-03-29 06:04:56] STOP-LOSS SCALED OUT! Sold 1.53 shares to mitigate risk.
+[2026-03-29 06:04:56] drop residual after stop-loss scale-out | token=45881318289123641885445027287044904276999520184384652915948515263203001788160 remaining_shares=0.000000 remaining_cost=0.000000
+[2026-03-29 06:04:56] no entry | slug=btc-updown-5m-1774735200 reason=no_valid_signals secs_left=41.456466 up=0.525 down=0.465
+[2026-03-29 06:04:56] no signal | equity=4.19 cash=2.69
+[2026-03-29 06:05:00] market switched => btc-updown-5m-1774735500
+[2026-03-29 06:05:02] no entry | slug=btc-updown-5m-1774735500 reason=too_early_in_market secs_left=298.450295 up=0.555 down=0.445
+[2026-03-29 06:05:02] no signal | equity=3.41 cash=3.41
+
+================= RUN REPORT =================
+Generating post-run summary report...
+Report saved to: /home/allen/Desktop/bot/polymarket_bot_for_5_min_btc/data/report-live-2026-03-29T06-01-49.txt
+Also copied to:  /home/allen/Desktop/bot/polymarket_bot_for_5_min_btc/data/latest_run_report.txt
+==============================================
+

@@ -1,0 +1,23 @@
+status     opened/closed       market                     side    entry   actual  observed  act.pnl  obs.pnl tier   reason               remain      mae      mfe
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+closed     2026-03-28T22:05:00+00:00 btc-updown-5m-1774735200   DOWN   1.0000   0.7770    0.7857  -0.2230  -0.2143 medium stop-loss-scale-ou   0.0000  -0.2063   0.0000
+closed     2026-03-28T22:05:00+00:00 btc-updown-5m-1774735200   DOWN   1.0000   0.8021    0.7998  -0.1979  -0.2002 medium stop-loss-scale-ou   0.0000  -0.2565   0.0642
+
+summary: closed=2
+summary details:
+  total_trades: 2
+  status_counts: {'closed': 2}
+  entry_quality_counts: {'unknown': 2}
+  close_reason_counts: {'stop-loss-scale-out+market-expired-settlement': 2}
+  close_bucket_counts: {'expiry-settlement': 2}
+  close_bucket_pnl: {'expiry-settlement': {'count': 2, 'actual_pnl': {'count': 2, 'sum': -0.42083538406000043, 'average': -0.21041769203000021}, 'fee_adjusted_actual_pnl': {'count': 2, 'sum': -0.45203533726000045, 'average': -0.22601766863000022}}}
+  actual_source_tier_counts: {'medium': 2}
+  actual_available_ratio: 1.0
+  actual_pnl: {'count': 2, 'sum': -0.42083538406000043, 'average': -0.21041769203000021}
+  observed_pnl: {'count': 2, 'sum': -0.41453053068, 'average': -0.20726526534}
+  fee_adjusted_actual_pnl: {'count': 2, 'sum': -0.45203533726000045, 'average': -0.22601766863000022}
+  fee_adjusted_observed_pnl: {'count': 2, 'sum': -0.44573048388000003, 'average': -0.22286524194000001}
+  scratch_trades: {'count': 0, 'ratio': 0.0, 'close_reason_counts': {}, 'fee_adjusted_actual_pnl': {'count': 0, 'sum': None, 'average': None}}
+  mae: {'count': 2, 'average': -0.23142603232800002}
+  mfe: {'count': 2, 'average': 0.032092947671999994}
+  notes: {'actual_unavailable': 'all rows have actual pnl', 'fee_model': 'fee_adjusted pnl applies assumed taker fees only to legs tagged taker/mixed; maker-like and unknown legs are treated as zero-fee, and expiry settlements pay no exit fee'}

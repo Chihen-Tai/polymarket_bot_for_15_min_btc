@@ -1,0 +1,1467 @@
+[log] Output mirrored to: /home/allen/Desktop/bot/polymarket_bot_for_5_min_btc/data/log-live-2026-03-29T09-13-43.txt
+[2026-03-29 09:13:43] journal reconcile note | exit without matching open entry in local journal | token=94201795482896564615748921744328048431815041379419865145659179822264161725196
+[2026-03-29 09:13:44] startup sanity | journal reconcile note | exit without matching open entry in local journal | token=94201795482896564615748921744328048431815041379419865145659179822264161725196
+[2026-03-29 09:13:44] bot started | dry_run=False
+[2026-03-29 09:13:46] market switched => btc-updown-5m-1774746600
+[2026-03-29 09:13:47] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.895_down0.125 secs_left=73.06532 up=0.895 down=0.125
+[2026-03-29 09:13:47] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:13:51] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.915_down0.085 secs_left=69.447723 up=0.915 down=0.085
+[2026-03-29 09:13:51] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:13:51] EVENT INTERRUPT: OFI=0.90 Vol=$65572 -> forcing fast poll
+[2026-03-29 09:13:54] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.905_down0.095 secs_left=65.870368 up=0.905 down=0.095
+[2026-03-29 09:13:54] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:13:54] EVENT INTERRUPT: OFI=0.72 Vol=$92108 -> forcing fast poll
+[2026-03-29 09:13:56] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.905_down0.085 secs_left=64.137922 up=0.905 down=0.085
+[2026-03-29 09:13:56] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:13:56] EVENT INTERRUPT: OFI=0.89 Vol=$333660 -> forcing fast poll
+[2026-03-29 09:13:58] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.915_down0.085 secs_left=62.333775 up=0.915 down=0.085
+[2026-03-29 09:13:58] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:13:58] EVENT INTERRUPT: OFI=0.91 Vol=$387335 -> forcing fast poll
+[2026-03-29 09:14:02] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.925_down0.075 secs_left=58.555141 up=0.925 down=0.075
+[2026-03-29 09:14:02] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:02] EVENT INTERRUPT: OFI=0.91 Vol=$404762 -> forcing fast poll
+[2026-03-29 09:14:03] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.925_down0.065 secs_left=56.956436 up=0.925 down=0.065
+[2026-03-29 09:14:03] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:03] EVENT INTERRUPT: OFI=0.91 Vol=$406225 -> forcing fast poll
+[2026-03-29 09:14:05] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.945_down0.055 secs_left=54.942609 up=0.945 down=0.055
+[2026-03-29 09:14:05] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:05] EVENT INTERRUPT: OFI=0.90 Vol=$454116 -> forcing fast poll
+[2026-03-29 09:14:09] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.945_down0.065 secs_left=51.224874 up=0.945 down=0.065
+[2026-03-29 09:14:09] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:09] EVENT INTERRUPT: OFI=0.90 Vol=$472142 -> forcing fast poll
+[2026-03-29 09:14:11] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.935_down0.055 secs_left=49.587608 up=0.935 down=0.055
+[2026-03-29 09:14:11] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:11] EVENT INTERRUPT: OFI=0.90 Vol=$480589 -> forcing fast poll
+[2026-03-29 09:14:13] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.945_down0.075 secs_left=47.633964 up=0.945 down=0.075
+[2026-03-29 09:14:13] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:13] EVENT INTERRUPT: OFI=0.89 Vol=$483183 -> forcing fast poll
+[2026-03-29 09:14:16] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.915_down0.085 secs_left=43.945006 up=0.915 down=0.085
+[2026-03-29 09:14:16] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:16] EVENT INTERRUPT: OFI=0.89 Vol=$515709 -> forcing fast poll
+[2026-03-29 09:14:18] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.925_down0.075 secs_left=42.242213 up=0.925 down=0.075
+[2026-03-29 09:14:18] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:18] EVENT INTERRUPT: OFI=0.89 Vol=$524489 -> forcing fast poll
+[2026-03-29 09:14:20] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.925_down0.075 secs_left=40.259225 up=0.925 down=0.075
+[2026-03-29 09:14:20] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:20] EVENT INTERRUPT: OFI=0.89 Vol=$526950 -> forcing fast poll
+[2026-03-29 09:14:23] slow api | call=get_account latency_ms=2833 threshold_ms=2200
+[2026-03-29 09:14:25] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.915_down0.105 secs_left=35.486198 up=0.915 down=0.105
+[2026-03-29 09:14:25] slow api streak | streak=1 last_latency_ms=2833
+[2026-03-29 09:14:25] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:25] EVENT INTERRUPT: OFI=0.89 Vol=$579962 -> forcing fast poll
+[2026-03-29 09:14:26] no entry | slug=btc-updown-5m-1774746600 reason=prices_out_of_bounds_up0.905_down0.095 secs_left=33.895687 up=0.905 down=0.095
+[2026-03-29 09:14:26] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:26] EVENT INTERRUPT: OFI=0.89 Vol=$633973 -> forcing fast poll
+[2026-03-29 09:14:30] no entry | slug=btc-updown-5m-1774746600 reason=too_late_in_market secs_left=30.115513 up=0.955 down=0.045
+[2026-03-29 09:14:30] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:30] EVENT INTERRUPT: OFI=0.86 Vol=$769266 -> forcing fast poll
+[2026-03-29 09:14:32] no entry | slug=btc-updown-5m-1774746600 reason=too_late_in_market secs_left=28.48987 up=0.965 down=0.025
+[2026-03-29 09:14:32] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:32] EVENT INTERRUPT: OFI=0.86 Vol=$775519 -> forcing fast poll
+[2026-03-29 09:14:34] no entry | slug=btc-updown-5m-1774746600 reason=too_late_in_market secs_left=26.486937 up=0.975 down=0.025
+[2026-03-29 09:14:34] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:34] EVENT INTERRUPT: OFI=0.86 Vol=$794011 -> forcing fast poll
+[2026-03-29 09:14:37] no entry | slug=btc-updown-5m-1774746600 reason=too_late_in_market secs_left=22.707237 up=0.975 down=0.025
+[2026-03-29 09:14:37] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:37] EVENT INTERRUPT: OFI=0.86 Vol=$809244 -> forcing fast poll
+[2026-03-29 09:14:39] no entry | slug=btc-updown-5m-1774746600 reason=too_late_in_market secs_left=21.092624 up=0.975 down=0.025
+[2026-03-29 09:14:39] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:39] EVENT INTERRUPT: OFI=0.87 Vol=$824078 -> forcing fast poll
+[2026-03-29 09:14:41] no entry | slug=btc-updown-5m-1774746600 reason=too_late_in_market secs_left=18.949064 up=0.975 down=0.025
+[2026-03-29 09:14:41] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:41] EVENT INTERRUPT: OFI=0.88 Vol=$897783 -> forcing fast poll
+[2026-03-29 09:14:45] no entry | slug=btc-updown-5m-1774746600 reason=too_late_in_market secs_left=15.317751 up=0.985 down=0.015
+[2026-03-29 09:14:45] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:45] EVENT INTERRUPT: OFI=0.88 Vol=$944685 -> forcing fast poll
+[2026-03-29 09:14:47] no entry | slug=btc-updown-5m-1774746600 reason=too_late_in_market secs_left=13.617905 up=0.495 down=0.005
+[2026-03-29 09:14:47] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:47] EVENT INTERRUPT: OFI=0.89 Vol=$984870 -> forcing fast poll
+[2026-03-29 09:14:49] no entry | slug=btc-updown-5m-1774746600 reason=too_late_in_market secs_left=11.702914 up=0.495 down=0.005
+[2026-03-29 09:14:49] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:49] EVENT INTERRUPT: OFI=0.89 Vol=$981877 -> forcing fast poll
+[2026-03-29 09:14:52] no entry | slug=btc-updown-5m-1774746600 reason=too_late_in_market secs_left=8.035228 up=0.495 down=0.005
+[2026-03-29 09:14:52] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:14:56] no entry | slug=btc-updown-5m-1774746600 reason=too_late_in_market secs_left=4.303774 up=0.495 down=0.005
+[2026-03-29 09:14:56] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:00] market switched => btc-updown-5m-1774746900
+[2026-03-29 09:15:02] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=298.916651 up=0.485 down=0.535
+[2026-03-29 09:15:02] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:07] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=292.887863 up=0.45 down=0.525
+[2026-03-29 09:15:07] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:11] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=289.253025 up=0.495 down=0.505
+[2026-03-29 09:15:11] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:16] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=283.776429 up=0.485 down=0.515
+[2026-03-29 09:15:16] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:20] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=280.105433 up=0.495 down=0.505
+[2026-03-29 09:15:20] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:26] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=274.603785 up=0.495 down=0.505
+[2026-03-29 09:15:26] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:30] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=270.713352 up=0.545 down=0.455
+[2026-03-29 09:15:30] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:35] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=264.978741 up=0.52 down=0.49
+[2026-03-29 09:15:35] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:39] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=261.381836 up=0.575 down=0.405
+[2026-03-29 09:15:39] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:44] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=256.172827 up=0.585 down=0.405
+[2026-03-29 09:15:44] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:48] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=252.534737 up=0.605 down=0.395
+[2026-03-29 09:15:48] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:53] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=247.274026 up=0.65 down=0.365
+[2026-03-29 09:15:53] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:15:57] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=243.668791 up=0.645 down=0.355
+[2026-03-29 09:15:57] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:02] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=238.252027 up=0.655 down=0.345
+[2026-03-29 09:16:02] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:03] EVENT INTERRUPT: OFI=0.71 Vol=$1941963 -> forcing fast poll
+[2026-03-29 09:16:05] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=235.647086 up=0.665 down=0.335
+[2026-03-29 09:16:05] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:05] EVENT INTERRUPT: OFI=0.73 Vol=$2084829 -> forcing fast poll
+[2026-03-29 09:16:08] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=231.960199 up=0.735 down=0.265
+[2026-03-29 09:16:08] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:08] EVENT INTERRUPT: OFI=0.72 Vol=$1986800 -> forcing fast poll
+[2026-03-29 09:16:10] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=230.277854 up=0.735 down=0.265
+[2026-03-29 09:16:10] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:10] EVENT INTERRUPT: OFI=0.72 Vol=$2006101 -> forcing fast poll
+[2026-03-29 09:16:12] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=228.030206 up=0.735 down=0.265
+[2026-03-29 09:16:12] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:12] EVENT INTERRUPT: OFI=0.72 Vol=$2013956 -> forcing fast poll
+[2026-03-29 09:16:16] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=224.626433 up=0.735 down=0.265
+[2026-03-29 09:16:16] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:16] EVENT INTERRUPT: OFI=0.82 Vol=$1951791 -> forcing fast poll
+[2026-03-29 09:16:17] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=222.889809 up=0.725 down=0.275
+[2026-03-29 09:16:17] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:17] EVENT INTERRUPT: OFI=0.82 Vol=$1990724 -> forcing fast poll
+[2026-03-29 09:16:19] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=220.904646 up=0.735 down=0.265
+[2026-03-29 09:16:19] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:19] EVENT INTERRUPT: OFI=0.82 Vol=$1977092 -> forcing fast poll
+[2026-03-29 09:16:23] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=217.278995 up=0.75 down=0.245
+[2026-03-29 09:16:23] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:23] EVENT INTERRUPT: OFI=0.81 Vol=$1850868 -> forcing fast poll
+[2026-03-29 09:16:24] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=215.704766 up=0.755 down=0.245
+[2026-03-29 09:16:24] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:24] EVENT INTERRUPT: OFI=0.82 Vol=$1836435 -> forcing fast poll
+[2026-03-29 09:16:27] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=213.647008 up=0.775 down=0.225
+[2026-03-29 09:16:27] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:27] EVENT INTERRUPT: OFI=0.79 Vol=$1657206 -> forcing fast poll
+[2026-03-29 09:16:30] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=209.869412 up=0.775 down=0.225
+[2026-03-29 09:16:30] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:30] EVENT INTERRUPT: OFI=0.80 Vol=$1599745 -> forcing fast poll
+[2026-03-29 09:16:32] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=208.256663 up=0.775 down=0.225
+[2026-03-29 09:16:32] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:32] EVENT INTERRUPT: OFI=0.84 Vol=$1511006 -> forcing fast poll
+[2026-03-29 09:16:34] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=206.178706 up=0.785 down=0.215
+[2026-03-29 09:16:34] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:34] EVENT INTERRUPT: OFI=0.88 Vol=$1450147 -> forcing fast poll
+[2026-03-29 09:16:38] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=202.483839 up=0.775 down=0.225
+[2026-03-29 09:16:38] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:41] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=198.767892 up=0.635 down=0.365
+[2026-03-29 09:16:41] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:47] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=193.613804 up=0.715 down=0.295
+[2026-03-29 09:16:47] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:50] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=189.969992 up=0.715 down=0.285
+[2026-03-29 09:16:50] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:55] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=184.908588 up=0.695 down=0.305
+[2026-03-29 09:16:55] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:16:59] no entry | slug=btc-updown-5m-1774746900 reason=too_early_in_market secs_left=181.215144 up=0.685 down=0.315
+[2026-03-29 09:16:59] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:17:04] no entry | slug=btc-updown-5m-1774746900 reason=no_valid_signals secs_left=175.921669 up=0.645 down=0.355
+[2026-03-29 09:17:04] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:17:08] no entry | slug=btc-updown-5m-1774746900 reason=no_valid_signals secs_left=172.228642 up=0.645 down=0.36
+[2026-03-29 09:17:08] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:17:14] no entry | slug=btc-updown-5m-1774746900 reason=no_valid_signals secs_left=166.631625 up=0.585 down=0.415
+[2026-03-29 09:17:14] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:17:18] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=54.8% auxWR=16.5% effectiveP=53.2% price=0.485 raw_edge=0.047 required=0.025
+[2026-03-29 09:17:20] entry retry scheduled | side=DOWN attempt=2/3 reason=PolyApiException[status_code=400, error_message={'error': 'no orders found to match with FAK order. FAK orders are partially filled or killed if no match is found.'}]
+[2026-03-29 09:17:23] entry order recovered after retry | attempts=2 side=DOWN
+[2026-03-29 09:17:23] order placed: {'ok': True, 'mode': 'live', 'side': 'DOWN', 'requested_amount_usd': 1.0, 'amount_usd': 0.999999, 'planned_amount_usd': 1.0, 'actual_entry_cost_usd': 0.999999, 'actual_entry_cost_source': 'entry_response_makingAmount', 'execution_style': 'taker', 'response': {'errorMsg': '', 'orderID': '0x79c1a9faea4bece6489f38483120a7c1acb62625c617f4af6ad713b9c1bb5bed', 'takingAmount': '1.81818', 'makingAmount': '0.999999', 'status': 'matched', 'transactionsHashes': ['0xd02aa8d96c77c4c14d2807173bbcc890d82289111573e3878cdef392db075696'], 'success': True}}
+[2026-03-29 09:17:26] sync_hold token=11683511719383124687420478039460084643610314042851617476945315420567525654186 slug=btc-updown-5m-1774746900 reason=missing-live-position age_sec=3.1 miss_count=1
+[2026-03-29 09:17:28] position watch | side=DOWN slug=btc-updown-5m-1774746900 hold=5s secs_left=152s mark=0.570 decision_ref=$0.9636 profit_ref=$0.9636 observed_return=-3.64% hard_stop_return=-3.64% profit_return=-3.64% decision=hold flags=pending-confirmation
+[2026-03-29 09:17:28] no entry | slug=btc-updown-5m-1774746900 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.012 required=0.005 secs_left=152.344807 up=0.47 down=0.57
+[2026-03-29 09:17:28] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:17:30] sync_hold token=11683511719383124687420478039460084643610314042851617476945315420567525654186 slug=btc-updown-5m-1774746900 reason=missing-live-position age_sec=7.0 miss_count=2
+[2026-03-29 09:17:38] position watch | side=DOWN slug=btc-updown-5m-1774746900 hold=15s secs_left=147s mark=0.655 decision_ref=$1.1818 profit_ref=$1.1818 observed_return=18.18% hard_stop_return=18.18% profit_return=18.18% decision=take-profit-partial flags=pending-confirmation
+[2026-03-29 09:18:11] PARTIAL PROFIT TAKEN! Sold 1.82 shares (40% clip at +18% threshold).
+[2026-03-29 09:18:11] same-market reentry blocked | slug=btc-updown-5m-1774746900 side=DOWN reason=take-profit-partial
+[2026-03-29 09:18:11] drop residual after take-profit partial | token=11683511719383124687420478039460084643610314042851617476945315420567525654186 remaining_shares=0.000000 remaining_cost=0.000000
+[2026-03-29 09:18:11] no entry | slug=btc-updown-5m-1774746900 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.100 required=0.010 secs_left=147.337551 up=0.325 down=0.655
+[2026-03-29 09:18:11] no signal | equity=1.91 cash=1.91
+[2026-03-29 09:18:17] no entry | slug=btc-updown-5m-1774746900 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.070 required=0.005 secs_left=103.359872 up=0.385 down=0.595
+[2026-03-29 09:18:17] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:18:21] no entry | slug=btc-updown-5m-1774746900 reason=no_valid_signals secs_left=99.653015 up=0.465 down=0.545
+[2026-03-29 09:18:21] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:18:26] no entry | slug=btc-updown-5m-1774746900 reason=no_valid_signals secs_left=94.339019 up=0.395 down=0.605
+[2026-03-29 09:18:26] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:18:29] no entry | slug=btc-updown-5m-1774746900 reason=no_valid_signals secs_left=90.73426 up=0.375 down=0.635
+[2026-03-29 09:18:29] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:18:35] no entry | slug=btc-updown-5m-1774746900 reason=no_valid_signals secs_left=85.370501 up=0.365 down=0.635
+[2026-03-29 09:18:35] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:18:38] no entry | slug=btc-updown-5m-1774746900 reason=no_valid_signals secs_left=81.716844 up=0.395 down=0.625
+[2026-03-29 09:18:38] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:18:49] loss-reversal SKIPPED: reversed side WR=16.5% <= 55% threshold, keeping original signal=UP
+[2026-03-29 09:18:50] entry approved | strategy=model-ws_order_flow_up side=UP modelP=70.2% auxWR=15.1% effectiveP=68.4% price=0.315 raw_edge=0.369 required=0.010
+[2026-03-29 09:18:50] skip entry: entry-slippage-precheck | side=UP quoted=0.315 est_avg=0.780 premium=147.62% est_shares=1.2821
+[2026-03-29 09:18:50] EVENT INTERRUPT: OFI=0.92 Vol=$4104267 -> forcing fast poll
+[2026-03-29 09:18:54] no entry | slug=btc-updown-5m-1774746900 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.054 required=0.020 secs_left=66.485672 up=0.745 down=0.235
+[2026-03-29 09:18:54] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:18:54] EVENT INTERRUPT: OFI=0.93 Vol=$4064438 -> forcing fast poll
+[2026-03-29 09:18:56] no entry | slug=btc-updown-5m-1774746900 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.054 required=0.020 secs_left=64.682816 up=0.745 down=0.255
+[2026-03-29 09:18:56] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:18:56] EVENT INTERRUPT: OFI=0.93 Vol=$4039034 -> forcing fast poll
+[2026-03-29 09:18:57] no entry | slug=btc-updown-5m-1774746900 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.054 required=0.020 secs_left=62.868835 up=0.745 down=0.255
+[2026-03-29 09:18:57] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:18:57] EVENT INTERRUPT: OFI=0.93 Vol=$4043492 -> forcing fast poll
+[2026-03-29 09:19:01] no entry | slug=btc-updown-5m-1774746900 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.074 required=0.020 secs_left=59.063548 up=0.765 down=0.215
+[2026-03-29 09:19:01] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:01] EVENT INTERRUPT: OFI=0.93 Vol=$3968899 -> forcing fast poll
+[2026-03-29 09:19:03] no entry | slug=btc-updown-5m-1774746900 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.144 required=0.020 secs_left=57.364696 up=0.835 down=0.165
+[2026-03-29 09:19:03] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:03] EVENT INTERRUPT: OFI=0.93 Vol=$3963378 -> forcing fast poll
+[2026-03-29 09:19:10] no entry | slug=btc-updown-5m-1774746900 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.153 required=0.020 secs_left=55.383986 up=0.845 down=0.175
+[2026-03-29 09:19:10] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:10] EVENT INTERRUPT: OFI=0.94 Vol=$3878271 -> forcing fast poll
+[2026-03-29 09:19:17] slow api | call=get_account latency_ms=7048 threshold_ms=2200
+[2026-03-29 09:19:19] no entry | slug=btc-updown-5m-1774746900 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.159 required=0.020 secs_left=41.449722 up=0.825 down=0.135
+[2026-03-29 09:19:19] slow api streak | streak=1 last_latency_ms=7048
+[2026-03-29 09:19:19] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:19] EVENT INTERRUPT: OFI=0.88 Vol=$4143284 -> forcing fast poll
+[2026-03-29 09:19:22] no entry | slug=btc-updown-5m-1774746900 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.146 required=0.020 secs_left=38.36545 up=0.815 down=0.165
+[2026-03-29 09:19:22] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:22] EVENT INTERRUPT: OFI=0.89 Vol=$4106506 -> forcing fast poll
+[2026-03-29 09:19:23] no entry | slug=btc-updown-5m-1774746900 reason=prices_out_of_bounds_up0.875_down0.155 secs_left=36.729401 up=0.875 down=0.155
+[2026-03-29 09:19:23] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:23] EVENT INTERRUPT: OFI=0.88 Vol=$4133191 -> forcing fast poll
+[2026-03-29 09:19:25] no entry | slug=btc-updown-5m-1774746900 reason=prices_out_of_bounds_up0.855_down0.155 secs_left=34.726109 up=0.855 down=0.155
+[2026-03-29 09:19:25] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:25] EVENT INTERRUPT: OFI=0.88 Vol=$4120222 -> forcing fast poll
+[2026-03-29 09:19:29] no entry | slug=btc-updown-5m-1774746900 reason=prices_out_of_bounds_up0.865_down0.145 secs_left=31.056989 up=0.865 down=0.145
+[2026-03-29 09:19:29] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:29] EVENT INTERRUPT: OFI=0.88 Vol=$4088298 -> forcing fast poll
+[2026-03-29 09:19:31] no entry | slug=btc-updown-5m-1774746900 reason=too_late_in_market secs_left=29.473259 up=0.845 down=0.175
+[2026-03-29 09:19:31] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:31] EVENT INTERRUPT: OFI=0.89 Vol=$4075795 -> forcing fast poll
+[2026-03-29 09:19:33] no entry | slug=btc-updown-5m-1774746900 reason=too_late_in_market secs_left=27.387142 up=0.845 down=0.165
+[2026-03-29 09:19:33] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:33] EVENT INTERRUPT: OFI=0.89 Vol=$4071073 -> forcing fast poll
+[2026-03-29 09:19:36] no entry | slug=btc-updown-5m-1774746900 reason=too_late_in_market secs_left=23.806743 up=0.895 down=0.105
+[2026-03-29 09:19:36] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:36] EVENT INTERRUPT: OFI=0.88 Vol=$4071749 -> forcing fast poll
+[2026-03-29 09:19:38] no entry | slug=btc-updown-5m-1774746900 reason=too_late_in_market secs_left=22.091214 up=0.875 down=0.125
+[2026-03-29 09:19:38] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:38] EVENT INTERRUPT: OFI=0.89 Vol=$4059512 -> forcing fast poll
+[2026-03-29 09:19:40] no entry | slug=btc-updown-5m-1774746900 reason=too_late_in_market secs_left=20.149299 up=0.925 down=0.075
+[2026-03-29 09:19:40] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:40] EVENT INTERRUPT: OFI=0.89 Vol=$4052396 -> forcing fast poll
+[2026-03-29 09:19:44] no entry | slug=btc-updown-5m-1774746900 reason=too_late_in_market secs_left=16.52242 up=0.915 down=0.085
+[2026-03-29 09:19:44] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:44] EVENT INTERRUPT: OFI=0.90 Vol=$4083122 -> forcing fast poll
+[2026-03-29 09:19:45] no entry | slug=btc-updown-5m-1774746900 reason=too_late_in_market secs_left=14.881864 up=0.9 down=0.105
+[2026-03-29 09:19:45] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:45] EVENT INTERRUPT: OFI=0.90 Vol=$4081061 -> forcing fast poll
+[2026-03-29 09:19:47] no entry | slug=btc-updown-5m-1774746900 reason=too_late_in_market secs_left=12.907027 up=0.895 down=0.245
+[2026-03-29 09:19:47] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:53] no entry | slug=btc-updown-5m-1774746900 reason=too_late_in_market secs_left=7.593965 up=0.895 down=0.095
+[2026-03-29 09:19:53] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:19:56] no entry | slug=btc-updown-5m-1774746900 reason=too_late_in_market secs_left=3.960997 up=0.96 down=0.04
+[2026-03-29 09:19:56] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:00] market switched => btc-updown-5m-1774747200
+[2026-03-29 09:20:02] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=298.285407 up=0.545 down=0.515
+[2026-03-29 09:20:02] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:06] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=294.467854 up=0.465 down=0.54
+[2026-03-29 09:20:06] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:11] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=289.234334 up=0.475 down=0.535
+[2026-03-29 09:20:11] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:15] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=285.547677 up=0.455 down=0.545
+[2026-03-29 09:20:15] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:20] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=280.30279 up=0.535 down=0.465
+[2026-03-29 09:20:20] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:24] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=276.616953 up=0.535 down=0.475
+[2026-03-29 09:20:24] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:29] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=271.437005 up=0.61 down=0.39
+[2026-03-29 09:20:29] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:32] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=267.815452 up=0.605 down=0.395
+[2026-03-29 09:20:32] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:38] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=262.564069 up=0.615 down=0.385
+[2026-03-29 09:20:38] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:41] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=258.899599 up=0.675 down=0.325
+[2026-03-29 09:20:41] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:47] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=253.570594 up=0.685 down=0.315
+[2026-03-29 09:20:47] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:47] EVENT INTERRUPT: OFI=0.77 Vol=$1345189 -> forcing fast poll
+[2026-03-29 09:20:48] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=251.978069 up=0.695 down=0.315
+[2026-03-29 09:20:48] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:48] EVENT INTERRUPT: OFI=0.77 Vol=$1363427 -> forcing fast poll
+[2026-03-29 09:20:50] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=249.941116 up=0.695 down=0.305
+[2026-03-29 09:20:50] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:51] EVENT INTERRUPT: OFI=0.70 Vol=$1029708 -> forcing fast poll
+[2026-03-29 09:20:55] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=245.554797 up=0.685 down=0.325
+[2026-03-29 09:20:55] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:58] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=241.862287 up=0.675 down=0.325
+[2026-03-29 09:20:58] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:20:59] EVENT INTERRUPT: OFI=0.71 Vol=$1095615 -> forcing fast poll
+[2026-03-29 09:21:03] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=237.392504 up=0.705 down=0.305
+[2026-03-29 09:21:03] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:03] EVENT INTERRUPT: OFI=0.71 Vol=$1069007 -> forcing fast poll
+[2026-03-29 09:21:04] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=235.869235 up=0.695 down=0.305
+[2026-03-29 09:21:04] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:04] EVENT INTERRUPT: OFI=0.70 Vol=$1058563 -> forcing fast poll
+[2026-03-29 09:21:06] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=233.783023 up=0.69 down=0.315
+[2026-03-29 09:21:06] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:06] EVENT INTERRUPT: OFI=0.72 Vol=$970214 -> forcing fast poll
+[2026-03-29 09:21:10] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=230.058544 up=0.705 down=0.295
+[2026-03-29 09:21:10] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:10] EVENT INTERRUPT: OFI=0.79 Vol=$951672 -> forcing fast poll
+[2026-03-29 09:21:12] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=228.405917 up=0.715 down=0.32
+[2026-03-29 09:21:12] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:17] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=223.060625 up=0.625 down=0.375
+[2026-03-29 09:21:17] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:21] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=219.397187 up=0.615 down=0.385
+[2026-03-29 09:21:21] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:26] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=214.133939 up=0.655 down=0.345
+[2026-03-29 09:21:26] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:30] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=210.445626 up=0.635 down=0.365
+[2026-03-29 09:21:30] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:35] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=205.148156 up=0.635 down=0.4
+[2026-03-29 09:21:35] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:39] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=201.527879 up=0.605 down=0.4
+[2026-03-29 09:21:39] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:44] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=196.329819 up=0.595 down=0.405
+[2026-03-29 09:21:44] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:48] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=192.681241 up=0.585 down=0.405
+[2026-03-29 09:21:48] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:53] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=187.35137 up=0.695 down=0.315
+[2026-03-29 09:21:53] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:21:56] no entry | slug=btc-updown-5m-1774747200 reason=too_early_in_market secs_left=183.682018 up=0.735 down=0.265
+[2026-03-29 09:21:56] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:02] no entry | slug=btc-updown-5m-1774747200 reason=no_valid_signals secs_left=178.444354 up=0.715 down=0.285
+[2026-03-29 09:22:02] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:05] no entry | slug=btc-updown-5m-1774747200 reason=no_valid_signals secs_left=174.799501 up=0.715 down=0.285
+[2026-03-29 09:22:05] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:11] no entry | slug=btc-updown-5m-1774747200 reason=no_valid_signals secs_left=169.623568 up=0.715 down=0.32
+[2026-03-29 09:22:11] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:14] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.080 required=0.015 secs_left=165.953225 up=0.685 down=0.275
+[2026-03-29 09:22:14] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:14] EVENT INTERRUPT: OFI=0.78 Vol=$2807794 -> forcing fast poll
+[2026-03-29 09:22:18] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.142 required=0.015 secs_left=162.348164 up=0.775 down=0.225
+[2026-03-29 09:22:18] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:18] EVENT INTERRUPT: OFI=0.81 Vol=$3202753 -> forcing fast poll
+[2026-03-29 09:22:20] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.151 required=0.015 secs_left=160.612825 up=0.785 down=0.215
+[2026-03-29 09:22:20] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:20] EVENT INTERRUPT: OFI=0.83 Vol=$3377447 -> forcing fast poll
+[2026-03-29 09:22:27] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.135 required=0.015 secs_left=158.554562 up=0.795 down=0.215
+[2026-03-29 09:22:27] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:27] EVENT INTERRUPT: OFI=0.87 Vol=$5235922 -> forcing fast poll
+[2026-03-29 09:22:30] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.147 required=0.015 secs_left=150.094882 up=0.79 down=0.22
+[2026-03-29 09:22:30] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:30] EVENT INTERRUPT: OFI=0.83 Vol=$5520714 -> forcing fast poll
+[2026-03-29 09:22:32] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.106 required=0.015 secs_left=148.365692 up=0.74 down=0.275
+[2026-03-29 09:22:32] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:32] EVENT INTERRUPT: OFI=0.81 Vol=$5679569 -> forcing fast poll
+[2026-03-29 09:22:34] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.066 required=0.015 secs_left=146.389787 up=0.7 down=0.3
+[2026-03-29 09:22:34] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:34] EVENT INTERRUPT: OFI=0.83 Vol=$5616627 -> forcing fast poll
+[2026-03-29 09:22:37] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.118 required=0.015 secs_left=142.819008 up=0.745 down=0.285
+[2026-03-29 09:22:37] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:37] EVENT INTERRUPT: OFI=0.80 Vol=$5752308 -> forcing fast poll
+[2026-03-29 09:22:39] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.079 required=0.015 secs_left=141.25879 up=0.705 down=0.285
+[2026-03-29 09:22:39] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:39] EVENT INTERRUPT: OFI=0.77 Vol=$6013020 -> forcing fast poll
+[2026-03-29 09:22:41] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.068 required=0.015 secs_left=139.218311 up=0.68 down=0.325
+[2026-03-29 09:22:41] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:41] EVENT INTERRUPT: OFI=0.76 Vol=$5987139 -> forcing fast poll
+[2026-03-29 09:22:45] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.035 required=0.010 secs_left=135.469933 up=0.645 down=0.345
+[2026-03-29 09:22:45] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:45] EVENT INTERRUPT: OFI=0.76 Vol=$5984212 -> forcing fast poll
+[2026-03-29 09:22:46] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.055 required=0.010 secs_left=133.832359 up=0.665 down=0.325
+[2026-03-29 09:22:46] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:46] EVENT INTERRUPT: OFI=0.76 Vol=$5999786 -> forcing fast poll
+[2026-03-29 09:22:48] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.066 required=0.010 secs_left=131.792598 up=0.675 down=0.325
+[2026-03-29 09:22:48] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:48] EVENT INTERRUPT: OFI=0.76 Vol=$5945221 -> forcing fast poll
+[2026-03-29 09:22:53] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.087 required=0.015 secs_left=127.606559 up=0.695 down=0.295
+[2026-03-29 09:22:53] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:53] EVENT INTERRUPT: OFI=0.76 Vol=$5906091 -> forcing fast poll
+[2026-03-29 09:22:54] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.096 required=0.015 secs_left=125.997169 up=0.705 down=0.295
+[2026-03-29 09:22:54] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:54] EVENT INTERRUPT: OFI=0.76 Vol=$5928987 -> forcing fast poll
+[2026-03-29 09:22:56] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.092 required=0.015 secs_left=123.760554 up=0.69 down=0.35
+[2026-03-29 09:22:56] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:22:56] EVENT INTERRUPT: OFI=0.74 Vol=$5949675 -> forcing fast poll
+[2026-03-29 09:23:00] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.000 required=0.010 secs_left=120.415676 up=0.605 down=0.385
+[2026-03-29 09:23:00] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:23:00] EVENT INTERRUPT: OFI=0.75 Vol=$5835924 -> forcing fast poll
+[2026-03-29 09:23:01] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.000 required=0.010 secs_left=118.848098 up=0.605 down=0.405
+[2026-03-29 09:23:01] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:23:01] EVENT INTERRUPT: OFI=0.75 Vol=$5825474 -> forcing fast poll
+[2026-03-29 09:23:03] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.010 required=0.010 secs_left=116.753367 up=0.615 down=0.385
+[2026-03-29 09:23:03] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:23:03] EVENT INTERRUPT: OFI=0.75 Vol=$5760244 -> forcing fast poll
+[2026-03-29 09:23:07] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.034 required=0.010 secs_left=113.006827 up=0.635 down=0.355
+[2026-03-29 09:23:07] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:23:07] EVENT INTERRUPT: OFI=0.75 Vol=$5738402 -> forcing fast poll
+[2026-03-29 09:23:09] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.034 required=0.010 secs_left=111.441994 up=0.635 down=0.365
+[2026-03-29 09:23:09] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:23:09] EVENT INTERRUPT: OFI=0.74 Vol=$5732743 -> forcing fast poll
+[2026-03-29 09:23:11] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.021 required=0.010 secs_left=109.431633 up=0.635 down=0.345
+[2026-03-29 09:23:11] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:23:11] EVENT INTERRUPT: OFI=0.77 Vol=$5505131 -> forcing fast poll
+[2026-03-29 09:23:14] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.094 required=0.010 secs_left=105.851541 up=0.665 down=0.345
+[2026-03-29 09:23:14] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:23:18] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.102 required=0.010 secs_left=102.258439 up=0.655 down=0.345
+[2026-03-29 09:23:18] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:23:23] no entry | slug=btc-updown-5m-1774747200 reason=no_valid_signals secs_left=96.966867 up=0.595 down=0.405
+[2026-03-29 09:23:23] no signal | equity=1.63 cash=1.63
+[2026-03-29 09:23:28] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=66.4% auxWR=16.5% effectiveP=64.8% price=0.480 raw_edge=0.168 required=0.025
+[2026-03-29 09:23:30] order placed: {'ok': True, 'mode': 'live', 'side': 'DOWN', 'requested_amount_usd': 1.0, 'amount_usd': 0.999999, 'planned_amount_usd': 1.0, 'actual_entry_cost_usd': 0.999999, 'actual_entry_cost_source': 'entry_response_makingAmount', 'execution_style': 'taker', 'response': {'errorMsg': '', 'orderID': '0x3cb8aaf0da41167d5f50f99177789239761d7662f22510fbebdb098e95c81c07', 'takingAmount': '2.222221', 'makingAmount': '0.999999', 'status': 'matched', 'transactionsHashes': ['0x304449d78f9c819ee81cf81a9f5f7d4a17798acb6907a7d2a1899abfc2ea7180'], 'success': True}}
+[2026-03-29 09:23:30] EVENT INTERRUPT: OFI=0.13 Vol=$1656120 -> forcing fast poll
+[2026-03-29 09:23:32] sync_hold token=53300819023425625791642063074360079956104523533549154217085202600774380838904 slug=btc-updown-5m-1774747200 reason=missing-live-position age_sec=2.2 miss_count=1
+[2026-03-29 09:23:33] position watch | side=DOWN slug=btc-updown-5m-1774747200 hold=4s secs_left=87s mark=0.485 decision_ref=$1.0667 profit_ref=$1.0667 observed_return=6.67% hard_stop_return=6.67% profit_return=6.67% decision=hold flags=pending-confirmation
+[2026-03-29 09:23:34] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=68.6% auxWR=16.5% effectiveP=66.9% price=0.485 raw_edge=0.184 required=0.030
+[2026-03-29 09:23:35] skip entry: existing position still open
+[2026-03-29 09:23:35] EVENT INTERRUPT: OFI=0.11 Vol=$1737737 -> forcing fast poll
+[2026-03-29 09:23:35] sync_hold token=53300819023425625791642063074360079956104523533549154217085202600774380838904 slug=btc-updown-5m-1774747200 reason=missing-live-position age_sec=5.6 miss_count=2
+[2026-03-29 09:23:37] position watch | side=DOWN slug=btc-updown-5m-1774747200 hold=7s secs_left=83s mark=0.445 decision_ref=$0.9778 profit_ref=$0.9778 observed_return=-2.22% hard_stop_return=-2.22% profit_return=-2.22% decision=hold flags=pending-confirmation
+[2026-03-29 09:23:38] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=68.3% auxWR=16.5% effectiveP=66.6% price=0.445 raw_edge=0.221 required=0.010
+[2026-03-29 09:23:38] skip entry: existing position still open
+[2026-03-29 09:23:38] EVENT INTERRUPT: OFI=0.13 Vol=$1590485 -> forcing fast poll
+[2026-03-29 09:23:42] position watch | side=DOWN slug=btc-updown-5m-1774747200 hold=13s secs_left=78s mark=0.435 decision_ref=$0.9409 profit_ref=$0.9409 observed_return=-4.44% hard_stop_return=-4.44% profit_return=-4.44% decision=hold flags=none
+[2026-03-29 09:23:43] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=66.9% auxWR=16.5% effectiveP=65.2% price=0.435 raw_edge=0.217 required=0.010
+[2026-03-29 09:23:44] skip entry: existing position still open
+[2026-03-29 09:23:44] EVENT INTERRUPT: OFI=0.15 Vol=$1322517 -> forcing fast poll
+[2026-03-29 09:23:46] position watch | side=DOWN slug=btc-updown-5m-1774747200 hold=16s secs_left=74s mark=0.435 decision_ref=$0.9409 profit_ref=$0.9409 observed_return=-4.44% hard_stop_return=-4.44% profit_return=-4.44% decision=hold flags=none
+[2026-03-29 09:23:46] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=66.9% auxWR=16.5% effectiveP=65.2% price=0.435 raw_edge=0.217 required=0.010
+[2026-03-29 09:23:47] skip entry: existing position still open
+[2026-03-29 09:23:47] EVENT INTERRUPT: OFI=0.24 Vol=$1488247 -> forcing fast poll
+[2026-03-29 09:23:51] position watch | side=DOWN slug=btc-updown-5m-1774747200 hold=22s secs_left=69s mark=0.505 decision_ref=$1.0066 profit_ref=$1.0066 observed_return=2.22% hard_stop_return=2.22% profit_return=2.22% decision=hold flags=none
+[2026-03-29 09:23:52] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=65.2% auxWR=16.5% effectiveP=63.5% price=0.505 raw_edge=0.130 required=0.050
+[2026-03-29 09:23:52] skip entry: entry-slippage-precheck | side=DOWN quoted=0.505 est_avg=0.720 premium=42.57% est_shares=1.3889
+[2026-03-29 09:23:52] EVENT INTERRUPT: OFI=0.19 Vol=$1991294 -> forcing fast poll
+[2026-03-29 09:23:54] position watch | side=DOWN slug=btc-updown-5m-1774747200 hold=25s secs_left=66s mark=0.685 decision_ref=$1.4880 profit_ref=$1.4880 observed_return=51.11% hard_stop_return=51.11% profit_return=51.11% decision=take-profit-principal flags=none
+[2026-03-29 09:24:02] PRINCIPAL EXTRACTED! Sold 2.19 shares. Risk-Free Moonbag active.
+[2026-03-29 09:24:02] same-market reentry blocked | slug=btc-updown-5m-1774747200 side=DOWN reason=take-profit-principal
+[2026-03-29 09:24:02] drop residual after principal extraction | token=53300819023425625791642063074360079956104523533549154217085202600774380838904 remaining_shares=0.000000 remaining_cost=0.000000
+[2026-03-29 09:24:02] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.049 required=0.020 secs_left=65.785401 up=0.305 down=0.685
+[2026-03-29 09:24:02] no signal | equity=1.10 cash=0.63
+[2026-03-29 09:24:02] EVENT INTERRUPT: OFI=0.18 Vol=$1961612 -> forcing fast poll
+[2026-03-29 09:24:05] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.051 required=0.020 secs_left=54.749945 up=0.315 down=0.685
+[2026-03-29 09:24:05] no signal | equity=2.43 cash=1.96
+[2026-03-29 09:24:05] EVENT INTERRUPT: OFI=0.19 Vol=$1965993 -> forcing fast poll
+[2026-03-29 09:24:07] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.096 required=0.020 secs_left=52.977417 up=0.275 down=0.735
+[2026-03-29 09:24:07] no signal | equity=2.43 cash=1.96
+[2026-03-29 09:24:07] EVENT INTERRUPT: OFI=0.18 Vol=$1952409 -> forcing fast poll
+[2026-03-29 09:24:09] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.067 required=0.020 secs_left=51.117722 up=0.295 down=0.705
+[2026-03-29 09:24:09] no signal | equity=2.43 cash=1.96
+[2026-03-29 09:24:09] EVENT INTERRUPT: OFI=0.18 Vol=$1945089 -> forcing fast poll
+[2026-03-29 09:24:13] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.078 required=0.020 secs_left=47.44426 up=0.285 down=0.715
+[2026-03-29 09:24:13] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:24:13] EVENT INTERRUPT: OFI=0.18 Vol=$1933232 -> forcing fast poll
+[2026-03-29 09:24:14] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.078 required=0.020 secs_left=45.761298 up=0.285 down=0.715
+[2026-03-29 09:24:14] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:24:14] EVENT INTERRUPT: OFI=0.18 Vol=$1954318 -> forcing fast poll
+[2026-03-29 09:24:16] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.077 required=0.020 secs_left=43.865114 up=0.285 down=0.715
+[2026-03-29 09:24:16] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:24:16] EVENT INTERRUPT: OFI=0.18 Vol=$1965558 -> forcing fast poll
+[2026-03-29 09:24:21] slow api | call=resolve_latest_btc_5m_token_ids latency_ms=2303 threshold_ms=2200
+[2026-03-29 09:24:22] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.248 required=0.020 secs_left=38.13388 up=0.185 down=0.815
+[2026-03-29 09:24:22] slow api streak | streak=1 last_latency_ms=2303
+[2026-03-29 09:24:22] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:24:28] no entry | slug=btc-updown-5m-1774747200 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.283 required=0.020 secs_left=32.010802 up=0.155 down=0.845
+[2026-03-29 09:24:28] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:24:34] no entry | slug=btc-updown-5m-1774747200 reason=too_late_in_market secs_left=26.641864 up=0.145 down=0.875
+[2026-03-29 09:24:34] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:24:37] no entry | slug=btc-updown-5m-1774747200 reason=too_late_in_market secs_left=23.004239 up=0.155 down=0.845
+[2026-03-29 09:24:37] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:24:42] no entry | slug=btc-updown-5m-1774747200 reason=too_late_in_market secs_left=17.712873 up=0.085 down=0.925
+[2026-03-29 09:24:42] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:24:46] no entry | slug=btc-updown-5m-1774747200 reason=too_late_in_market secs_left=14.131416 up=0.035 down=0.965
+[2026-03-29 09:24:46] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:24:51] no entry | slug=btc-updown-5m-1774747200 reason=too_late_in_market secs_left=8.82116 up=0.025 down=0.975
+[2026-03-29 09:24:51] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:24:55] no entry | slug=btc-updown-5m-1774747200 reason=too_late_in_market secs_left=5.19571 up=0.015 down=0.985
+[2026-03-29 09:24:55] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:00] no entry | slug=btc-updown-5m-1774747200 reason=too_late_in_market secs_left=0.020627 up=0.005 down=0.495
+[2026-03-29 09:25:00] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:02] market switched => btc-updown-5m-1774747500
+[2026-03-29 09:25:04] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=296.389259 up=0.465 down=0.535
+[2026-03-29 09:25:04] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:09] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=291.049248 up=0.465 down=0.535
+[2026-03-29 09:25:09] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:13] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=287.453185 up=0.455 down=0.535
+[2026-03-29 09:25:13] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:18] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=281.891667 up=0.495 down=0.52
+[2026-03-29 09:25:18] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:22] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=278.293012 up=0.42 down=0.575
+[2026-03-29 09:25:22] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:27] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=273.028344 up=0.435 down=0.565
+[2026-03-29 09:25:27] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:31] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=269.341073 up=0.335 down=0.665
+[2026-03-29 09:25:31] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:36] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=264.100755 up=0.305 down=0.695
+[2026-03-29 09:25:36] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:40] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=260.391659 up=0.365 down=0.635
+[2026-03-29 09:25:40] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:45] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=254.998067 up=0.375 down=0.625
+[2026-03-29 09:25:45] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:45] EVENT INTERRUPT: OFI=0.30 Vol=$2063630 -> forcing fast poll
+[2026-03-29 09:25:47] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=253.323719 up=0.375 down=0.635
+[2026-03-29 09:25:47] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:52] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=248.126869 up=0.425 down=0.575
+[2026-03-29 09:25:52] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:25:56] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=244.51781 up=0.505 down=0.505
+[2026-03-29 09:25:56] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:01] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=239.007236 up=0.505 down=0.505
+[2026-03-29 09:26:01] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:05] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=235.357435 up=0.595 down=0.405
+[2026-03-29 09:26:05] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:10] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=229.914937 up=0.605 down=0.395
+[2026-03-29 09:26:10] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:14] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=226.368714 up=0.595 down=0.405
+[2026-03-29 09:26:14] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:15] EVENT INTERRUPT: OFI=0.30 Vol=$1662628 -> forcing fast poll
+[2026-03-29 09:26:17] slow api | call=get_account latency_ms=2355 threshold_ms=2200
+[2026-03-29 09:26:19] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=221.412384 up=0.595 down=0.415
+[2026-03-29 09:26:19] slow api streak | streak=1 last_latency_ms=2355
+[2026-03-29 09:26:19] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:22] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=217.8129 up=0.645 down=0.355
+[2026-03-29 09:26:22] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:28] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=212.579028 up=0.735 down=0.265
+[2026-03-29 09:26:28] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:31] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=208.995115 up=0.645 down=0.385
+[2026-03-29 09:26:31] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:37] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=203.69129 up=0.615 down=0.39
+[2026-03-29 09:26:37] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:37] EVENT INTERRUPT: OFI=0.72 Vol=$1307309 -> forcing fast poll
+[2026-03-29 09:26:38] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=202.139153 up=0.615 down=0.385
+[2026-03-29 09:26:38] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:38] EVENT INTERRUPT: OFI=0.73 Vol=$1281380 -> forcing fast poll
+[2026-03-29 09:26:40] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=200.134332 up=0.615 down=0.385
+[2026-03-29 09:26:40] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:40] EVENT INTERRUPT: OFI=0.73 Vol=$1286106 -> forcing fast poll
+[2026-03-29 09:26:44] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=196.541936 up=0.635 down=0.365
+[2026-03-29 09:26:44] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:44] EVENT INTERRUPT: OFI=0.72 Vol=$1311059 -> forcing fast poll
+[2026-03-29 09:26:45] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=195.003166 up=0.655 down=0.355
+[2026-03-29 09:26:45] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:45] EVENT INTERRUPT: OFI=0.72 Vol=$1305873 -> forcing fast poll
+[2026-03-29 09:26:47] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=192.909039 up=0.645 down=0.355
+[2026-03-29 09:26:47] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:47] EVENT INTERRUPT: OFI=0.72 Vol=$1306008 -> forcing fast poll
+[2026-03-29 09:26:52] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=188.099346 up=0.615 down=0.385
+[2026-03-29 09:26:52] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:52] EVENT INTERRUPT: OFI=0.70 Vol=$1186601 -> forcing fast poll
+[2026-03-29 09:26:55] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=185.934534 up=0.625 down=0.365
+[2026-03-29 09:26:55] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:55] EVENT INTERRUPT: OFI=0.70 Vol=$1177492 -> forcing fast poll
+[2026-03-29 09:26:58] no entry | slug=btc-updown-5m-1774747500 reason=too_early_in_market secs_left=181.950092 up=0.665 down=0.335
+[2026-03-29 09:26:58] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:26:58] EVENT INTERRUPT: OFI=0.70 Vol=$1189135 -> forcing fast poll
+[2026-03-29 09:27:00] no entry | slug=btc-updown-5m-1774747500 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.092 required=0.010 secs_left=180.274113 up=0.66 down=0.335
+[2026-03-29 09:27:00] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:27:05] no entry | slug=btc-updown-5m-1774747500 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.059 required=0.010 secs_left=175.003914 up=0.61 down=0.395
+[2026-03-29 09:27:05] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:27:09] no entry | slug=btc-updown-5m-1774747500 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.065 required=0.010 secs_left=171.451104 up=0.605 down=0.405
+[2026-03-29 09:27:09] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:27:14] no entry | slug=btc-updown-5m-1774747500 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.090 required=0.010 secs_left=166.07554 up=0.635 down=0.365
+[2026-03-29 09:27:14] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:27:18] no entry | slug=btc-updown-5m-1774747500 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.069 required=0.010 secs_left=162.46693 up=0.605 down=0.395
+[2026-03-29 09:27:18] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:27:23] no entry | slug=btc-updown-5m-1774747500 reason=no_valid_signals secs_left=157.433225 up=0.585 down=0.405
+[2026-03-29 09:27:23] no signal | equity=1.96 cash=1.96
+[2026-03-29 09:27:27] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=57.9% auxWR=16.5% effectiveP=56.2% price=0.405 raw_edge=0.157 required=0.005
+[2026-03-29 09:27:29] order placed: {'ok': True, 'mode': 'live', 'side': 'DOWN', 'requested_amount_usd': 1.0, 'amount_usd': 0.999999, 'planned_amount_usd': 1.0, 'actual_entry_cost_usd': 0.999999, 'actual_entry_cost_source': 'entry_response_makingAmount', 'execution_style': 'taker', 'response': {'errorMsg': '', 'orderID': '0x0151ad19ee0bd770b784c6a7bcd63308643fb7992add320b3fa2ba4b1cfda3be', 'takingAmount': '2.564101', 'makingAmount': '0.999999', 'status': 'matched', 'transactionsHashes': ['0xc3d493ca3a4df49b9029aca336f6ef1381f06fe9c5fa5d9e3f0a65318a4b82c7'], 'success': True}}
+[2026-03-29 09:27:29] EVENT INTERRUPT: OFI=0.28 Vol=$572758 -> forcing fast poll
+[2026-03-29 09:27:32] sync_hold token=115094988802174808472887634191567289992191501723069993611759680289231711371859 slug=btc-updown-5m-1774747500 reason=missing-live-position age_sec=2.2 miss_count=1
+[2026-03-29 09:27:33] position watch | side=DOWN slug=btc-updown-5m-1774747500 hold=4s secs_left=147s mark=0.395 decision_ref=$0.9487 profit_ref=$0.9487 observed_return=-5.13% hard_stop_return=-5.13% profit_return=-5.13% decision=hold flags=pending-confirmation
+[2026-03-29 09:27:34] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=58.1% auxWR=16.5% effectiveP=56.4% price=0.395 raw_edge=0.169 required=0.005
+[2026-03-29 09:27:35] skip entry: existing position still open
+[2026-03-29 09:27:41] position watch | side=DOWN slug=btc-updown-5m-1774747500 hold=12s secs_left=139s mark=0.395 decision_ref=$0.9859 profit_ref=$0.9859 observed_return=0.00% hard_stop_return=0.00% profit_return=0.00% decision=hold flags=none
+[2026-03-29 09:27:42] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=56.6% auxWR=16.5% effectiveP=55.0% price=0.395 raw_edge=0.155 required=0.005
+[2026-03-29 09:27:43] skip entry: existing position still open
+[2026-03-29 09:27:48] position watch | side=DOWN slug=btc-updown-5m-1774747500 hold=19s secs_left=132s mark=0.395 decision_ref=$0.9859 profit_ref=$0.9859 observed_return=0.00% hard_stop_return=0.00% profit_return=0.00% decision=hold flags=none
+[2026-03-29 09:27:49] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=55.1% auxWR=16.5% effectiveP=53.5% price=0.395 raw_edge=0.140 required=0.005
+[2026-03-29 09:27:50] skip entry: existing position still open
+[2026-03-29 09:27:55] position watch | side=DOWN slug=btc-updown-5m-1774747500 hold=26s secs_left=125s mark=0.405 decision_ref=$1.0111 profit_ref=$1.0111 observed_return=2.56% hard_stop_return=2.56% profit_return=2.56% decision=hold flags=none
+[2026-03-29 09:27:56] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=55.2% auxWR=16.5% effectiveP=53.6% price=0.405 raw_edge=0.131 required=0.005
+[2026-03-29 09:27:57] skip entry: existing position still open
+[2026-03-29 09:28:03] position watch | side=DOWN slug=btc-updown-5m-1774747500 hold=33s secs_left=118s mark=0.395 decision_ref=$0.9859 profit_ref=$0.9859 observed_return=0.00% hard_stop_return=0.00% profit_return=0.00% decision=hold flags=none
+[2026-03-29 09:28:03] no entry | slug=btc-updown-5m-1774747500 reason=no_valid_signals secs_left=117.539904 up=0.595 down=0.395
+[2026-03-29 09:28:03] no signal | equity=1.65 cash=0.96
+[2026-03-29 09:28:07] position watch | side=DOWN slug=btc-updown-5m-1774747500 hold=37s secs_left=114s mark=0.395 decision_ref=$0.9606 profit_ref=$0.9606 observed_return=-2.56% hard_stop_return=-2.56% profit_return=-2.56% decision=hold flags=none
+[2026-03-29 09:28:07] no entry | slug=btc-updown-5m-1774747500 reason=no_valid_signals secs_left=113.661759 up=0.585 down=0.395
+[2026-03-29 09:28:07] no signal | equity=1.65 cash=0.96
+[2026-03-29 09:28:08] EVENT INTERRUPT: OFI=0.30 Vol=$758736 -> forcing fast poll
+[2026-03-29 09:28:11] position watch | side=DOWN slug=btc-updown-5m-1774747500 hold=42s secs_left=109s mark=0.575 decision_ref=$1.4409 profit_ref=$1.4409 observed_return=46.15% hard_stop_return=46.15% profit_return=46.15% decision=take-profit-principal flags=none
+[2026-03-29 09:28:21] PRINCIPAL EXTRACTED! Sold 2.53 shares. Risk-Free Moonbag active.
+[2026-03-29 09:28:21] same-market reentry blocked | slug=btc-updown-5m-1774747500 side=DOWN reason=take-profit-principal
+[2026-03-29 09:28:21] drop residual after principal extraction | token=115094988802174808472887634191567289992191501723069993611759680289231711371859 remaining_shares=0.000000 remaining_cost=0.000000
+[2026-03-29 09:28:22] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=62.9% auxWR=16.5% effectiveP=61.2% price=0.575 raw_edge=0.037 required=0.005
+[2026-03-29 09:28:23] skip entry: same market reentry blocked after recent terminal exit
+[2026-03-29 09:28:23] EVENT INTERRUPT: OFI=0.21 Vol=$895993 -> forcing fast poll
+[2026-03-29 09:28:27] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=63.9% auxWR=16.5% effectiveP=62.2% price=0.575 raw_edge=0.047 required=0.005
+[2026-03-29 09:28:28] skip entry: same market reentry blocked after recent terminal exit
+[2026-03-29 09:28:28] EVENT INTERRUPT: OFI=0.23 Vol=$924853 -> forcing fast poll
+[2026-03-29 09:28:30] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=63.3% auxWR=16.5% effectiveP=61.6% price=0.575 raw_edge=0.041 required=0.005
+[2026-03-29 09:28:31] skip entry: same market reentry blocked after recent terminal exit
+[2026-03-29 09:28:31] EVENT INTERRUPT: OFI=0.24 Vol=$929039 -> forcing fast poll
+[2026-03-29 09:28:35] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=62.8% auxWR=16.5% effectiveP=61.1% price=0.485 raw_edge=0.126 required=0.030
+[2026-03-29 09:28:36] skip entry: same market reentry blocked after recent terminal exit
+[2026-03-29 09:28:36] EVENT INTERRUPT: OFI=0.24 Vol=$940932 -> forcing fast poll
+[2026-03-29 09:28:38] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=62.1% auxWR=16.5% effectiveP=60.4% price=0.470 raw_edge=0.134 required=0.010
+[2026-03-29 09:28:39] skip entry: same market reentry blocked after recent terminal exit
+[2026-03-29 09:28:39] EVENT INTERRUPT: OFI=0.22 Vol=$967390 -> forcing fast poll
+[2026-03-29 09:28:42] no entry | slug=btc-updown-5m-1774747500 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.004 required=0.015 secs_left=78.291552 up=0.375 down=0.625
+[2026-03-29 09:28:42] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:28:42] EVENT INTERRUPT: OFI=0.22 Vol=$959273 -> forcing fast poll
+[2026-03-29 09:28:44] no entry | slug=btc-updown-5m-1774747500 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.034 required=0.015 secs_left=76.600233 up=0.345 down=0.655
+[2026-03-29 09:28:44] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:28:44] EVENT INTERRUPT: OFI=0.21 Vol=$957942 -> forcing fast poll
+[2026-03-29 09:28:46] no entry | slug=btc-updown-5m-1774747500 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.019 required=0.015 secs_left=74.417497 up=0.365 down=0.635
+[2026-03-29 09:28:46] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:28:46] EVENT INTERRUPT: OFI=0.22 Vol=$972239 -> forcing fast poll
+[2026-03-29 09:28:49] no entry | slug=btc-updown-5m-1774747500 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.011 required=0.015 secs_left=71.071826 up=0.39 down=0.63
+[2026-03-29 09:28:49] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:28:49] EVENT INTERRUPT: OFI=0.22 Vol=$997177 -> forcing fast poll
+[2026-03-29 09:28:51] no entry | slug=btc-updown-5m-1774747500 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.025 required=0.015 secs_left=69.431627 up=0.355 down=0.645
+[2026-03-29 09:28:51] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:28:51] EVENT INTERRUPT: OFI=0.22 Vol=$986133 -> forcing fast poll
+[2026-03-29 09:28:53] no entry | slug=btc-updown-5m-1774747500 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.015 required=0.015 secs_left=67.390872 up=0.375 down=0.625
+[2026-03-29 09:28:53] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:28:53] EVENT INTERRUPT: OFI=0.24 Vol=$1009143 -> forcing fast poll
+[2026-03-29 09:28:57] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=62.7% auxWR=16.5% effectiveP=61.1% price=0.565 raw_edge=0.046 required=0.010
+[2026-03-29 09:28:58] skip entry: same market reentry blocked after recent terminal exit
+[2026-03-29 09:28:58] EVENT INTERRUPT: OFI=0.23 Vol=$984861 -> forcing fast poll
+[2026-03-29 09:29:00] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=62.8% auxWR=16.5% effectiveP=61.1% price=0.580 raw_edge=0.031 required=0.010
+[2026-03-29 09:29:01] skip entry: same market reentry blocked after recent terminal exit
+[2026-03-29 09:29:01] EVENT INTERRUPT: OFI=0.23 Vol=$980069 -> forcing fast poll
+[2026-03-29 09:29:10] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=59.9% auxWR=16.5% effectiveP=58.2% price=0.535 raw_edge=0.047 required=0.010
+[2026-03-29 09:29:10] skip entry: entry-slippage-precheck | side=DOWN quoted=0.535 est_avg=0.720 premium=34.58% est_shares=1.3889
+[2026-03-29 09:29:16] no entry | slug=btc-updown-5m-1774747500 reason=flow_too_weak_143 secs_left=44.228118 up=0.23 down=0.765
+[2026-03-29 09:29:16] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:29:20] no entry | slug=btc-updown-5m-1774747500 reason=no_valid_signals secs_left=40.613053 up=0.235 down=0.775
+[2026-03-29 09:29:20] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:29:25] no entry | slug=btc-updown-5m-1774747500 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.067 required=0.010 secs_left=35.434704 up=0.305 down=0.59
+[2026-03-29 09:29:25] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:29:28] no entry | slug=btc-updown-5m-1774747500 reason=no_valid_signals secs_left=31.81712 up=0.535 down=0.455
+[2026-03-29 09:29:28] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:29:34] no entry | slug=btc-updown-5m-1774747500 reason=too_late_in_market secs_left=26.517451 up=0.465 down=0.535
+[2026-03-29 09:29:34] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:29:37] no entry | slug=btc-updown-5m-1774747500 reason=too_late_in_market secs_left=22.875215 up=0.505 down=0.485
+[2026-03-29 09:29:37] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:29:43] no entry | slug=btc-updown-5m-1774747500 reason=too_late_in_market secs_left=17.617512 up=0.665 down=0.335
+[2026-03-29 09:29:43] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:29:46] no entry | slug=btc-updown-5m-1774747500 reason=too_late_in_market secs_left=13.910847 up=0.745 down=0.285
+[2026-03-29 09:29:46] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:29:52] no entry | slug=btc-updown-5m-1774747500 reason=too_late_in_market secs_left=8.572743 up=0.715 down=0.285
+[2026-03-29 09:29:52] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:29:55] no entry | slug=btc-updown-5m-1774747500 reason=too_late_in_market secs_left=4.924737 up=0.735 down=0.265
+[2026-03-29 09:29:55] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:30:01] no entry | slug=btc-updown-5m-1774747500 reason=too_late_in_market secs_left=-0.220407 up=0.495 down=0.005
+[2026-03-29 09:30:01] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:30:03] market switched => btc-updown-5m-1774747800
+[2026-03-29 09:30:04] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=295.959193 up=0.615 down=0.385
+[2026-03-29 09:30:04] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:30:09] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=290.836327 up=0.605 down=0.395
+[2026-03-29 09:30:09] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:30:13] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=287.251994 up=0.525 down=0.475
+[2026-03-29 09:30:13] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:30:18] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=282.066597 up=0.515 down=0.485
+[2026-03-29 09:30:18] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:30:22] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=278.482137 up=0.515 down=0.475
+[2026-03-29 09:30:22] no signal | equity=2.31 cash=2.31
+[2026-03-29 09:30:27] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=273.205936 up=0.47 down=0.535
+[2026-03-29 09:30:27] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:30:31] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=269.546245 up=0.405 down=0.575
+[2026-03-29 09:30:31] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:30:36] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=264.276362 up=0.355 down=0.645
+[2026-03-29 09:30:36] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:30:40] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=260.579138 up=0.365 down=0.635
+[2026-03-29 09:30:40] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:30:45] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=255.368621 up=0.375 down=0.635
+[2026-03-29 09:30:45] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:30:48] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=251.722299 up=0.335 down=0.665
+[2026-03-29 09:30:48] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:30:54] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=246.617703 up=0.355 down=0.64
+[2026-03-29 09:30:54] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:30:58] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=242.998477 up=0.345 down=0.655
+[2026-03-29 09:30:58] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:05] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=235.559073 up=0.355 down=0.66
+[2026-03-29 09:31:05] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:10] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=230.243782 up=0.365 down=0.635
+[2026-03-29 09:31:10] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:14] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=226.575261 up=0.255 down=0.735
+[2026-03-29 09:31:14] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:19] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=221.354807 up=0.245 down=0.745
+[2026-03-29 09:31:19] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:22] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=217.760835 up=0.375 down=0.615
+[2026-03-29 09:31:22] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:28] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=212.489203 up=0.335 down=0.67
+[2026-03-29 09:31:28] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:31] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=208.838338 up=0.305 down=0.695
+[2026-03-29 09:31:31] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:37] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=203.490402 up=0.285 down=0.725
+[2026-03-29 09:31:37] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:40] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=199.845259 up=0.285 down=0.715
+[2026-03-29 09:31:40] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:46] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=194.554586 up=0.265 down=0.735
+[2026-03-29 09:31:46] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:49] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=190.938325 up=0.265 down=0.735
+[2026-03-29 09:31:49] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:55] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=185.650903 up=0.295 down=0.695
+[2026-03-29 09:31:55] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:31:58] no entry | slug=btc-updown-5m-1774747800 reason=too_early_in_market secs_left=182.006137 up=0.305 down=0.695
+[2026-03-29 09:31:58] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:32:04] no entry | slug=btc-updown-5m-1774747800 reason=no_valid_signals secs_left=176.545083 up=0.28 down=0.755
+[2026-03-29 09:32:04] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:32:07] no entry | slug=btc-updown-5m-1774747800 reason=flow_too_weak_1172 secs_left=172.945943 up=0.195 down=0.795
+[2026-03-29 09:32:07] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:32:12] no entry | slug=btc-updown-5m-1774747800 reason=flow_too_weak_1167 secs_left=167.802102 up=0.195 down=0.805
+[2026-03-29 09:32:12] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:32:16] loss-reversal SKIPPED: reversed side WR=16.5% <= 55% threshold, keeping original signal=UP
+[2026-03-29 09:32:17] entry approved | strategy=model-ws_order_flow_up side=UP modelP=56.9% auxWR=15.1% effectiveP=55.2% price=0.215 raw_edge=0.337 required=0.005
+[2026-03-29 09:32:19] entry retry scheduled | side=UP attempt=2/3 reason=PolyApiException[status_code=400, error_message={'error': 'no orders found to match with FAK order. FAK orders are partially filled or killed if no match is found.'}]
+[2026-03-29 09:32:22] entry order recovered after retry | attempts=2 side=UP
+[2026-03-29 09:32:22] order placed: {'ok': True, 'mode': 'live', 'side': 'UP', 'requested_amount_usd': 1.0, 'amount_usd': 0.999999, 'planned_amount_usd': 1.0, 'actual_entry_cost_usd': 0.999999, 'actual_entry_cost_source': 'entry_response_makingAmount', 'execution_style': 'taker', 'response': {'errorMsg': '', 'orderID': '0x2cf6ddfaea6414e603568d9b8a6d1f35f8f2bb2782d53d050bb35ac9b3f37469', 'takingAmount': '4.545453', 'makingAmount': '0.999999', 'status': 'matched', 'transactionsHashes': ['0x76e3bb7f4342a407804b29b9c4406ece6a6414ef066b17ae73bf698eec8a6751'], 'success': True}}
+[2026-03-29 09:32:25] sync_hold token=36747274723648253167748227515852301848619736326034587670446252641344494938451 slug=btc-updown-5m-1774747800 reason=missing-live-position age_sec=3.1 miss_count=1
+[2026-03-29 09:32:27] position watch | side=UP slug=btc-updown-5m-1774747800 hold=5s secs_left=154s mark=0.195 decision_ref=$0.8636 profit_ref=$0.8636 observed_return=-13.64% hard_stop_return=-13.64% profit_return=-13.64% decision=stop-loss-full flags=pending-confirmation
+[2026-03-29 09:32:27] stop-loss warning | side=UP observed_return=-13.64% hold=5s
+[2026-03-29 09:33:03] EXIT UP | btc-updown-5m-1774747800 | cost=$1.0000 | closed_shares=4.545453 | actual_recovered=$0.7641 pnl=-0.2359 src=cash_balance_delta | observed_est=$0.8864 pnl=-0.1136 src=observed_mark_price | remaining_shares=0.000000 | reason=stop-loss-full
+[2026-03-29 09:33:03] stop-loss-full close | side=UP pnl_pct=-13.64% hard_stop_pnl_pct=-13.64% actual_realized_pnl_usd=-0.2359 actual_return=-23.59% observed_pnl_usd=-0.1136 hold=5s consec_losses=4 resp={'ok': True, 'mode': 'live', 'requested_shares': 4.3181803500000004, 'closed_shares': 0.1710451, 'remaining_shares': 0.030447899999999993, 'attempts': 8, 'response': {'errorMsg': '', 'orderID': '0x2eb9c773384c582f8bca6c06c9250b463d0a645dc2a9a86da9927bf987347452', 'takingAmount': '0.0018', 'makingAmount': '0.01', 'status': 'matched', 'transactionsHashes': ['0x6af551ac61ded26873c4b34102db9ace6fbc4e9df68a526af00f465603f94e56'], 'success': True}, 'error': None, 'cash_before': 1.524236, 'cash_after': 2.288296, 'actual_exit_value_usd': 0.76406, 'actual_exit_value_source': 'cash_balance_delta', 'close_response_value': 0.7348600000000003, 'close_response_value_source': 'close_response_takingAmount', 'close_response_amount_fields': {'shares_sold_per_attempt': '[0.1410451, 0.02, 0.01]'}, 'execution_style': 'mixed'}
+[2026-03-29 09:33:03] same-market reentry blocked | slug=btc-updown-5m-1774747800 side=UP reason=stop-loss-full
+[2026-03-29 09:33:03] drop residual after close | token=36747274723648253167748227515852301848619736326034587670446252641344494938451 remaining_shares=0.000000 remaining_cost=0.000000
+[2026-03-29 09:33:03] no entry | slug=btc-updown-5m-1774747800 reason=no_valid_signals secs_left=153.530739 up=0.195 down=0.815
+[2026-03-29 09:33:03] no signal | equity=2.52 cash=2.52
+[2026-03-29 09:33:03] EVENT INTERRUPT: OFI=0.28 Vol=$888557 -> forcing fast poll
+[2026-03-29 09:33:06] no entry | slug=btc-updown-5m-1774747800 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.238 required=0.015 secs_left=114.220591 up=0.16 down=0.835
+[2026-03-29 09:33:06] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:06] EVENT INTERRUPT: OFI=0.27 Vol=$896393 -> forcing fast poll
+[2026-03-29 09:33:08] no entry | slug=btc-updown-5m-1774747800 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.254 required=0.015 secs_left=112.526604 up=0.155 down=0.845
+[2026-03-29 09:33:08] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:13] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.135_down0.865 secs_left=107.21558 up=0.135 down=0.865
+[2026-03-29 09:33:13] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:17] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.145_down0.865 secs_left=103.600742 up=0.145 down=0.865
+[2026-03-29 09:33:17] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:22] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.125_down0.875 secs_left=98.189765 up=0.125 down=0.875
+[2026-03-29 09:33:22] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:26] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.135_down0.875 secs_left=94.584806 up=0.135 down=0.875
+[2026-03-29 09:33:26] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:31] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.115_down0.885 secs_left=89.310492 up=0.115 down=0.885
+[2026-03-29 09:33:31] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:35] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.105_down0.885 secs_left=85.676422 up=0.105 down=0.885
+[2026-03-29 09:33:35] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:40] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.115_down0.89 secs_left=80.503057 up=0.115 down=0.89
+[2026-03-29 09:33:40] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:43] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.125_down0.875 secs_left=76.80965 up=0.125 down=0.875
+[2026-03-29 09:33:43] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:49] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.125_down0.895 secs_left=71.461585 up=0.125 down=0.895
+[2026-03-29 09:33:49] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:52] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.115_down0.885 secs_left=67.811788 up=0.115 down=0.885
+[2026-03-29 09:33:52] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:58] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.125_down0.875 secs_left=62.575341 up=0.125 down=0.875
+[2026-03-29 09:33:58] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:33:59] EVENT INTERRUPT: OFI=0.21 Vol=$3724740 -> forcing fast poll
+[2026-03-29 09:34:00] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.095_down0.905 secs_left=59.996241 up=0.095 down=0.905
+[2026-03-29 09:34:00] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:00] EVENT INTERRUPT: OFI=0.21 Vol=$3700741 -> forcing fast poll
+[2026-03-29 09:34:04] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.075_down0.925 secs_left=56.524883 up=0.075 down=0.925
+[2026-03-29 09:34:04] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:04] EVENT INTERRUPT: OFI=0.21 Vol=$3721938 -> forcing fast poll
+[2026-03-29 09:34:05] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.095_down0.905 secs_left=54.873229 up=0.095 down=0.905
+[2026-03-29 09:34:05] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:05] EVENT INTERRUPT: OFI=0.21 Vol=$3685575 -> forcing fast poll
+[2026-03-29 09:34:07] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.095_down0.905 secs_left=52.911106 up=0.095 down=0.905
+[2026-03-29 09:34:07] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:07] EVENT INTERRUPT: OFI=0.13 Vol=$3562431 -> forcing fast poll
+[2026-03-29 09:34:11] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.085_down0.915 secs_left=49.215404 up=0.085 down=0.915
+[2026-03-29 09:34:11] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:11] EVENT INTERRUPT: OFI=0.13 Vol=$3610541 -> forcing fast poll
+[2026-03-29 09:34:13] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.065_down0.915 secs_left=47.576734 up=0.065 down=0.915
+[2026-03-29 09:34:13] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:13] EVENT INTERRUPT: OFI=0.13 Vol=$3647025 -> forcing fast poll
+[2026-03-29 09:34:15] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.065_down0.915 secs_left=45.665251 up=0.065 down=0.915
+[2026-03-29 09:34:15] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:15] EVENT INTERRUPT: OFI=0.13 Vol=$3606539 -> forcing fast poll
+[2026-03-29 09:34:18] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.095_down0.915 secs_left=42.03581 up=0.095 down=0.915
+[2026-03-29 09:34:18] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:18] EVENT INTERRUPT: OFI=0.15 Vol=$3703893 -> forcing fast poll
+[2026-03-29 09:34:20] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.085_down0.945 secs_left=40.419112 up=0.085 down=0.945
+[2026-03-29 09:34:20] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:20] EVENT INTERRUPT: OFI=0.15 Vol=$3700568 -> forcing fast poll
+[2026-03-29 09:34:22] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.045_down0.955 secs_left=38.352023 up=0.045 down=0.955
+[2026-03-29 09:34:22] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:22] EVENT INTERRUPT: OFI=0.14 Vol=$3696845 -> forcing fast poll
+[2026-03-29 09:34:25] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.035_down0.965 secs_left=34.998731 up=0.035 down=0.965
+[2026-03-29 09:34:25] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:25] EVENT INTERRUPT: OFI=0.14 Vol=$3707276 -> forcing fast poll
+[2026-03-29 09:34:27] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.035_down0.965 secs_left=33.329938 up=0.035 down=0.965
+[2026-03-29 09:34:27] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:27] EVENT INTERRUPT: OFI=0.14 Vol=$3717046 -> forcing fast poll
+[2026-03-29 09:34:29] no entry | slug=btc-updown-5m-1774747800 reason=prices_out_of_bounds_up0.035_down0.965 secs_left=31.464942 up=0.035 down=0.965
+[2026-03-29 09:34:29] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:29] EVENT INTERRUPT: OFI=0.14 Vol=$3729806 -> forcing fast poll
+[2026-03-29 09:34:33] no entry | slug=btc-updown-5m-1774747800 reason=too_late_in_market secs_left=27.677007 up=0.025 down=0.975
+[2026-03-29 09:34:33] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:33] EVENT INTERRUPT: OFI=0.13 Vol=$3642324 -> forcing fast poll
+[2026-03-29 09:34:34] no entry | slug=btc-updown-5m-1774747800 reason=too_late_in_market secs_left=26.043705 up=0.025 down=0.975
+[2026-03-29 09:34:34] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:34] EVENT INTERRUPT: OFI=0.13 Vol=$3643786 -> forcing fast poll
+[2026-03-29 09:34:36] no entry | slug=btc-updown-5m-1774747800 reason=too_late_in_market secs_left=24.170255 up=0.025 down=0.965
+[2026-03-29 09:34:36] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:36] EVENT INTERRUPT: OFI=0.13 Vol=$3825212 -> forcing fast poll
+[2026-03-29 09:34:40] no entry | slug=btc-updown-5m-1774747800 reason=too_late_in_market secs_left=20.435746 up=0.025 down=0.975
+[2026-03-29 09:34:40] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:40] EVENT INTERRUPT: OFI=0.13 Vol=$3807522 -> forcing fast poll
+[2026-03-29 09:34:41] no entry | slug=btc-updown-5m-1774747800 reason=too_late_in_market secs_left=18.849341 up=0.065 down=0.95
+[2026-03-29 09:34:41] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:41] EVENT INTERRUPT: OFI=0.13 Vol=$3818753 -> forcing fast poll
+[2026-03-29 09:34:43] no entry | slug=btc-updown-5m-1774747800 reason=too_late_in_market secs_left=16.814988 up=0.03 down=0.975
+[2026-03-29 09:34:43] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:43] EVENT INTERRUPT: OFI=0.13 Vol=$3707669 -> forcing fast poll
+[2026-03-29 09:34:47] no entry | slug=btc-updown-5m-1774747800 reason=too_late_in_market secs_left=13.269323 up=0.015 down=0.985
+[2026-03-29 09:34:47] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:47] EVENT INTERRUPT: OFI=0.13 Vol=$3933393 -> forcing fast poll
+[2026-03-29 09:34:49] no entry | slug=btc-updown-5m-1774747800 reason=too_late_in_market secs_left=11.605607 up=0.005 down=0.495
+[2026-03-29 09:34:49] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:49] EVENT INTERRUPT: OFI=0.08 Vol=$3790586 -> forcing fast poll
+[2026-03-29 09:34:51] no entry | slug=btc-updown-5m-1774747800 reason=too_late_in_market secs_left=9.610051 up=0.005 down=0.495
+[2026-03-29 09:34:51] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:51] EVENT INTERRUPT: OFI=0.08 Vol=$3841550 -> forcing fast poll
+[2026-03-29 09:34:54] no entry | slug=btc-updown-5m-1774747800 reason=too_late_in_market secs_left=6.096184 up=0.005 down=0.495
+[2026-03-29 09:34:54] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:54] EVENT INTERRUPT: OFI=0.08 Vol=$4029982 -> forcing fast poll
+[2026-03-29 09:34:56] no entry | slug=btc-updown-5m-1774747800 reason=too_late_in_market secs_left=4.450608 up=0.005 down=0.495
+[2026-03-29 09:34:56] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:56] EVENT INTERRUPT: OFI=0.08 Vol=$4034366 -> forcing fast poll
+[2026-03-29 09:34:58] no entry | slug=btc-updown-5m-1774747800 reason=too_late_in_market secs_left=2.496836 up=0.005 down=0.495
+[2026-03-29 09:34:58] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:34:58] EVENT INTERRUPT: OFI=0.07 Vol=$4014021 -> forcing fast poll
+[2026-03-29 09:35:00] market switched => btc-updown-5m-1774748100
+[2026-03-29 09:35:02] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=298.925778 up=0.465 down=0.535
+[2026-03-29 09:35:02] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:02] EVENT INTERRUPT: OFI=0.17 Vol=$1494990 -> forcing fast poll
+[2026-03-29 09:35:03] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=297.008606 up=0.465 down=0.535
+[2026-03-29 09:35:03] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:03] EVENT INTERRUPT: OFI=0.18 Vol=$1469866 -> forcing fast poll
+[2026-03-29 09:35:05] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=294.995074 up=0.505 down=0.505
+[2026-03-29 09:35:05] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:05] EVENT INTERRUPT: OFI=0.17 Vol=$1509805 -> forcing fast poll
+[2026-03-29 09:35:09] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=291.361106 up=0.535 down=0.445
+[2026-03-29 09:35:09] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:12] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=287.707347 up=0.52 down=0.505
+[2026-03-29 09:35:12] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:18] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=282.52846 up=0.475 down=0.525
+[2026-03-29 09:35:18] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:21] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=278.949482 up=0.485 down=0.515
+[2026-03-29 09:35:21] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:27] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=273.632232 up=0.465 down=0.525
+[2026-03-29 09:35:27] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:30] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=269.993116 up=0.485 down=0.515
+[2026-03-29 09:35:30] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:35] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=264.732651 up=0.485 down=0.515
+[2026-03-29 09:35:35] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:39] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=261.05861 up=0.415 down=0.595
+[2026-03-29 09:35:39] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:44] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=255.879856 up=0.295 down=0.72
+[2026-03-29 09:35:44] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:44] EVENT INTERRUPT: OFI=0.23 Vol=$3613984 -> forcing fast poll
+[2026-03-29 09:35:46] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=253.791126 up=0.265 down=0.73
+[2026-03-29 09:35:46] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:46] EVENT INTERRUPT: OFI=0.24 Vol=$3426589 -> forcing fast poll
+[2026-03-29 09:35:48] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=252.063228 up=0.255 down=0.745
+[2026-03-29 09:35:48] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:48] EVENT INTERRUPT: OFI=0.26 Vol=$3628315 -> forcing fast poll
+[2026-03-29 09:35:52] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=248.449949 up=0.295 down=0.715
+[2026-03-29 09:35:52] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:52] EVENT INTERRUPT: OFI=0.27 Vol=$3483718 -> forcing fast poll
+[2026-03-29 09:35:53] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=246.836514 up=0.28 down=0.725
+[2026-03-29 09:35:53] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:53] EVENT INTERRUPT: OFI=0.26 Vol=$3284216 -> forcing fast poll
+[2026-03-29 09:35:55] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=244.796591 up=0.275 down=0.725
+[2026-03-29 09:35:55] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:55] EVENT INTERRUPT: OFI=0.26 Vol=$3235567 -> forcing fast poll
+[2026-03-29 09:35:59] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=241.051821 up=0.265 down=0.735
+[2026-03-29 09:35:59] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:35:59] EVENT INTERRUPT: OFI=0.26 Vol=$3294881 -> forcing fast poll
+[2026-03-29 09:36:01] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=239.389413 up=0.265 down=0.715
+[2026-03-29 09:36:01] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:06] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=234.022539 up=0.375 down=0.615
+[2026-03-29 09:36:06] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:07] EVENT INTERRUPT: OFI=0.23 Vol=$3174682 -> forcing fast poll
+[2026-03-29 09:36:09] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=231.386117 up=0.375 down=0.635
+[2026-03-29 09:36:09] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:09] EVENT INTERRUPT: OFI=0.20 Vol=$3187212 -> forcing fast poll
+[2026-03-29 09:36:12] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=227.802025 up=0.26 down=0.755
+[2026-03-29 09:36:12] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:12] EVENT INTERRUPT: OFI=0.20 Vol=$3419310 -> forcing fast poll
+[2026-03-29 09:36:14] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=226.149889 up=0.255 down=0.745
+[2026-03-29 09:36:14] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:14] EVENT INTERRUPT: OFI=0.19 Vol=$3386478 -> forcing fast poll
+[2026-03-29 09:36:16] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=224.172578 up=0.295 down=0.695
+[2026-03-29 09:36:16] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:16] EVENT INTERRUPT: OFI=0.21 Vol=$3520335 -> forcing fast poll
+[2026-03-29 09:36:20] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=220.553453 up=0.315 down=0.685
+[2026-03-29 09:36:20] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:20] EVENT INTERRUPT: OFI=0.21 Vol=$3521784 -> forcing fast poll
+[2026-03-29 09:36:21] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=218.877393 up=0.305 down=0.695
+[2026-03-29 09:36:21] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:21] EVENT INTERRUPT: OFI=0.21 Vol=$3554329 -> forcing fast poll
+[2026-03-29 09:36:23] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=216.949735 up=0.305 down=0.705
+[2026-03-29 09:36:23] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:23] EVENT INTERRUPT: OFI=0.21 Vol=$3564293 -> forcing fast poll
+[2026-03-29 09:36:27] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=213.291143 up=0.245 down=0.755
+[2026-03-29 09:36:27] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:27] EVENT INTERRUPT: OFI=0.21 Vol=$3502194 -> forcing fast poll
+[2026-03-29 09:36:29] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=211.598538 up=0.25 down=0.745
+[2026-03-29 09:36:29] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:29] EVENT INTERRUPT: OFI=0.20 Vol=$3447701 -> forcing fast poll
+[2026-03-29 09:36:31] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=209.573807 up=0.265 down=0.745
+[2026-03-29 09:36:31] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:31] EVENT INTERRUPT: OFI=0.21 Vol=$3740302 -> forcing fast poll
+[2026-03-29 09:36:34] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=205.967125 up=0.18 down=0.825
+[2026-03-29 09:36:34] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:34] EVENT INTERRUPT: OFI=0.20 Vol=$3883905 -> forcing fast poll
+[2026-03-29 09:36:36] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=204.331706 up=0.175 down=0.795
+[2026-03-29 09:36:36] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:36] EVENT INTERRUPT: OFI=0.20 Vol=$3887689 -> forcing fast poll
+[2026-03-29 09:36:38] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=202.366551 up=0.225 down=0.775
+[2026-03-29 09:36:38] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:38] EVENT INTERRUPT: OFI=0.21 Vol=$3803492 -> forcing fast poll
+[2026-03-29 09:36:41] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=198.70504 up=0.195 down=0.805
+[2026-03-29 09:36:41] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:45] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=195.178006 up=0.195 down=0.795
+[2026-03-29 09:36:45] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:50] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=189.921271 up=0.175 down=0.825
+[2026-03-29 09:36:50] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:50] EVENT INTERRUPT: OFI=0.27 Vol=$1931797 -> forcing fast poll
+[2026-03-29 09:36:52] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=188.322156 up=0.195 down=0.82
+[2026-03-29 09:36:52] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:52] EVENT INTERRUPT: OFI=0.26 Vol=$2071472 -> forcing fast poll
+[2026-03-29 09:36:54] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=186.3138 up=0.165 down=0.835
+[2026-03-29 09:36:54] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:54] EVENT INTERRUPT: OFI=0.26 Vol=$2085413 -> forcing fast poll
+[2026-03-29 09:36:57] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=182.770654 up=0.145 down=0.855
+[2026-03-29 09:36:57] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:57] EVENT INTERRUPT: OFI=0.27 Vol=$2114164 -> forcing fast poll
+[2026-03-29 09:36:59] no entry | slug=btc-updown-5m-1774748100 reason=too_early_in_market secs_left=181.163105 up=0.17 down=0.835
+[2026-03-29 09:36:59] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:36:59] EVENT INTERRUPT: OFI=0.27 Vol=$2118936 -> forcing fast poll
+[2026-03-29 09:37:01] no entry | slug=btc-updown-5m-1774748100 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.207 required=0.015 secs_left=179.155265 up=0.155 down=0.85
+[2026-03-29 09:37:01] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:01] EVENT INTERRUPT: OFI=0.16 Vol=$2146428 -> forcing fast poll
+[2026-03-29 09:37:05] no entry | slug=btc-updown-5m-1774748100 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.184 required=0.015 secs_left=175.534259 up=0.16 down=0.825
+[2026-03-29 09:37:05] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:05] EVENT INTERRUPT: OFI=0.17 Vol=$2173437 -> forcing fast poll
+[2026-03-29 09:37:06] no entry | slug=btc-updown-5m-1774748100 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.191 required=0.015 secs_left=173.81478 up=0.165 down=0.835
+[2026-03-29 09:37:06] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:06] EVENT INTERRUPT: OFI=0.17 Vol=$2271460 -> forcing fast poll
+[2026-03-29 09:37:09] no entry | slug=btc-updown-5m-1774748100 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.204 required=0.015 secs_left=170.960758 up=0.155 down=0.845
+[2026-03-29 09:37:09] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:09] EVENT INTERRUPT: OFI=0.17 Vol=$2186476 -> forcing fast poll
+[2026-03-29 09:37:13] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.145_down0.855 secs_left=167.379441 up=0.145 down=0.855
+[2026-03-29 09:37:13] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:13] EVENT INTERRUPT: OFI=0.18 Vol=$1941727 -> forcing fast poll
+[2026-03-29 09:37:14] no entry | slug=btc-updown-5m-1774748100 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.206 required=0.015 secs_left=165.728567 up=0.155 down=0.845
+[2026-03-29 09:37:14] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:14] EVENT INTERRUPT: OFI=0.15 Vol=$1871246 -> forcing fast poll
+[2026-03-29 09:37:16] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.145_down0.855 secs_left=163.697434 up=0.145 down=0.855
+[2026-03-29 09:37:16] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:16] EVENT INTERRUPT: OFI=0.15 Vol=$1801490 -> forcing fast poll
+[2026-03-29 09:37:20] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.135_down0.865 secs_left=160.067647 up=0.135 down=0.865
+[2026-03-29 09:37:20] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:20] EVENT INTERRUPT: OFI=0.13 Vol=$1852014 -> forcing fast poll
+[2026-03-29 09:37:22] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.125_down0.875 secs_left=158.444809 up=0.125 down=0.875
+[2026-03-29 09:37:22] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:22] EVENT INTERRUPT: OFI=0.14 Vol=$1808498 -> forcing fast poll
+[2026-03-29 09:37:24] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.125_down0.875 secs_left=156.423237 up=0.125 down=0.875
+[2026-03-29 09:37:24] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:24] EVENT INTERRUPT: OFI=0.13 Vol=$1934470 -> forcing fast poll
+[2026-03-29 09:37:27] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.125_down0.875 secs_left=152.854962 up=0.125 down=0.875
+[2026-03-29 09:37:27] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:27] EVENT INTERRUPT: OFI=0.13 Vol=$1885238 -> forcing fast poll
+[2026-03-29 09:37:29] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.105_down0.885 secs_left=151.236813 up=0.105 down=0.885
+[2026-03-29 09:37:29] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:29] EVENT INTERRUPT: OFI=0.11 Vol=$1837077 -> forcing fast poll
+[2026-03-29 09:37:31] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.115_down0.885 secs_left=149.356533 up=0.115 down=0.885
+[2026-03-29 09:37:31] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:31] EVENT INTERRUPT: OFI=0.11 Vol=$1518571 -> forcing fast poll
+[2026-03-29 09:37:35] no entry | slug=btc-updown-5m-1774748100 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.241 required=0.015 secs_left=145.361299 up=0.15 down=0.835
+[2026-03-29 09:37:35] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:35] EVENT INTERRUPT: OFI=0.27 Vol=$1807886 -> forcing fast poll
+[2026-03-29 09:37:36] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.145_down0.855 secs_left=143.753076 up=0.145 down=0.855
+[2026-03-29 09:37:36] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:36] EVENT INTERRUPT: OFI=0.27 Vol=$1844080 -> forcing fast poll
+[2026-03-29 09:37:38] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.145_down0.855 secs_left=141.773573 up=0.145 down=0.855
+[2026-03-29 09:37:38] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:38] EVENT INTERRUPT: OFI=0.28 Vol=$1880008 -> forcing fast poll
+[2026-03-29 09:37:42] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.135_down0.865 secs_left=138.149861 up=0.135 down=0.865
+[2026-03-29 09:37:42] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:42] EVENT INTERRUPT: OFI=0.29 Vol=$1824942 -> forcing fast poll
+[2026-03-29 09:37:44] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.125_down0.875 secs_left=136.538402 up=0.125 down=0.875
+[2026-03-29 09:37:44] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:44] EVENT INTERRUPT: OFI=0.30 Vol=$1849513 -> forcing fast poll
+[2026-03-29 09:37:46] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.135_down0.865 secs_left=134.536894 up=0.135 down=0.865
+[2026-03-29 09:37:46] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:51] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.12_down0.865 secs_left=129.295815 up=0.12 down=0.865
+[2026-03-29 09:37:51] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:37:55] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.105_down0.895 secs_left=125.644019 up=0.105 down=0.895
+[2026-03-29 09:37:55] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:00] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.075_down0.925 secs_left=120.381982 up=0.075 down=0.925
+[2026-03-29 09:38:00] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:03] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.095_down0.905 secs_left=116.708194 up=0.095 down=0.905
+[2026-03-29 09:38:03] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:09] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.085_down0.905 secs_left=111.415074 up=0.085 down=0.905
+[2026-03-29 09:38:09] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:12] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.085_down0.915 secs_left=107.781846 up=0.085 down=0.915
+[2026-03-29 09:38:12] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:18] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.115_down0.885 secs_left=102.48778 up=0.115 down=0.885
+[2026-03-29 09:38:18] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:21] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.095_down0.905 secs_left=98.804661 up=0.095 down=0.905
+[2026-03-29 09:38:21] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:27] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.1_down0.905 secs_left=93.501773 up=0.1 down=0.905
+[2026-03-29 09:38:27] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:30] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.065_down0.935 secs_left=89.833344 up=0.065 down=0.935
+[2026-03-29 09:38:30] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:36] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.075_down0.925 secs_left=84.623337 up=0.075 down=0.925
+[2026-03-29 09:38:36] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:39] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.075_down0.925 secs_left=80.966093 up=0.075 down=0.925
+[2026-03-29 09:38:39] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:44] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.075_down0.925 secs_left=75.754489 up=0.075 down=0.925
+[2026-03-29 09:38:44] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:48] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.095_down0.905 secs_left=72.089417 up=0.095 down=0.905
+[2026-03-29 09:38:48] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:53] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.085_down0.915 secs_left=66.830136 up=0.085 down=0.915
+[2026-03-29 09:38:53] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:38:57] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.065_down0.935 secs_left=63.255727 up=0.065 down=0.935
+[2026-03-29 09:38:57] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:02] slow api | call=get_account latency_ms=3544 threshold_ms=2200
+[2026-03-29 09:39:04] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.045_down0.955 secs_left=56.009699 up=0.045 down=0.955
+[2026-03-29 09:39:04] slow api streak | streak=1 last_latency_ms=3544
+[2026-03-29 09:39:04] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:04] EVENT INTERRUPT: OFI=0.28 Vol=$2554833 -> forcing fast poll
+[2026-03-29 09:39:06] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.045_down0.955 secs_left=54.498351 up=0.045 down=0.955
+[2026-03-29 09:39:06] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:06] EVENT INTERRUPT: OFI=0.28 Vol=$2538230 -> forcing fast poll
+[2026-03-29 09:39:09] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.045_down0.955 secs_left=50.798465 up=0.045 down=0.955
+[2026-03-29 09:39:09] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:09] EVENT INTERRUPT: OFI=0.28 Vol=$2358999 -> forcing fast poll
+[2026-03-29 09:39:11] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.045_down0.955 secs_left=49.21279 up=0.045 down=0.955
+[2026-03-29 09:39:11] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:11] EVENT INTERRUPT: OFI=0.29 Vol=$2349701 -> forcing fast poll
+[2026-03-29 09:39:13] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.045_down0.955 secs_left=47.132315 up=0.045 down=0.955
+[2026-03-29 09:39:13] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:13] EVENT INTERRUPT: OFI=0.28 Vol=$2340200 -> forcing fast poll
+[2026-03-29 09:39:17] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.045_down0.975 secs_left=43.528613 up=0.045 down=0.975
+[2026-03-29 09:39:17] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:17] EVENT INTERRUPT: OFI=0.14 Vol=$2614336 -> forcing fast poll
+[2026-03-29 09:39:18] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.025_down0.975 secs_left=41.936228 up=0.025 down=0.975
+[2026-03-29 09:39:18] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:18] EVENT INTERRUPT: OFI=0.14 Vol=$2629002 -> forcing fast poll
+[2026-03-29 09:39:20] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.015_down0.985 secs_left=39.876622 up=0.015 down=0.985
+[2026-03-29 09:39:20] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:20] EVENT INTERRUPT: OFI=0.17 Vol=$2132100 -> forcing fast poll
+[2026-03-29 09:39:24] no entry | slug=btc-updown-5m-1774748100 reason=prices_out_of_bounds_up0.015_down0.985 secs_left=36.283581 up=0.015 down=0.985
+[2026-03-29 09:39:24] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:28] entry approved | strategy=model-poly_ob_imbalance_down side=DOWN modelP=72.0% auxWR=50.0% effectiveP=72.0% price=0.495 raw_edge=0.225 required=0.046
+[2026-03-29 09:39:29] skip entry: live entry requires usable orderbook | reason=book-unavailable side=DOWN quoted=0.495
+[2026-03-29 09:39:34] no entry | slug=btc-updown-5m-1774748100 reason=too_late_in_market secs_left=26.601419 up=0.005 down=0.495
+[2026-03-29 09:39:34] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:37] no entry | slug=btc-updown-5m-1774748100 reason=too_late_in_market secs_left=23.037234 up=0.005 down=0.495
+[2026-03-29 09:39:37] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:42] no entry | slug=btc-updown-5m-1774748100 reason=too_late_in_market secs_left=17.847711 up=0.005 down=0.495
+[2026-03-29 09:39:42] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:46] no entry | slug=btc-updown-5m-1774748100 reason=too_late_in_market secs_left=14.191416 up=0.005 down=0.495
+[2026-03-29 09:39:46] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:51] no entry | slug=btc-updown-5m-1774748100 reason=too_late_in_market secs_left=8.844829 up=0.005 down=0.495
+[2026-03-29 09:39:51] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:39:55] no entry | slug=btc-updown-5m-1774748100 reason=too_late_in_market secs_left=5.171487 up=0.005 down=0.495
+[2026-03-29 09:39:55] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:00] no entry | slug=btc-updown-5m-1774748100 reason=too_late_in_market secs_left=0.032541 up=0.005 down=0.495
+[2026-03-29 09:40:00] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:02] market switched => btc-updown-5m-1774748400
+[2026-03-29 09:40:04] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=296.345773 up=0.575 down=0.435
+[2026-03-29 09:40:04] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:09] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=291.088996 up=0.525 down=0.475
+[2026-03-29 09:40:09] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:13] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=287.506419 up=0.535 down=0.455
+[2026-03-29 09:40:13] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:18] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=282.385476 up=0.555 down=0.445
+[2026-03-29 09:40:18] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:22] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=278.806792 up=0.585 down=0.415
+[2026-03-29 09:40:22] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:27] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=273.366022 up=0.605 down=0.395
+[2026-03-29 09:40:27] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:30] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=269.705617 up=0.625 down=0.375
+[2026-03-29 09:40:30] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:31] EVENT INTERRUPT: OFI=0.29 Vol=$2710094 -> forcing fast poll
+[2026-03-29 09:40:35] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=265.49603 up=0.625 down=0.375
+[2026-03-29 09:40:35] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:39] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=261.648465 up=0.635 down=0.365
+[2026-03-29 09:40:39] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:44] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=256.395714 up=0.625 down=0.375
+[2026-03-29 09:40:44] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:47] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=252.766029 up=0.645 down=0.355
+[2026-03-29 09:40:47] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:53] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=247.608057 up=0.635 down=0.365
+[2026-03-29 09:40:53] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:40:56] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=244.01112 up=0.615 down=0.385
+[2026-03-29 09:40:56] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:01] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=238.858118 up=0.585 down=0.415
+[2026-03-29 09:41:01] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:05] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=235.240788 up=0.585 down=0.415
+[2026-03-29 09:41:05] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:10] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=230.045081 up=0.565 down=0.425
+[2026-03-29 09:41:10] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:14] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=226.35782 up=0.575 down=0.425
+[2026-03-29 09:41:14] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:19] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=221.066053 up=0.575 down=0.425
+[2026-03-29 09:41:19] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:23] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=217.527178 up=0.62 down=0.385
+[2026-03-29 09:41:23] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:28] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=212.214613 up=0.645 down=0.355
+[2026-03-29 09:41:28] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:32] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=208.595679 up=0.655 down=0.345
+[2026-03-29 09:41:32] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:32] EVENT INTERRUPT: OFI=0.74 Vol=$2086880 -> forcing fast poll
+[2026-03-29 09:41:35] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=205.164772 up=0.695 down=0.315
+[2026-03-29 09:41:35] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:36] EVENT INTERRUPT: OFI=0.70 Vol=$1766260 -> forcing fast poll
+[2026-03-29 09:41:38] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=202.453099 up=0.69 down=0.305
+[2026-03-29 09:41:38] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:38] EVENT INTERRUPT: OFI=0.70 Vol=$1792939 -> forcing fast poll
+[2026-03-29 09:41:42] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=198.673643 up=0.69 down=0.315
+[2026-03-29 09:41:42] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:42] EVENT INTERRUPT: OFI=0.71 Vol=$1817761 -> forcing fast poll
+[2026-03-29 09:41:43] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=196.988709 up=0.685 down=0.315
+[2026-03-29 09:41:43] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:43] EVENT INTERRUPT: OFI=0.71 Vol=$1846166 -> forcing fast poll
+[2026-03-29 09:41:45] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=195.039048 up=0.715 down=0.275
+[2026-03-29 09:41:45] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:45] EVENT INTERRUPT: OFI=0.75 Vol=$2083337 -> forcing fast poll
+[2026-03-29 09:41:49] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=191.619776 up=0.835 down=0.165
+[2026-03-29 09:41:49] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:49] EVENT INTERRUPT: OFI=0.76 Vol=$2180743 -> forcing fast poll
+[2026-03-29 09:41:50] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=189.94086 up=0.835 down=0.165
+[2026-03-29 09:41:50] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:50] EVENT INTERRUPT: OFI=0.76 Vol=$2163167 -> forcing fast poll
+[2026-03-29 09:41:52] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=187.891352 up=0.835 down=0.165
+[2026-03-29 09:41:52] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:52] EVENT INTERRUPT: OFI=0.77 Vol=$2238002 -> forcing fast poll
+[2026-03-29 09:41:56] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=184.429096 up=0.825 down=0.175
+[2026-03-29 09:41:56] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:56] EVENT INTERRUPT: OFI=0.78 Vol=$2228667 -> forcing fast poll
+[2026-03-29 09:41:57] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=182.766227 up=0.815 down=0.185
+[2026-03-29 09:41:57] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:57] EVENT INTERRUPT: OFI=0.78 Vol=$2279327 -> forcing fast poll
+[2026-03-29 09:41:59] no entry | slug=btc-updown-5m-1774748400 reason=too_early_in_market secs_left=180.762866 up=0.815 down=0.175
+[2026-03-29 09:41:59] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:41:59] EVENT INTERRUPT: OFI=0.76 Vol=$2329665 -> forcing fast poll
+[2026-03-29 09:42:03] no entry | slug=btc-updown-5m-1774748400 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.217 required=0.015 secs_left=177.229969 up=0.805 down=0.195
+[2026-03-29 09:42:03] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:03] EVENT INTERRUPT: OFI=0.72 Vol=$2518889 -> forcing fast poll
+[2026-03-29 09:42:05] no entry | slug=btc-updown-5m-1774748400 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.177 required=0.015 secs_left=175.590874 up=0.785 down=0.215
+[2026-03-29 09:42:05] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:05] EVENT INTERRUPT: OFI=0.80 Vol=$2274170 -> forcing fast poll
+[2026-03-29 09:42:07] no entry | slug=btc-updown-5m-1774748400 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.156 required=0.015 secs_left=173.572593 up=0.785 down=0.205
+[2026-03-29 09:42:07] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:07] EVENT INTERRUPT: OFI=0.81 Vol=$2347092 -> forcing fast poll
+[2026-03-29 09:42:10] no entry | slug=btc-updown-5m-1774748400 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.162 required=0.015 secs_left=169.916823 up=0.795 down=0.205
+[2026-03-29 09:42:10] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:10] EVENT INTERRUPT: OFI=0.81 Vol=$2338212 -> forcing fast poll
+[2026-03-29 09:42:12] no entry | slug=btc-updown-5m-1774748400 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.151 required=0.015 secs_left=168.285561 up=0.785 down=0.215
+[2026-03-29 09:42:12] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:12] EVENT INTERRUPT: OFI=0.81 Vol=$2324614 -> forcing fast poll
+[2026-03-29 09:42:14] no entry | slug=btc-updown-5m-1774748400 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.161 required=0.015 secs_left=166.228581 up=0.795 down=0.205
+[2026-03-29 09:42:14] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:14] EVENT INTERRUPT: OFI=0.84 Vol=$2763531 -> forcing fast poll
+[2026-03-29 09:42:18] no entry | slug=btc-updown-5m-1774748400 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.180 required=0.015 secs_left=162.613915 up=0.825 down=0.175
+[2026-03-29 09:42:18] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:18] EVENT INTERRUPT: OFI=0.84 Vol=$2861865 -> forcing fast poll
+[2026-03-29 09:42:19] no entry | slug=btc-updown-5m-1774748400 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.169 required=0.015 secs_left=160.979859 up=0.825 down=0.175
+[2026-03-29 09:42:19] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:19] EVENT INTERRUPT: OFI=0.86 Vol=$2786354 -> forcing fast poll
+[2026-03-29 09:42:21] no entry | slug=btc-updown-5m-1774748400 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.180 required=0.015 secs_left=158.921642 up=0.835 down=0.165
+[2026-03-29 09:42:21] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:21] EVENT INTERRUPT: OFI=0.85 Vol=$2558963 -> forcing fast poll
+[2026-03-29 09:42:25] no entry | slug=btc-updown-5m-1774748400 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.185 required=0.015 secs_left=155.448873 up=0.835 down=0.165
+[2026-03-29 09:42:25] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:25] EVENT INTERRUPT: OFI=0.85 Vol=$2478677 -> forcing fast poll
+[2026-03-29 09:42:26] no entry | slug=btc-updown-5m-1774748400 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.186 required=0.015 secs_left=153.763413 up=0.835 down=0.165
+[2026-03-29 09:42:26] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:26] EVENT INTERRUPT: OFI=0.84 Vol=$2453666 -> forcing fast poll
+[2026-03-29 09:42:28] no entry | slug=btc-updown-5m-1774748400 reason=rank=1 strategy=model-ws_order_flow_up rejected=edge raw=-0.177 required=0.015 secs_left=151.774798 up=0.835 down=0.135
+[2026-03-29 09:42:28] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:28] EVENT INTERRUPT: OFI=0.86 Vol=$2689114 -> forcing fast poll
+[2026-03-29 09:42:32] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.895_down0.105 secs_left=148.124351 up=0.895 down=0.105
+[2026-03-29 09:42:32] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:32] EVENT INTERRUPT: OFI=0.87 Vol=$2633759 -> forcing fast poll
+[2026-03-29 09:42:34] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.905_down0.095 secs_left=146.475693 up=0.905 down=0.095
+[2026-03-29 09:42:34] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:34] EVENT INTERRUPT: OFI=0.87 Vol=$2666968 -> forcing fast poll
+[2026-03-29 09:42:36] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.915_down0.085 secs_left=144.48681 up=0.915 down=0.085
+[2026-03-29 09:42:36] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:36] EVENT INTERRUPT: OFI=0.84 Vol=$2721141 -> forcing fast poll
+[2026-03-29 09:42:39] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.925_down0.075 secs_left=140.989961 up=0.925 down=0.075
+[2026-03-29 09:42:39] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:39] EVENT INTERRUPT: OFI=0.78 Vol=$2861304 -> forcing fast poll
+[2026-03-29 09:42:41] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.925_down0.075 secs_left=139.334546 up=0.925 down=0.075
+[2026-03-29 09:42:41] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:41] EVENT INTERRUPT: OFI=0.78 Vol=$2859914 -> forcing fast poll
+[2026-03-29 09:42:43] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.915_down0.085 secs_left=137.326323 up=0.915 down=0.085
+[2026-03-29 09:42:43] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:43] EVENT INTERRUPT: OFI=0.78 Vol=$2827004 -> forcing fast poll
+[2026-03-29 09:42:46] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.915_down0.085 secs_left=133.764859 up=0.915 down=0.085
+[2026-03-29 09:42:46] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:46] EVENT INTERRUPT: OFI=0.75 Vol=$2485110 -> forcing fast poll
+[2026-03-29 09:42:48] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.925_down0.075 secs_left=132.102106 up=0.925 down=0.075
+[2026-03-29 09:42:48] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:48] EVENT INTERRUPT: OFI=0.75 Vol=$2442497 -> forcing fast poll
+[2026-03-29 09:42:50] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.935_down0.075 secs_left=130.117099 up=0.935 down=0.075
+[2026-03-29 09:42:50] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:50] EVENT INTERRUPT: OFI=0.74 Vol=$2439582 -> forcing fast poll
+[2026-03-29 09:42:54] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.935_down0.065 secs_left=126.402352 up=0.935 down=0.065
+[2026-03-29 09:42:54] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:54] EVENT INTERRUPT: OFI=0.74 Vol=$2387021 -> forcing fast poll
+[2026-03-29 09:42:55] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.935_down0.065 secs_left=124.761218 up=0.935 down=0.065
+[2026-03-29 09:42:55] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:55] EVENT INTERRUPT: OFI=0.74 Vol=$2436902 -> forcing fast poll
+[2026-03-29 09:42:57] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.925_down0.075 secs_left=122.801958 up=0.925 down=0.075
+[2026-03-29 09:42:57] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:42:57] EVENT INTERRUPT: OFI=0.74 Vol=$2375892 -> forcing fast poll
+[2026-03-29 09:43:01] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.925_down0.065 secs_left=119.271257 up=0.925 down=0.065
+[2026-03-29 09:43:01] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:01] EVENT INTERRUPT: OFI=0.79 Vol=$2313318 -> forcing fast poll
+[2026-03-29 09:43:03] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.935_down0.065 secs_left=117.61885 up=0.935 down=0.065
+[2026-03-29 09:43:03] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:03] EVENT INTERRUPT: OFI=0.79 Vol=$2223374 -> forcing fast poll
+[2026-03-29 09:43:05] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.945_down0.055 secs_left=115.66112 up=0.945 down=0.055
+[2026-03-29 09:43:05] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:05] EVENT INTERRUPT: OFI=0.79 Vol=$2205518 -> forcing fast poll
+[2026-03-29 09:43:08] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.945_down0.055 secs_left=111.993868 up=0.945 down=0.055
+[2026-03-29 09:43:08] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:08] EVENT INTERRUPT: OFI=0.77 Vol=$2051963 -> forcing fast poll
+[2026-03-29 09:43:10] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.945_down0.065 secs_left=110.442068 up=0.945 down=0.065
+[2026-03-29 09:43:10] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:10] EVENT INTERRUPT: OFI=0.77 Vol=$2053225 -> forcing fast poll
+[2026-03-29 09:43:12] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.935_down0.065 secs_left=108.341275 up=0.935 down=0.065
+[2026-03-29 09:43:12] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:12] EVENT INTERRUPT: OFI=0.77 Vol=$2054423 -> forcing fast poll
+[2026-03-29 09:43:15] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.935_down0.065 secs_left=104.725889 up=0.935 down=0.065
+[2026-03-29 09:43:15] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:17] EVENT INTERRUPT: OFI=0.72 Vol=$1532824 -> forcing fast poll
+[2026-03-29 09:43:18] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.935_down0.065 secs_left=101.997876 up=0.935 down=0.065
+[2026-03-29 09:43:18] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:18] EVENT INTERRUPT: OFI=0.71 Vol=$1488546 -> forcing fast poll
+[2026-03-29 09:43:22] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.935_down0.065 secs_left=98.369271 up=0.935 down=0.065
+[2026-03-29 09:43:22] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:22] EVENT INTERRUPT: OFI=0.70 Vol=$1732834 -> forcing fast poll
+[2026-03-29 09:43:23] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.945_down0.055 secs_left=96.693316 up=0.945 down=0.055
+[2026-03-29 09:43:23] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:23] EVENT INTERRUPT: OFI=0.70 Vol=$1716834 -> forcing fast poll
+[2026-03-29 09:43:26] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.955_down0.045 secs_left=94.626155 up=0.955 down=0.045
+[2026-03-29 09:43:26] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:26] EVENT INTERRUPT: OFI=0.74 Vol=$1962168 -> forcing fast poll
+[2026-03-29 09:43:29] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.965_down0.035 secs_left=91.070659 up=0.965 down=0.035
+[2026-03-29 09:43:29] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:33] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.965_down0.035 secs_left=87.474809 up=0.965 down=0.035
+[2026-03-29 09:43:33] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:38] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.975_down0.025 secs_left=82.337927 up=0.975 down=0.025
+[2026-03-29 09:43:38] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:41] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.945_down0.045 secs_left=78.702736 up=0.945 down=0.045
+[2026-03-29 09:43:41] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:47] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.975_down0.025 secs_left=73.564896 up=0.975 down=0.025
+[2026-03-29 09:43:47] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:50] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.975_down0.025 secs_left=69.790342 up=0.975 down=0.025
+[2026-03-29 09:43:50] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:56] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.975_down0.025 secs_left=64.542013 up=0.975 down=0.025
+[2026-03-29 09:43:56] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:43:59] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.975_down0.025 secs_left=60.908835 up=0.975 down=0.025
+[2026-03-29 09:43:59] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:04] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.965_down0.035 secs_left=55.693949 up=0.965 down=0.035
+[2026-03-29 09:44:04] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:08] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.965_down0.025 secs_left=52.0346 up=0.965 down=0.025
+[2026-03-29 09:44:08] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:13] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.97_down0.025 secs_left=46.75165 up=0.97 down=0.025
+[2026-03-29 09:44:13] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:17] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.975_down0.025 secs_left=43.173314 up=0.975 down=0.025
+[2026-03-29 09:44:17] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:22] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.955_down0.045 secs_left=37.956247 up=0.955 down=0.045
+[2026-03-29 09:44:22] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:26] no entry | slug=btc-updown-5m-1774748400 reason=prices_out_of_bounds_up0.965_down0.035 secs_left=34.330147 up=0.965 down=0.035
+[2026-03-29 09:44:26] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:27] EVENT INTERRUPT: OFI=0.75 Vol=$1428381 -> forcing fast poll
+[2026-03-29 09:44:31] no entry | slug=btc-updown-5m-1774748400 reason=too_late_in_market secs_left=29.479927 up=0.975 down=0.025
+[2026-03-29 09:44:31] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:31] EVENT INTERRUPT: OFI=0.75 Vol=$1432637 -> forcing fast poll
+[2026-03-29 09:44:32] no entry | slug=btc-updown-5m-1774748400 reason=too_late_in_market secs_left=27.847946 up=0.985 down=0.015
+[2026-03-29 09:44:32] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:32] EVENT INTERRUPT: OFI=0.82 Vol=$1394330 -> forcing fast poll
+[2026-03-29 09:44:34] no entry | slug=btc-updown-5m-1774748400 reason=too_late_in_market secs_left=25.807285 up=0.495 down=0.005
+[2026-03-29 09:44:34] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:34] EVENT INTERRUPT: OFI=0.81 Vol=$1501117 -> forcing fast poll
+[2026-03-29 09:44:38] no entry | slug=btc-updown-5m-1774748400 reason=too_late_in_market secs_left=22.212075 up=0.985 down=0.015
+[2026-03-29 09:44:38] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:38] EVENT INTERRUPT: OFI=0.80 Vol=$1548307 -> forcing fast poll
+[2026-03-29 09:44:40] no entry | slug=btc-updown-5m-1774748400 reason=too_late_in_market secs_left=20.577716 up=0.495 down=0.005
+[2026-03-29 09:44:40] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:40] EVENT INTERRUPT: OFI=0.82 Vol=$1575162 -> forcing fast poll
+[2026-03-29 09:44:42] no entry | slug=btc-updown-5m-1774748400 reason=too_late_in_market secs_left=18.594715 up=0.495 down=0.015
+[2026-03-29 09:44:42] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:42] EVENT INTERRUPT: OFI=0.81 Vol=$1503687 -> forcing fast poll
+[2026-03-29 09:44:45] no entry | slug=btc-updown-5m-1774748400 reason=too_late_in_market secs_left=14.948434 up=0.495 down=0.005
+[2026-03-29 09:44:45] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:45] EVENT INTERRUPT: OFI=0.81 Vol=$1519793 -> forcing fast poll
+[2026-03-29 09:44:47] no entry | slug=btc-updown-5m-1774748400 reason=too_late_in_market secs_left=13.303971 up=0.495 down=0.005
+[2026-03-29 09:44:47] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:52] no entry | slug=btc-updown-5m-1774748400 reason=too_late_in_market secs_left=8.040162 up=0.495 down=0.005
+[2026-03-29 09:44:52] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:44:56] no entry | slug=btc-updown-5m-1774748400 reason=too_late_in_market secs_left=4.440065 up=0.495 down=0.005
+[2026-03-29 09:44:56] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:00] market switched => btc-updown-5m-1774748700
+[2026-03-29 09:45:07] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=298.168845 up=0.555 down=0.445
+[2026-03-29 09:45:07] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:13] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=287.425424 up=0.565 down=0.43
+[2026-03-29 09:45:13] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:16] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=283.818565 up=0.555 down=0.445
+[2026-03-29 09:45:16] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:22] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=278.543093 up=0.47 down=0.545
+[2026-03-29 09:45:22] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:25] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=274.884463 up=0.54 down=0.455
+[2026-03-29 09:45:25] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:31] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=269.620994 up=0.535 down=0.465
+[2026-03-29 09:45:31] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:31] EVENT INTERRUPT: OFI=0.30 Vol=$2003134 -> forcing fast poll
+[2026-03-29 09:45:32] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=267.941508 up=0.535 down=0.465
+[2026-03-29 09:45:32] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:38] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=262.62826 up=0.515 down=0.485
+[2026-03-29 09:45:38] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:39] EVENT INTERRUPT: OFI=0.29 Vol=$1963667 -> forcing fast poll
+[2026-03-29 09:45:40] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=259.946617 up=0.515 down=0.485
+[2026-03-29 09:45:40] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:40] EVENT INTERRUPT: OFI=0.28 Vol=$1938681 -> forcing fast poll
+[2026-03-29 09:45:44] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=256.496485 up=0.485 down=0.495
+[2026-03-29 09:45:44] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:44] EVENT INTERRUPT: OFI=0.28 Vol=$1931566 -> forcing fast poll
+[2026-03-29 09:45:45] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=254.842013 up=0.535 down=0.465
+[2026-03-29 09:45:45] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:45] EVENT INTERRUPT: OFI=0.26 Vol=$1872156 -> forcing fast poll
+[2026-03-29 09:45:47] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=252.855855 up=0.535 down=0.465
+[2026-03-29 09:45:47] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:53] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=247.525287 up=0.585 down=0.435
+[2026-03-29 09:45:53] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:45:56] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=243.862135 up=0.555 down=0.445
+[2026-03-29 09:45:56] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:02] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=238.463274 up=0.495 down=0.505
+[2026-03-29 09:46:02] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:05] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=234.800906 up=0.465 down=0.535
+[2026-03-29 09:46:05] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:10] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=229.723505 up=0.46 down=0.535
+[2026-03-29 09:46:10] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:14] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=226.071756 up=0.465 down=0.535
+[2026-03-29 09:46:14] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:19] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=220.918924 up=0.415 down=0.585
+[2026-03-29 09:46:19] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:23] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=217.360602 up=0.425 down=0.575
+[2026-03-29 09:46:23] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:28] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=212.031981 up=0.315 down=0.695
+[2026-03-29 09:46:28] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:32] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=208.336041 up=0.305 down=0.68
+[2026-03-29 09:46:32] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:32] EVENT INTERRUPT: OFI=0.24 Vol=$1008979 -> forcing fast poll
+[2026-03-29 09:46:35] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=204.847758 up=0.335 down=0.675
+[2026-03-29 09:46:35] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:35] EVENT INTERRUPT: OFI=0.19 Vol=$1086278 -> forcing fast poll
+[2026-03-29 09:46:37] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=203.272125 up=0.32 down=0.685
+[2026-03-29 09:46:37] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:37] EVENT INTERRUPT: OFI=0.18 Vol=$1097700 -> forcing fast poll
+[2026-03-29 09:46:39] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=201.258788 up=0.315 down=0.685
+[2026-03-29 09:46:39] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:39] EVENT INTERRUPT: OFI=0.16 Vol=$1433688 -> forcing fast poll
+[2026-03-29 09:46:42] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=197.689999 up=0.305 down=0.695
+[2026-03-29 09:46:42] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:42] EVENT INTERRUPT: OFI=0.13 Vol=$1772386 -> forcing fast poll
+[2026-03-29 09:46:44] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=196.079345 up=0.295 down=0.705
+[2026-03-29 09:46:44] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:44] EVENT INTERRUPT: OFI=0.13 Vol=$1776236 -> forcing fast poll
+[2026-03-29 09:46:46] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=194.032102 up=0.285 down=0.715
+[2026-03-29 09:46:46] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:46] EVENT INTERRUPT: OFI=0.13 Vol=$1776435 -> forcing fast poll
+[2026-03-29 09:46:50] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=190.490702 up=0.295 down=0.705
+[2026-03-29 09:46:50] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:50] EVENT INTERRUPT: OFI=0.13 Vol=$1753554 -> forcing fast poll
+[2026-03-29 09:46:51] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=188.918499 up=0.285 down=0.715
+[2026-03-29 09:46:51] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:51] EVENT INTERRUPT: OFI=0.13 Vol=$1759796 -> forcing fast poll
+[2026-03-29 09:46:53] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=186.815852 up=0.285 down=0.715
+[2026-03-29 09:46:53] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:53] EVENT INTERRUPT: OFI=0.12 Vol=$1736341 -> forcing fast poll
+[2026-03-29 09:46:57] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=183.17432 up=0.345 down=0.625
+[2026-03-29 09:46:57] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:57] EVENT INTERRUPT: OFI=0.14 Vol=$1764157 -> forcing fast poll
+[2026-03-29 09:46:59] no entry | slug=btc-updown-5m-1774748700 reason=too_early_in_market secs_left=181.620266 up=0.365 down=0.635
+[2026-03-29 09:46:59] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:46:59] EVENT INTERRUPT: OFI=0.14 Vol=$1762428 -> forcing fast poll
+[2026-03-29 09:47:01] entry approved | strategy=model-ws_order_flow_down side=DOWN modelP=67.0% auxWR=16.5% effectiveP=65.3% price=0.600 raw_edge=0.053 required=0.010
+[2026-03-29 09:47:02] skip entry: entry-slippage-precheck | side=DOWN quoted=0.600 est_avg=0.730 premium=21.67% est_shares=1.3699
+[2026-03-29 09:47:02] EVENT INTERRUPT: OFI=0.15 Vol=$1898459 -> forcing fast poll
+[2026-03-29 09:47:05] no entry | slug=btc-updown-5m-1774748700 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.115 required=0.015 secs_left=174.719394 up=0.235 down=0.775
+[2026-03-29 09:47:06] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:06] EVENT INTERRUPT: OFI=0.13 Vol=$2103880 -> forcing fast poll
+[2026-03-29 09:47:07] no entry | slug=btc-updown-5m-1774748700 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.124 required=0.015 secs_left=173.018417 up=0.205 down=0.78
+[2026-03-29 09:47:07] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:07] EVENT INTERRUPT: OFI=0.14 Vol=$2089652 -> forcing fast poll
+[2026-03-29 09:47:09] no entry | slug=btc-updown-5m-1774748700 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.091 required=0.015 secs_left=171.04361 up=0.255 down=0.745
+[2026-03-29 09:47:09] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:09] EVENT INTERRUPT: OFI=0.14 Vol=$2088323 -> forcing fast poll
+[2026-03-29 09:47:13] no entry | slug=btc-updown-5m-1774748700 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.152 required=0.015 secs_left=167.262769 up=0.195 down=0.805
+[2026-03-29 09:47:13] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:13] EVENT INTERRUPT: OFI=0.12 Vol=$2062268 -> forcing fast poll
+[2026-03-29 09:47:15] no entry | slug=btc-updown-5m-1774748700 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.151 required=0.015 secs_left=165.673295 up=0.175 down=0.815
+[2026-03-29 09:47:15] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:15] EVENT INTERRUPT: OFI=0.12 Vol=$2068640 -> forcing fast poll
+[2026-03-29 09:47:17] no entry | slug=btc-updown-5m-1774748700 reason=rank=1 strategy=model-ws_order_flow_down rejected=velocity lag=0.0000% current=0.0020% secs_left=163.39803 up=0.175 down=0.795
+[2026-03-29 09:47:17] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:17] EVENT INTERRUPT: OFI=0.19 Vol=$2276873 -> forcing fast poll
+[2026-03-29 09:47:20] no entry | slug=btc-updown-5m-1774748700 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.164 required=0.015 secs_left=160.048073 up=0.205 down=0.795
+[2026-03-29 09:47:20] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:20] EVENT INTERRUPT: OFI=0.19 Vol=$2234950 -> forcing fast poll
+[2026-03-29 09:47:22] no entry | slug=btc-updown-5m-1774748700 reason=rank=1 strategy=model-ws_order_flow_down rejected=edge raw=-0.185 required=0.015 secs_left=158.131725 up=0.185 down=0.815
+[2026-03-29 09:47:22] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:22] EVENT INTERRUPT: OFI=0.19 Vol=$2267682 -> forcing fast poll
+[2026-03-29 09:47:24] no entry | slug=btc-updown-5m-1774748700 reason=prices_out_of_bounds_up0.155_down0.855 secs_left=156.339456 up=0.155 down=0.855
+[2026-03-29 09:47:24] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:24] EVENT INTERRUPT: OFI=0.19 Vol=$2288527 -> forcing fast poll
+[2026-03-29 09:47:28] no entry | slug=btc-updown-5m-1774748700 reason=prices_out_of_bounds_up0.125_down0.875 secs_left=152.650696 up=0.125 down=0.875
+[2026-03-29 09:47:28] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:28] EVENT INTERRUPT: OFI=0.20 Vol=$2178145 -> forcing fast poll
+[2026-03-29 09:47:29] no entry | slug=btc-updown-5m-1774748700 reason=prices_out_of_bounds_up0.105_down0.895 secs_left=150.972455 up=0.105 down=0.895
+[2026-03-29 09:47:29] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:29] EVENT INTERRUPT: OFI=0.20 Vol=$2237358 -> forcing fast poll
+[2026-03-29 09:47:31] no entry | slug=btc-updown-5m-1774748700 reason=prices_out_of_bounds_up0.075_down0.925 secs_left=148.996436 up=0.075 down=0.925
+[2026-03-29 09:47:31] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:31] EVENT INTERRUPT: OFI=0.20 Vol=$2225533 -> forcing fast poll
+[2026-03-29 09:47:35] no entry | slug=btc-updown-5m-1774748700 reason=prices_out_of_bounds_up0.115_down0.885 secs_left=145.28724 up=0.115 down=0.885
+[2026-03-29 09:47:35] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:35] EVENT INTERRUPT: OFI=0.21 Vol=$2120981 -> forcing fast poll
+[2026-03-29 09:47:37] no entry | slug=btc-updown-5m-1774748700 reason=prices_out_of_bounds_up0.105_down0.91 secs_left=143.661849 up=0.105 down=0.91
+[2026-03-29 09:47:37] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:37] EVENT INTERRUPT: OFI=0.21 Vol=$2111616 -> forcing fast poll
+[2026-03-29 09:47:39] no entry | slug=btc-updown-5m-1774748700 reason=prices_out_of_bounds_up0.085_down0.915 secs_left=141.28096 up=0.085 down=0.915
+[2026-03-29 09:47:39] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:39] EVENT INTERRUPT: OFI=0.23 Vol=$1776589 -> forcing fast poll
+[2026-03-29 09:47:42] slow api | call=get_account latency_ms=2655 threshold_ms=2200
+[2026-03-29 09:47:43] no entry | slug=btc-updown-5m-1774748700 reason=prices_out_of_bounds_up0.095_down0.9 secs_left=136.961263 up=0.095 down=0.9
+[2026-03-29 09:47:43] slow api streak | streak=1 last_latency_ms=2655
+[2026-03-29 09:47:43] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:48] no entry | slug=btc-updown-5m-1774748700 reason=prices_out_of_bounds_up0.145_down0.855 secs_left=131.782441 up=0.145 down=0.855
+[2026-03-29 09:47:48] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:53] no entry | slug=btc-updown-5m-1774748700 reason=prices_out_of_bounds_up0.115_down0.885 secs_left=127.748239 up=0.115 down=0.885
+[2026-03-29 09:47:53] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:47:58] no entry | slug=btc-updown-5m-1774748700 reason=prices_out_of_bounds_up0.135_down0.855 secs_left=122.135577 up=0.135 down=0.855
+[2026-03-29 09:47:58] no signal | equity=2.29 cash=2.29
+[2026-03-29 09:48:02] no entry | slug=btc-updown-5m-1774748700 reason=prices_out_of_bounds_up0.145_down0.855 secs_left=118.501494 up=0.145 down=0.855
+[2026-03-29 09:48:02] no signal | equity=2.29 cash=2.29
+
+================= RUN REPORT =================
+Generating post-run summary report...
+Report saved to: /home/allen/Desktop/bot/polymarket_bot_for_5_min_btc/data/report-live-2026-03-29T09-13-44.txt
+Also copied to:  /home/allen/Desktop/bot/polymarket_bot_for_5_min_btc/data/latest_run_report.txt
+==============================================
+

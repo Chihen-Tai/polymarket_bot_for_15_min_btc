@@ -1,0 +1,38 @@
+{
+  "collector_started_at": "2026-03-29T03:17:08.698",
+  "pre_seconds": 30.0,
+  "post_seconds": 30.0,
+  "poll_sec": 1.0,
+  "event": {
+    "run_id": "run_1774694598_128428_54e871",
+    "ts": "2026-03-29T03:17:07",
+    "event_id": "entry_00a813d1f5ef",
+    "kind": "entry",
+    "slug": "btc-updown-5m-1774725300",
+    "side": "UP",
+    "token_id": "90004243065618247647992841836901054814312891325278934929489884053551005102355",
+    "position_id": "pos_1774725427_102355",
+    "shares": 1.754383,
+    "cost_usd": 0.999998,
+    "opened_ts": 1774725427.5680387,
+    "entry_reason": "model-ws_order_flow_up",
+    "classification": "good-entry-candidate",
+    "execution_style": "taker",
+    "entry_price": 0.525,
+    "entry_book_spread": 0.010000000000000009,
+    "entry_best_ask_size": 9.27,
+    "entry_ask_depth_shares": 45555.01,
+    "mae_pnl_usd": 0.0,
+    "mfe_pnl_usd": 0.0
+  },
+  "market": {
+    "question": "Bitcoin Up or Down - March 28, 3:15PM-3:20PM ET",
+    "slug": "btc-updown-5m-1774725300",
+    "condition_id": "0x9e927575b82446e7b9eaad0d56229a4bf84a0d840bc70b353a058ca9fd167a16",
+    "token_up": "90004243065618247647992841836901054814312891325278934929489884053551005102355",
+    "token_down": "98679065005902954133253237870060226274044353779413141899230516420584992215329",
+    "outcomes": "[\"Up\", \"Down\"]",
+    "outcomePrices": "[\"0.495\", \"0.505\"]",
+    "endDate": "2026-03-28T19:20:00Z"
+  }
+}

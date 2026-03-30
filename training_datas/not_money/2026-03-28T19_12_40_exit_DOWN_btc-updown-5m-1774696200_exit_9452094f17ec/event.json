@@ -1,0 +1,51 @@
+{
+  "collector_started_at": "2026-03-28T19:12:41.998",
+  "pre_seconds": 30.0,
+  "post_seconds": 30.0,
+  "poll_sec": 1.0,
+  "event": {
+    "run_id": "run_1774694598_128428_54e871",
+    "ts": "2026-03-28T19:12:40",
+    "event_id": "exit_9452094f17ec",
+    "kind": "exit",
+    "slug": "btc-updown-5m-1774696200",
+    "side": "DOWN",
+    "token_id": "39675124453649535705274991923257738943211738568188295192190326007090602059748",
+    "position_id": "pos_1774696333_059748",
+    "closed_shares": 1.51,
+    "remaining_shares": 0.0,
+    "realized_cost_usd": 0.999999,
+    "actual_exit_value_usd": 1.04535,
+    "actual_exit_value_source": "cash_balance_delta",
+    "actual_realized_pnl_usd": 0.04535100000000003,
+    "actual_realized_return_pct": 0.04535104535104538,
+    "actual_close_response_value": 1.057,
+    "actual_close_response_value_source": "close_response_takingAmount",
+    "actual_close_response_amount_fields": {
+      "shares_sold_per_attempt": "[1.51]"
+    },
+    "observed_mark_price": 0.665,
+    "observed_exit_value_usd": 1.00415,
+    "observed_exit_value_source": "observed_mark_price",
+    "observed_realized_pnl_usd": 0.004151000000000127,
+    "observed_realized_return_pct": 0.004151004151004278,
+    "pnl_source": "actual_cash_recovered",
+    "exit_execution_style": "taker",
+    "reason": "residual-force-close",
+    "entry_quality": "good-entry",
+    "mae_pnl_usd": 0.0,
+    "mfe_pnl_usd": 0.015384600000000082,
+    "mae_value_usd": 0.999999,
+    "mfe_value_usd": 1.0153836
+  },
+  "market": {
+    "question": "Bitcoin Up or Down - March 28, 7:10AM-7:15AM ET",
+    "slug": "btc-updown-5m-1774696200",
+    "condition_id": "0x4cb91c359267aff472398afd01813ae3c78c8dd924fd3e6649457cb4011e6cf2",
+    "token_up": "26973248997181864311496825291475979178142502705660128601007447278201309750714",
+    "token_down": "39675124453649535705274991923257738943211738568188295192190326007090602059748",
+    "outcomes": "[\"Up\", \"Down\"]",
+    "outcomePrices": "[\"0.505\", \"0.495\"]",
+    "endDate": "2026-03-28T11:15:00Z"
+  }
+}

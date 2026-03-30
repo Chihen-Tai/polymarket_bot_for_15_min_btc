@@ -1,0 +1,56 @@
+status     opened/closed       market                     side    entry   actual  observed  act.pnl  obs.pnl tier   reason               remain      mae      mfe
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+closed     2026-03-28T23:49:20 btc-updown-5m-1774712700   UP     1.0000   0.6617    0.6833  -0.3383  -0.3167 high   stop-loss            0.0000  -0.3333   0.0000
+closed     2026-03-28T15:55:00+00:00 btc-updown-5m-1774713000   UP     1.0000   0.3795    0.3900  -0.6205  -0.6100 medium take-profit-partia   0.0000   0.0000   0.2800
+closed     2026-03-28T23:54:05 btc-updown-5m-1774713000   UP     1.0000   0.2898    0.4194  -0.7102  -0.5806 high   stop-loss            0.0000  -0.9652   0.0000
+residual   2026-03-28T23:54:05 btc-updown-5m-1774713000   UP     0.0000   0.2448    0.3541      n/a      n/a high   stop-loss            0.0000  -0.9652   0.0000
+  -> position_id=pos_1774713210_842256#residual5 unmatched_cost=0.0000 unmatched_shares=0.000000 entry_quality=bad-entry flags=orphan-residual|no-entry-match|ui-reconciliation-needed
+closed     2026-03-28T16:00:00+00:00 btc-updown-5m-1774713300   UP     1.0000   3.1837    3.1971   2.1837   2.1971 medium take-profit-partia   0.0000  -0.0800   0.2775
+residual   2026-03-29T00:07:31 btc-updown-5m-1774713900   UP     0.9971   1.1836    1.1470   0.1866   0.1499 high   residual-force-clo   0.0000   0.0000   0.1493
+  -> position_id=pos_1774714035_616744#residual6 unmatched_cost=0.0000 unmatched_shares=0.000000 entry_quality=good-entry flags=orphan-residual|no-entry-match|account-activity-reconciled-leg
+closed     2026-03-28T16:20:00+00:00 btc-updown-5m-1774714500   UP     1.0000   1.5583    1.5459   0.5583   0.5459 medium take-profit-partia   0.0000   0.0000   0.2464
+closed     2026-03-28T16:25:00+00:00 btc-updown-5m-1774714800   UP     1.0000   0.0000    0.3094  -1.0000  -0.6905 medium stop-loss-scale-ou   0.0000  -0.2619   0.0000
+closed     2026-03-28T16:30:00+00:00 btc-updown-5m-1774715100   DOWN   1.0000   0.9107    1.0982  -0.0893   0.0982 medium stop-loss-scale-ou   0.0000  -0.1901   0.2246
+closed     2026-03-28T16:30:00+00:00 btc-updown-5m-1774715100   UP     1.0000   0.9704    1.3720  -0.0296   0.3720 medium take-profit-princi   0.0000   0.0000   0.5122
+closed     2026-03-28T16:30:00+00:00 btc-updown-5m-1774715100   UP     1.0000   0.4687    0.4618  -0.5313  -0.5382 medium stop-loss-scale-ou   0.0000  -0.1875   0.0000
+closed     2026-03-28T18:40:00+00:00 btc-updown-5m-1774722900   DOWN   1.0000   0.9596    0.9596  -0.0404  -0.0404 high   deadline-exit-weak   0.0000  -0.0147   0.0581
+closed     2026-03-28T18:50:00+00:00 btc-updown-5m-1774723500   UP     1.0000   0.9444    0.9444  -0.0556  -0.0556 high   stop-loss+market-e   0.0000  -0.3139   0.0000
+closed     2026-03-28T18:50:00+00:00 btc-updown-5m-1774723500   UP     1.0000   0.0000    0.1556  -1.0000  -0.8444 medium stop-loss-scale-ou   0.0000  -0.1818   0.0455
+closed     2026-03-28T18:55:00+00:00 btc-updown-5m-1774723800   UP     1.0000   0.0000    0.0000  -1.0000  -1.0000 medium market-expired-bin   0.0000   0.0000   0.0000
+closed     2026-03-29T02:54:47 btc-updown-5m-1774723800   UP     1.0000   1.1381    0.8136   0.1381  -0.1864 high   stop-loss-scale-ou   0.0000  -0.2848   0.1250
+residual   2026-03-29T02:54:47 btc-updown-5m-1774723800   UP     0.0719   0.0854    0.0611   0.0136  -0.0108 high   stop-loss-scale-ou   0.0000  -0.2848   0.1250
+  -> position_id=pos_1774724024_900206#residual7 unmatched_cost=0.0000 unmatched_shares=0.000000 entry_quality=unknown flags=orphan-residual|no-entry-match|account-activity-reconciled-leg
+residual   2026-03-29T02:55:00 btc-updown-5m-1774723800   UP     0.1317   0.1434    0.1303   0.0117  -0.0014 high   residual-force-clo   0.0000  -0.2848   0.1250
+  -> position_id=pos_1774724024_900206#residual8 unmatched_cost=0.0000 unmatched_shares=0.000000 entry_quality=good-entry flags=orphan-residual|no-entry-match|account-activity-reconciled-leg
+closed     2026-03-28T19:00:00+00:00 btc-updown-5m-1774724100   UP     1.0000   1.6172    1.5997   0.6172   0.5997 medium take-profit-partia   0.0000  -0.0169   0.3507
+closed     2026-03-29T02:59:42 btc-updown-5m-1774724100   UP     1.0000   0.6516    0.6385  -0.3484  -0.3615 high   stop-loss            0.0000  -0.5730   0.0967
+residual   2026-03-29T02:59:42 btc-updown-5m-1774724100   UP     0.0000   0.4793    0.4696      n/a      n/a high   stop-loss            0.0000  -0.5730   0.0967
+  -> position_id=pos_1774724286_141152#residual9 unmatched_cost=0.0000 unmatched_shares=0.000000 entry_quality=bad-entry flags=orphan-residual|no-entry-match|ui-reconciliation-needed
+closed     2026-03-28T19:05:00+00:00 btc-updown-5m-1774724400   UP     1.0000   0.9496    0.9496  -0.0504  -0.0504 high   deadline-exit-loss   0.0000  -0.1459   0.1823
+closed     2026-03-28T19:10:00+00:00 btc-updown-5m-1774724700   DOWN   1.0000   0.5379    0.5379  -0.4621  -0.4621 high   stop-loss+market-e   0.0000  -0.3508   0.0957
+closed     2026-03-28T19:20:00+00:00 btc-updown-5m-1774725300   UP     1.0000   1.0132    1.3282   0.0132   0.3282 medium stop-loss-scale-ou   0.0000  -0.2592   0.1210
+closed     2026-03-28T19:20:00+00:00 btc-updown-5m-1774725300   DOWN   1.0000   1.3325    1.3194   0.3325   0.3194 medium take-profit-princi   0.0000   0.0000   0.4691
+closed     2026-03-28T19:20:00+00:00 btc-updown-5m-1774725300   DOWN   1.0000   0.0000    0.3827  -1.0000  -0.6173 medium stop-loss-scale-ou   0.0000  -0.1974   0.0000
+closed     2026-03-28T19:25:00+00:00 btc-updown-5m-1774725600   DOWN   1.0000   0.0355    0.0270  -0.9645  -0.9730 medium stop-loss-scale-ou   0.0000  -0.2963   0.0000
+closed     2026-03-28T19:25:00+00:00 btc-updown-5m-1774725600   DOWN   1.0000   0.2543    0.4173  -0.7457  -0.5827 medium take-profit-partia   0.0000  -0.0789   0.3847
+closed     2026-03-28T19:30:00+00:00 btc-updown-5m-1774725900   DOWN   1.0000   1.0727    1.2931   0.0727   0.2931 medium stop-loss-scale-ou   0.0000  -0.2211   0.0295
+closed     2026-03-28T19:30:00+00:00 btc-updown-5m-1774725900   UP     1.0000   0.5397    0.5397  -0.4603  -0.4603 high   stop-loss+market-e   0.0000  -0.3182   0.0000
+
+summary: closed=25 residual=5
+summary details:
+  total_trades: 30
+  status_counts: {'closed': 25, 'residual': 5}
+  entry_quality_counts: {'bad-entry': 10, 'good-entry': 2, 'unknown': 18}
+  close_reason_counts: {'deadline-exit-loss+market-expired-binary-loss': 1, 'deadline-exit-weak-win+market-expired-binary-win': 1, 'market-expired-binary-loss': 1, 'residual-force-close': 2, 'stop-loss': 5, 'stop-loss+market-expired-binary-loss': 3, 'stop-loss-scale-out': 2, 'stop-loss-scale-out+market-expired-binary-loss': 5, 'stop-loss-scale-out+market-expired-binary-win': 3, 'take-profit-partial+market-expired-binary-loss': 2, 'take-profit-partial+market-expired-binary-win': 3, 'take-profit-principal+market-expired-binary-loss': 2}
+  close_bucket_counts: {'active-close': 9, 'expiry-binary-loss': 14, 'expiry-binary-win': 7}
+  close_bucket_pnl: {'active-close': {'count': 9, 'actual_pnl': {'count': 7, 'sum': -1.046934556711342, 'average': -0.1495620795301917}, 'fee_adjusted_actual_pnl': {'count': 7, 'sum': -1.1741325888344054, 'average': -0.16773322697634363}}, 'expiry-binary-loss': {'count': 14, 'actual_pnl': {'count': 14, 'sum': -7.587597, 'average': -0.5419712142857143}, 'fee_adjusted_actual_pnl': {'count': 14, 'sum': -7.8059967972, 'average': -0.5575711998}}, 'expiry-binary-win': {'count': 7, 'actual_pnl': {'count': 7, 'sum': 3.315347213793103, 'average': 0.4736210305418718}, 'fee_adjusted_actual_pnl': {'count': 7, 'sum': 3.2061473385931034, 'average': 0.45802104837044333}}}
+  actual_source_tier_counts: {'high': 14, 'medium': 16}
+  actual_available_ratio: 0.9333333333333333
+  actual_pnl: {'count': 28, 'sum': -5.319184342918239, 'average': -0.1899708693899371}
+  observed_pnl: {'count': 28, 'sum': -3.478799282948057, 'average': -0.12424283153385918}
+  fee_adjusted_actual_pnl: {'count': 28, 'sum': -5.773982047441302, 'average': -0.20621364455147506}
+  fee_adjusted_observed_pnl: {'count': 28, 'sum': -3.9295314683840568, 'average': -0.14034040958514488}
+  scratch_trades: {'count': 1, 'ratio': 0.03333333333333333, 'close_reason_counts': {'stop-loss-scale-out+market-expired-binary-win': 1}, 'fee_adjusted_actual_pnl': {'count': 1, 'sum': -0.00243216880000016, 'average': -0.00243216880000016}}
+  mae: {'count': 30, 'average': -0.24595752146989994}
+  mfe: {'count': 30, 'average': 0.13316555869133334}
+  notes: {'actual_unavailable': 'actual_pnl average uses only rows with actual data; missing actual rows are excluded, not imputed', 'fee_model': 'fee_adjusted pnl applies assumed taker fees only to legs tagged taker/mixed; maker-like and unknown legs are treated as zero-fee, and expiry settlements pay no exit fee'}

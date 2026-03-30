@@ -1,0 +1,51 @@
+{
+  "collector_started_at": "2026-03-29T11:22:46.791",
+  "pre_seconds": 30.0,
+  "post_seconds": 30.0,
+  "poll_sec": 1.0,
+  "event": {
+    "run_id": "run_1774751040_412731_470cbf",
+    "ts": "2026-03-29T11:22:45",
+    "event_id": "exit_55f45758641d",
+    "kind": "exit",
+    "slug": "btc-updown-5m-1774754400",
+    "side": "DOWN",
+    "token_id": "13343440078125106914226216833291123483456480112693441549169339810706419339454",
+    "position_id": "pos_1774754526_339454",
+    "closed_shares": 0.54,
+    "remaining_shares": 1.102675,
+    "realized_cost_usd": 0.32399999999999995,
+    "actual_exit_value_usd": null,
+    "actual_exit_value_source": "sanity-rejected-cash_balance_delta",
+    "actual_realized_pnl_usd": null,
+    "actual_realized_return_pct": null,
+    "actual_close_response_value": 0.3078,
+    "actual_close_response_value_source": "close_response_takingAmount",
+    "actual_close_response_amount_fields": {
+      "shares_sold_per_attempt": "[0.54]"
+    },
+    "observed_mark_price": 0.465,
+    "observed_exit_value_usd": 0.25110000000000005,
+    "observed_exit_value_source": "observed_mark_price",
+    "observed_realized_pnl_usd": -0.07289999999999991,
+    "observed_realized_return_pct": -0.22499999999999976,
+    "pnl_source": "observed_mark_estimate",
+    "exit_execution_style": "taker",
+    "reason": "stop-loss",
+    "entry_quality": "bad-entry",
+    "mae_pnl_usd": -0.2464012499999999,
+    "mfe_pnl_usd": 0.06666660000000013,
+    "mae_value_usd": 0.73920375,
+    "mfe_value_usd": 1.0666656
+  },
+  "market": {
+    "question": "Bitcoin Up or Down - March 28, 11:20PM-11:25PM ET",
+    "slug": "btc-updown-5m-1774754400",
+    "condition_id": "0xfe51b3ac7f86cb78cf0104db0e7adc51e02612e4335b9125b21670377fe45224",
+    "token_up": "89912188292591929728399814628712479402639833099710882249983951672269753824368",
+    "token_down": "13343440078125106914226216833291123483456480112693441549169339810706419339454",
+    "outcomes": "[\"Up\", \"Down\"]",
+    "outcomePrices": "[\"0.5\", \"0.5\"]",
+    "endDate": "2026-03-29T03:25:00Z"
+  }
+}

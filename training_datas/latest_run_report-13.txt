@@ -1,0 +1,25 @@
+status     opened/closed       market                     side    entry   actual  observed  act.pnl  obs.pnl tier   reason               remain      mae      mfe
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+closed     2026-03-29T09:18:11 btc-updown-5m-1774746900   DOWN   1.0000      n/a    1.1909      n/a   0.1909 none   take-profit-partia   0.0000  -0.0364   0.1818
+closed     2026-03-29T01:25:00+00:00 btc-updown-5m-1774747200   DOWN   1.0000   1.3511    1.5329   0.3511   0.5329 medium take-profit-princi   0.0000  -0.0438   0.5033
+closed     2026-03-29T01:30:00+00:00 btc-updown-5m-1774747500   DOWN   1.0000   1.3479    1.4535   0.3479   0.4535 medium take-profit-princi   0.0000  -0.0513   0.4550
+closed     2026-03-29T09:33:03 btc-updown-5m-1774747800   UP     1.0000   0.7641    0.8864  -0.2359  -0.1136 high   stop-loss-full       0.0000  -0.1364   0.0000
+
+summary: closed=4
+summary details:
+  total_trades: 4
+  status_counts: {'closed': 4}
+  entry_quality_counts: {'bad-entry': 1, 'unknown': 3}
+  close_reason_counts: {'stop-loss-full': 1, 'take-profit-partial': 1, 'take-profit-principal+market-expired-binary-loss': 1, 'take-profit-principal+market-expired-binary-win': 1}
+  close_bucket_counts: {'active-close': 2, 'expiry-binary-loss': 1, 'expiry-binary-win': 1}
+  close_bucket_pnl: {'active-close': {'count': 2, 'actual_pnl': {'count': 1, 'sum': -0.235939, 'average': -0.235939}, 'fee_adjusted_actual_pnl': {'count': 1, 'sum': -0.2634583204, 'average': -0.2634583204}}, 'expiry-binary-loss': {'count': 1, 'actual_pnl': {'count': 1, 'sum': 0.34791099999999997, 'average': 0.34791099999999997}, 'fee_adjusted_actual_pnl': {'count': 1, 'sum': 0.3323110156, 'average': 0.3323110156}}, 'expiry-binary-win': {'count': 1, 'actual_pnl': {'count': 1, 'sum': 0.3510609999999995, 'average': 0.3510609999999995}, 'fee_adjusted_actual_pnl': {'count': 1, 'sum': 0.3354610155999995, 'average': 0.3354610155999995}}}
+  actual_source_tier_counts: {'high': 1, 'medium': 2, 'none': 1}
+  actual_available_ratio: 0.75
+  actual_pnl: {'count': 3, 'sum': 0.4630329999999995, 'average': 0.15434433333333317}
+  observed_pnl: {'count': 4, 'sum': 1.063718895, 'average': 0.26592972375}
+  fee_adjusted_actual_pnl: {'count': 3, 'sum': 0.4043137107999995, 'average': 0.13477123693333318}
+  fee_adjusted_observed_pnl: {'count': 4, 'sum': 0.9689135261340001, 'average': 0.24222838153350001}
+  scratch_trades: {'count': 0, 'ratio': 0.0, 'close_reason_counts': {}, 'fee_adjusted_actual_pnl': {'count': 0, 'sum': None, 'average': None}}
+  mae: {'count': 4, 'average': -0.0669424479522499}
+  mfe: {'count': 4, 'average': 0.28502905650550003}
+  notes: {'actual_unavailable': 'actual_pnl average uses only rows with actual data; missing actual rows are excluded, not imputed', 'fee_model': 'fee_adjusted pnl applies assumed taker fees only to legs tagged taker/mixed; maker-like and unknown legs are treated as zero-fee, and expiry settlements pay no exit fee'}

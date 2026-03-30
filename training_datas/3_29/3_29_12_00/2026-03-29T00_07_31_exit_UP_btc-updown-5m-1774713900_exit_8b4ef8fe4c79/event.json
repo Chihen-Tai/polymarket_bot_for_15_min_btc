@@ -1,0 +1,51 @@
+{
+  "collector_started_at": "2026-03-29T00:07:33.331",
+  "pre_seconds": 30.0,
+  "post_seconds": 30.0,
+  "poll_sec": 1.0,
+  "event": {
+    "run_id": "run_1774694598_128428_54e871",
+    "ts": "2026-03-29T00:07:31",
+    "event_id": "exit_8b4ef8fe4c79",
+    "kind": "exit",
+    "slug": "btc-updown-5m-1774713900",
+    "side": "UP",
+    "token_id": "108499383764954974733744382705567198452445630997979419359082489975045430616744",
+    "position_id": "pos_1774714035_616744",
+    "closed_shares": 1.48,
+    "remaining_shares": 0.0,
+    "realized_cost_usd": 0.999999,
+    "actual_exit_value_usd": 1.1836499999999999,
+    "actual_exit_value_source": "cash_balance_delta",
+    "actual_realized_pnl_usd": 0.1836509999999999,
+    "actual_realized_return_pct": 0.18365118365118355,
+    "actual_close_response_value": 1.1988,
+    "actual_close_response_value_source": "close_response_takingAmount",
+    "actual_close_response_amount_fields": {
+      "shares_sold_per_attempt": "[1.47, 0.01]"
+    },
+    "observed_mark_price": 0.775,
+    "observed_exit_value_usd": 1.147,
+    "observed_exit_value_source": "observed_mark_price",
+    "observed_realized_pnl_usd": 0.14700100000000005,
+    "observed_realized_return_pct": 0.14700114700114705,
+    "pnl_source": "actual_cash_recovered",
+    "exit_execution_style": "taker",
+    "reason": "residual-force-close",
+    "entry_quality": "good-entry",
+    "mae_pnl_usd": 0.0,
+    "mfe_pnl_usd": 0.14925372000000003,
+    "mae_value_usd": 0.999999,
+    "mfe_value_usd": 1.14925272
+  },
+  "market": {
+    "question": "Bitcoin Up or Down - March 28, 12:05PM-12:10PM ET",
+    "slug": "btc-updown-5m-1774713900",
+    "condition_id": "0x1cd6c96340bbe773452a418dbfc9ab791dcf143397a12d288ab87297c7b60479",
+    "token_up": "108499383764954974733744382705567198452445630997979419359082489975045430616744",
+    "token_down": "112942279485793941402675123895661655242986895546649140675595441962927596529487",
+    "outcomes": "[\"Up\", \"Down\"]",
+    "outcomePrices": "[\"0.485\", \"0.515\"]",
+    "endDate": "2026-03-28T16:10:00Z"
+  }
+}
