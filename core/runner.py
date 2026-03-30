@@ -2612,9 +2612,9 @@ def main():
                                 recovery_chance_low = True
 
                         if getattr(p, "force_close_only", False):
-                            # If the position has recovered to profit while waiting to be closed,
-                            # use a take-profit close reason rather than forcing a loss-tagged residual exit.
-                            if hard_stop_pnl_pct > 0.05:
+                            if secs_left is not None and secs_left <= getattr(SETTINGS, "exit_ghost_town_sec", 30.0) and hard_stop_pnl_pct <= 0:
+                                exit_decision = ExitDecision(False, "ghost-town-let-ride", hard_stop_pnl_pct, hold_sec)
+                            elif hard_stop_pnl_pct > 0.05:
                                 exit_decision = ExitDecision(True, "take-profit-full", hard_stop_pnl_pct, hold_sec)
                             else:
                                 exit_decision = ExitDecision(True, "residual-force-close", hard_stop_pnl_pct, hold_sec)
