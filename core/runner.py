@@ -3774,7 +3774,6 @@ def main():
                         prev_down=prev_down,
                         error_cooldown_until=error_cooldown_until,
                         same_market_reentry_block_slug=same_market_reentry_block_slug,
-                        is_manual_override=is_manual_override,
                         open_positions=open_positions,
                         pending_orders=pending_orders,
                         flags=flags,
