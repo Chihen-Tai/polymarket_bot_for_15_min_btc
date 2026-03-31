@@ -257,6 +257,8 @@ class Settings:
     # entry_velocity_min: block entry if Binance velocity is strongly opposing signal.
     # Only blocks adverse moves; flat/zero velocity still allows entry. Set 0.0 to disable.
     entry_velocity_min: float = _f("ENTRY_VELOCITY_MIN", 0.0002)
+    # 同方向進場冷卻：已有同方向倉位時，N 秒內不重複進場。設 0 停用。
+    same_direction_entry_cooldown_sec: float = _f("SAME_DIRECTION_ENTRY_COOLDOWN_SEC", 60.0)
 
     def __post_init__(self) -> None:
         if self.take_profit_hard_pct <= self.take_profit_soft_pct:

@@ -4145,6 +4145,22 @@ def main():
                 smart_sleep(SETTINGS.poll_seconds)
                 continue
 
+            # 同方向進場冷卻 (Same-Direction Entry Cooldown)
+            # 已有相同方向的倉位，且進場時間未超過冷卻期 → 跳過。
+            # 目的：避免同一訊號短時間重複觸發，造成方向錯誤時雙倍虧損。
+            _dir_cooldown_sec = float(SETTINGS.same_direction_entry_cooldown_sec)
+            if _dir_cooldown_sec > 0:
+                _now = time.time()
+                _same_dir_pos = [p for p in open_positions if p.side == signal_side and not p.force_close_only]
+                if _same_dir_pos:
+                    _youngest_entry = max(p.opened_ts for p in _same_dir_pos)
+                    _age = _now - _youngest_entry
+                    if _age < _dir_cooldown_sec:
+                        maybe_record_cycle_label(state, "signal-blocked", slug=last_market_slug, side=signal_side, reason="same-direction-cooldown")
+                        log(f"skip entry: same-direction cooldown | side={signal_side} youngest_pos_age={_age:.0f}s < {_dir_cooldown_sec:.0f}s")
+                        smart_sleep(SETTINGS.poll_seconds)
+                        continue
+
 
             if flags.close_fail_streak >= 2:
                 flags.panic_exit_mode = True
