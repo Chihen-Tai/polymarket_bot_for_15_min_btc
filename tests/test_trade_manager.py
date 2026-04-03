@@ -15,6 +15,7 @@ from core.runner import (
     RuntimeFlags,
     assess_entry_liquidity,
     apply_scoreboard_aux_probability,
+    collect_ranked_entry_candidates,
     decide_pending_order_action,
     entry_velocity_gate_rejects,
     entry_response_has_actionable_state,
@@ -26,6 +27,7 @@ from core.runner import (
     required_trade_edge,
     score_entry_candidate,
     select_ranked_entry_candidate,
+    select_ranked_entry_candidate_for_side,
     stabilize_entry_win_rate,
     strategy_name_for_side,
     summarize_entry_edge,
@@ -628,6 +630,85 @@ def main():
             trades=40,
         ),
     )
+    reversal_side_candidate, reversal_side_rejections = select_ranked_entry_candidate_for_side(
+        {
+            "ok": True,
+            "ranked_candidates": [
+                {
+                    "side": "DOWN",
+                    "strategy_name": "model-ws_order_flow_down",
+                    "entry_price": 0.45,
+                    "model_probability": 0.62,
+                },
+                {
+                    "side": "UP",
+                    "strategy_name": "model-ws_flash_snipe_up",
+                    "entry_price": 0.45,
+                    "model_probability": 0.58,
+                },
+            ],
+        },
+        side="UP",
+        ws_velocity=0.0005,
+        current_ws_velocity=0.0004,
+        secs_left=200,
+        scoreboard=StubScoreboard(
+            {
+                "model-ws_order_flow_down": 0.55,
+                "model-ws_flash_snipe_up": 0.56,
+            }
+        ),
+    )
+    missing_reversal_candidate, missing_reversal_rejections = select_ranked_entry_candidate_for_side(
+        {
+            "ok": True,
+            "ranked_candidates": [
+                {
+                    "side": "DOWN",
+                    "strategy_name": "model-ws_order_flow_down",
+                    "entry_price": 0.45,
+                    "model_probability": 0.62,
+                },
+            ],
+        },
+        side="UP",
+        ws_velocity=-0.0005,
+        current_ws_velocity=-0.0004,
+        secs_left=200,
+        scoreboard=StubScoreboard(
+            {
+                "model-ws_order_flow_down": 0.55,
+            }
+        ),
+    )
+    eligible_candidates, eligible_rejections = collect_ranked_entry_candidates(
+        {
+            "ok": True,
+            "ranked_candidates": [
+                {
+                    "side": "DOWN",
+                    "strategy_name": "model-ws_order_flow_down",
+                    "entry_price": 0.45,
+                    "model_probability": 0.62,
+                },
+                {
+                    "side": "UP",
+                    "strategy_name": "model-ws_flash_snipe_up",
+                    "entry_price": 0.45,
+                    "model_probability": 0.58,
+                },
+            ],
+        },
+        ws_velocity=0.0,
+        current_ws_velocity=0.0,
+        secs_left=200,
+        scoreboard=StubScoreboard(
+            {
+                "model-ws_order_flow_down": 0.55,
+                "model-ws_flash_snipe_up": 0.56,
+            }
+        ),
+    )
 
     health_flags = RuntimeFlags(0, "", 0, False)
     slow_detected = observe_api_latency(health_flags, "test_call", 1600.0)
@@ -796,6 +877,23 @@ def main():
             maybe_reverse_entry(signal_side="DOWN", live_consec_losses=2, last_loss_side="DOWN").side == "UP"
             and maybe_reverse_entry(signal_side="UP", live_consec_losses=2, last_loss_side="UP").side == "DOWN"
             and maybe_reverse_entry(signal_side="UP", live_consec_losses=2, last_loss_side="DOWN").side == "UP",
+        ),
+        (
+            "reversal_target_uses_actual_live_candidate",
+            reversal_side_candidate is not None
+            and reversal_side_candidate.get("side") == "UP"
+            and reversal_side_candidate.get("strategy_name") == "model-ws_flash_snipe_up",
+        ),
+        (
+            "reversal_target_missing_side_returns_none",
+            missing_reversal_candidate is None
+            and missing_reversal_rejections == [],
+        ),
+        (
+            "eligible_candidates_keep_both_sides_for_reversal_override",
+            len(eligible_candidates) == 2
+            and eligible_rejections == []
+            and {candidate.get("side") for candidate in eligible_candidates} == {"UP", "DOWN"},
         ),
         ("reenter_gate", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=50, current_market_slug="m1", blocked_market_slug="") is True),
         ("reenter_gate_respects_min_secs_left", can_reenter_same_market(has_current_market_pos=False, closed_any=True, secs_left=40, current_market_slug="m1", blocked_market_slug="") is False),

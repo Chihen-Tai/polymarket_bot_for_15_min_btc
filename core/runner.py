@@ -1473,14 +1473,24 @@ def score_entry_candidate(
     }
 
 
-def select_ranked_entry_candidate(
+def _entry_candidate_sort_key(scored: dict) -> tuple[float, float, float, float]:
+    entry_edge = scored.get("entry_edge") or {}
+    return (
+        float(entry_edge.get("raw_edge") or 0.0),
+        float(scored.get("effective_probability") or 0.0),
+        float(scored.get("strategy_win_rate") or 0.0),
+        float(scored.get("signal_probability") or 0.0),
+    )
+
+
+def collect_ranked_entry_candidates(
     model_decision: dict,
     *,
     ws_velocity: float,
     current_ws_velocity: float | None = None,
     secs_left: float | None,
     scoreboard=None,
-) -> tuple[dict | None, list[str]]:
+) -> tuple[list[dict], list[str]]:
     ranked_candidates = model_decision.get("ranked_candidates")
     if not isinstance(ranked_candidates, list) or not ranked_candidates:
         ranked_candidates = [model_decision] if model_decision.get("ok") else []
@@ -1519,19 +1529,28 @@ def select_ranked_entry_candidate(
         scored["rank"] = idx
         scored["candidate_count"] = len(ranked_candidates)
         eligible_candidates.append(scored)
+    return eligible_candidates, rejection_notes
+
+
+def select_ranked_entry_candidate(
+    model_decision: dict,
+    *,
+    ws_velocity: float,
+    current_ws_velocity: float | None = None,
+    secs_left: float | None,
+    scoreboard=None,
+) -> tuple[dict | None, list[str]]:
+    eligible_candidates, rejection_notes = collect_ranked_entry_candidates(
+        model_decision,
+        ws_velocity=ws_velocity,
+        current_ws_velocity=current_ws_velocity,
+        secs_left=secs_left,
+        scoreboard=scoreboard,
+    )
     if not eligible_candidates:
         return None, rejection_notes
 
-    def _sort_key(scored: dict) -> tuple[float, float, float, float]:
-        entry_edge = scored.get("entry_edge") or {}
-        return (
-            float(entry_edge.get("raw_edge") or 0.0),
-            float(scored.get("effective_probability") or 0.0),
-            float(scored.get("strategy_win_rate") or 0.0),
-            float(scored.get("signal_probability") or 0.0),
-        )
-
-    best_candidate = max(eligible_candidates, key=_sort_key)
+    best_candidate = max(eligible_candidates, key=_entry_candidate_sort_key)
 
     if bool(getattr(SETTINGS, "entry_side_conflict_enabled", True)):
         best_by_side: dict[str, dict] = {}
@@ -1540,13 +1559,13 @@ def select_ranked_entry_candidate(
             if side not in {"UP", "DOWN"}:
                 continue
             prior = best_by_side.get(side)
-            if prior is None or _sort_key(scored) > _sort_key(prior):
+            if prior is None or _entry_candidate_sort_key(scored) > _entry_candidate_sort_key(prior):
                 best_by_side[side] = scored
         if len(best_by_side) >= 2:
             up_best = best_by_side.get("UP")
             down_best = best_by_side.get("DOWN")
             if up_best and down_best:
-                winner, loser = sorted((up_best, down_best), key=_sort_key, reverse=True)
+                winner, loser = sorted((up_best, down_best), key=_entry_candidate_sort_key, reverse=True)
                 raw_gap = float((winner.get("entry_edge") or {}).get("raw_edge") or 0.0) - float((loser.get("entry_edge") or {}).get("raw_edge") or 0.0)
                 prob_gap = float(winner.get("effective_probability") or 0.0) - float(loser.get("effective_probability") or 0.0)
                 min_edge_gap = max(0.0, float(getattr(SETTINGS, "entry_side_conflict_min_edge_gap", 0.025) or 0.025))
@@ -1560,6 +1579,36 @@ def select_ranked_entry_candidate(
                     )
                     return None, rejection_notes
     return best_candidate, rejection_notes
+
+
+def select_ranked_entry_candidate_for_side(
+    model_decision: dict,
+    *,
+    side: str,
+    ws_velocity: float,
+    current_ws_velocity: float | None = None,
+    secs_left: float | None,
+    scoreboard=None,
+) -> tuple[dict | None, list[str]]:
+    target_side = str(side or "").strip().upper()
+    if target_side not in {"UP", "DOWN"}:
+        return None, []
+
+    eligible_candidates, rejection_notes = collect_ranked_entry_candidates(
+        model_decision,
+        ws_velocity=ws_velocity,
+        current_ws_velocity=current_ws_velocity,
+        secs_left=secs_left,
+        scoreboard=scoreboard,
+    )
+    side_candidates = [
+        candidate
+        for candidate in eligible_candidates
+        if str(candidate.get("side") or "").strip().upper() == target_side
+    ]
+    if not side_candidates:
+        return None, rejection_notes
+    return max(side_candidates, key=_entry_candidate_sort_key), rejection_notes
 
 
 def observed_mark_value(pos: OpenPos, up: float | None, down: float | None) -> float | None:
@@ -3787,29 +3836,49 @@ def main():
                             last_loss_side=flags.last_loss_side,
                         )
                         if entry_decision.reason:
-                            # Guard: only reverse if the target side has a proven scoreboard edge (WR > 55%)
-                            try:
-                                from core.learning import SCOREBOARD
-                                reversed_strat = strategy_name_for_side(signal_origin, entry_decision.side)
-                                _rev_wr = SCOREBOARD.get_strategy_score(reversed_strat)
-                            except Exception:
-                                _rev_wr = 0.5  # fallback: neutral
-                            if _rev_wr > 0.55:
-                                signal_side = entry_decision.side
-                                signal_origin = reversed_signal_origin(
-                                    signal_origin,
-                                    signal_side,
-                                    reason=entry_decision.reason,
+                            reversed_candidate, _ = select_ranked_entry_candidate_for_side(
+                                model_decision,
+                                side=entry_decision.side or "",
+                                ws_velocity=_entry_ws_vel,
+                                current_ws_velocity=_entry_ws_vel_now,
+                                secs_left=secs_left,
+                            )
+                            if reversed_candidate is None:
+                                log(
+                                    f"{entry_decision.reason} SKIPPED: no valid {entry_decision.side} "
+                                    "candidate survived this cycle's filters"
                                 )
-                                signal_probability = None
-                                strategy_win_rate = 0.5
-                                strategy_trade_count = 0
-                                strategy_decisive_trade_count = 0
-                                effective_probability = None
-                                entry_edge = None
-                                log(f"{entry_decision.reason} applied | consec_losses={flags.live_consec_losses} last_loss_side={flags.last_loss_side} -> side={signal_side} (WR={_rev_wr:.1%})")
                             else:
-                                log(f"loss-reversal SKIPPED: reversed side WR={_rev_wr:.1%} <= 55% threshold, keeping original signal={signal_side}")
+                                reversed_strategy = str(reversed_candidate.get("strategy_name") or "")
+                                reversed_raw_wr = float(reversed_candidate.get("raw_strategy_win_rate") or 0.5)
+                                if reversed_raw_wr > 0.55:
+                                    signal_side = str(reversed_candidate.get("side") or entry_decision.side or "").upper()
+                                    signal_origin = reversed_signal_origin(
+                                        reversed_strategy,
+                                        signal_side,
+                                        reason=entry_decision.reason,
+                                    )
+                                    signal_probability = reversed_candidate.get("signal_probability")
+                                    entry_price = reversed_candidate.get("entry_price")
+                                    strategy_win_rate = float(reversed_candidate.get("strategy_win_rate") or 0.5)
+                                    strategy_trade_count = int(reversed_candidate.get("strategy_trade_count") or 0)
+                                    strategy_decisive_trade_count = int(reversed_candidate.get("strategy_decisive_trade_count") or 0)
+                                    effective_probability = float(
+                                        reversed_candidate.get("effective_probability") or strategy_win_rate
+                                    )
+                                    entry_edge = reversed_candidate.get("entry_edge")
+                                    log(
+                                        f"{entry_decision.reason} applied | consec_losses={flags.live_consec_losses} "
+                                        f"last_loss_side={flags.last_loss_side} -> side={signal_side} "
+                                        f"strategy={signal_origin} (rawWR={reversed_raw_wr:.1%})"
+                                    )
+                                else:
+                                    log(
+                                        f"{entry_decision.reason} SKIPPED: reversed strategy "
+                                        f"{reversed_strategy or 'unknown'} rawWR={reversed_raw_wr:.1%} "
+                                        "<= 55% threshold, keeping original signal="
+                                        f"{signal_side}"
+                                    )
 
 
                         token_override = market["token_up"] if signal_side == "UP" else market["token_down"]
