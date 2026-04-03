@@ -107,6 +107,13 @@ def select_live_close_exit_value(
 ) -> tuple[float | None, str]:
     cash_value = float(cash_delta) if cash_delta is not None else 0.0
     response_value = float(usdc_received_total) if usdc_received_total is not None else 0.0
+    if cash_value > 0.0 and response_value > 0.0:
+        # Balance refresh can lag on live partial exits; when the wallet delta and
+        # matched-order proceeds disagree materially, trust the order response.
+        agreement_tolerance = max(0.05, response_value * 0.15)
+        if abs(cash_value - response_value) <= agreement_tolerance:
+            return cash_value, (cash_delta_source or "cash_balance_delta")
+        return response_value, (usdc_received_source or "close_response_takingAmount")
     if cash_value > 0.0:
         return cash_value, (cash_delta_source or "cash_balance_delta")
     if response_value > 0.0:

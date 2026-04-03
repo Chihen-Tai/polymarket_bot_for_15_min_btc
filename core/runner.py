@@ -102,6 +102,44 @@ def log(msg: str):
     print(f"[{ts}] {msg}", flush=True)
 
 
+def validate_live_startup_requirements() -> tuple[bool, list[str]]:
+    if bool(getattr(SETTINGS, "dry_run", True)):
+        return True, []
+
+    notes: list[str] = []
+    missing: list[str] = []
+    if not str(getattr(SETTINGS, "private_key", "") or "").strip():
+        missing.append("PRIVATE_KEY")
+    if not str(getattr(SETTINGS, "funder_address", "") or "").strip():
+        missing.append("FUNDER_ADDRESS")
+
+    if missing:
+        missing_csv = ", ".join(missing)
+        notes.append(f"live startup preflight failed | missing required settings: {missing_csv}")
+        notes.append(
+            "live startup preflight hint | put secrets in .env.local or .env.secrets; "
+            "keep tracked .env blank"
+        )
+        return False, notes
+
+    clob_values = [
+        str(getattr(SETTINGS, "clob_api_key", "") or "").strip(),
+        str(getattr(SETTINGS, "clob_api_secret", "") or "").strip(),
+        str(getattr(SETTINGS, "clob_api_passphrase", "") or "").strip(),
+    ]
+    if any(clob_values) and not all(clob_values):
+        notes.append(
+            "live startup preflight warning | partial CLOB_API_* detected; "
+            "client will ignore incomplete creds and derive fresh API creds from wallet"
+        )
+    elif not any(clob_values):
+        notes.append(
+            "live startup preflight | CLOB_API_* not set; client will derive API creds from wallet"
+        )
+
+    return True, notes
+
+
 def maybe_log_position_watch(
     pos,
     *,
@@ -1186,13 +1224,22 @@ def resolve_close_remaining_shares(
     requested_shares: float,
     sold_shares: float,
     remaining_hint: float | None,
+    close_request_shares: float | None = None,
 ) -> float:
     requested = max(0.0, float(requested_shares or 0.0))
     sold = min(requested, max(0.0, float(sold_shares or 0.0)))
     local_remaining = max(0.0, requested - sold)
     hint = None if remaining_hint is None else min(requested, max(0.0, float(remaining_hint or 0.0)))
+    close_request = requested
+    if close_request_shares is not None:
+        close_request = min(requested, max(0.0, float(close_request_shares or 0.0)))
 
     if hint is not None:
+        # Partial/scale-out close calls report the remainder of the requested clip,
+        # not the remainder of the full runtime lot. In those cases prefer local
+        # position math and ignore the exchange hint.
+        if close_request + LOT_EPS_SHARES < requested:
+            return 0.0 if local_remaining <= LOT_EPS_SHARES else local_remaining
         # A zero remainder from the exchange is the strongest signal that the lot was
         # fully cleared, even when reported filled shares lag or are rounded oddly.
         if hint <= LOT_EPS_SHARES:
@@ -2191,6 +2238,12 @@ def install_signal_handlers(run_journal: RunJournal):
 
 
 def main():
+    preflight_ok, preflight_notes = validate_live_startup_requirements()
+    for note in preflight_notes:
+        log(note)
+    if not preflight_ok:
+        raise SystemExit("live startup preflight failed")
+
     ex = PolymarketExchange(dry_run=SETTINGS.dry_run)
     risk = RiskState()
     state = load_state()
@@ -3124,6 +3177,7 @@ def main():
                                                 requested_shares=starting_shares,
                                                 sold_shares=sold_shares,
                                                 remaining_hint=remaining_hint,
+                                                close_request_shares=close_resp.get("requested_shares"),
                                             )
                                             sold_shares = resolve_effective_closed_shares(
                                                 starting_shares=starting_shares,
@@ -3206,6 +3260,7 @@ def main():
                                                 requested_shares=starting_shares,
                                                 sold_shares=sold_shares,
                                                 remaining_hint=remaining_hint,
+                                                close_request_shares=close_resp.get("requested_shares"),
                                             )
                                             sold_shares = resolve_effective_closed_shares(
                                                 starting_shares=starting_shares,
@@ -3330,6 +3385,7 @@ def main():
                                                 requested_shares=starting_shares,
                                                 sold_shares=sold_shares,
                                                 remaining_hint=remaining_hint,
+                                                close_request_shares=close_resp.get("requested_shares"),
                                             )
                                             sold_shares = resolve_effective_closed_shares(
                                                 starting_shares=starting_shares,
@@ -3445,6 +3501,7 @@ def main():
                                                 requested_shares=starting_shares,
                                                 sold_shares=sold_shares,
                                                 remaining_hint=remaining_hint,
+                                                close_request_shares=close_resp.get("requested_shares"),
                                             )
                                             sold_shares = resolve_effective_closed_shares(
                                                 starting_shares=starting_shares,
@@ -3612,6 +3669,7 @@ def main():
                                             requested_shares=starting_shares,
                                             sold_shares=sold_shares,
                                             remaining_hint=remaining_hint,
+                                            close_request_shares=close_resp.get("requested_shares"),
                                         )
                                         sold_shares = resolve_effective_closed_shares(
                                             starting_shares=starting_shares,
@@ -4517,6 +4575,7 @@ def main():
                                     requested_shares=shares,
                                     sold_shares=sold_shares,
                                     remaining_hint=close_resp.get("remaining_shares"),
+                                    close_request_shares=close_resp.get("requested_shares"),
                                 )
                                 remaining_cost = max(
                                     0.0,

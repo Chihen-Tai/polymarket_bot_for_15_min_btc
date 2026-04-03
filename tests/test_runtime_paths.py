@@ -19,6 +19,7 @@ from core.runner import (
     same_direction_entry_cooldown_age_sec,
     should_reset_clean_start_loss_streak,
     sync_open_positions,
+    validate_live_startup_requirements,
 )
 from core.risk import RiskState
 from core.runtime_paths import mode_label, run_journal_path, runtime_state_path, trade_journal_path
@@ -344,6 +345,39 @@ def main():
         runner_mod.log = original_log
         runner_mod.SETTINGS.dry_run = original_dry_run
 
+    original_private_key = runner_mod.SETTINGS.private_key
+    original_funder_address = runner_mod.SETTINGS.funder_address
+    original_clob_api_key = runner_mod.SETTINGS.clob_api_key
+    original_clob_api_secret = runner_mod.SETTINGS.clob_api_secret
+    original_clob_api_passphrase = runner_mod.SETTINGS.clob_api_passphrase
+    try:
+        runner_mod.SETTINGS.dry_run = False
+        runner_mod.SETTINGS.private_key = ""
+        runner_mod.SETTINGS.funder_address = ""
+        runner_mod.SETTINGS.clob_api_key = ""
+        runner_mod.SETTINGS.clob_api_secret = ""
+        runner_mod.SETTINGS.clob_api_passphrase = ""
+        live_preflight_ok_missing, live_preflight_notes_missing = validate_live_startup_requirements()
+
+        runner_mod.SETTINGS.private_key = "pk"
+        runner_mod.SETTINGS.funder_address = "0xfunder"
+        runner_mod.SETTINGS.clob_api_key = ""
+        runner_mod.SETTINGS.clob_api_secret = ""
+        runner_mod.SETTINGS.clob_api_passphrase = ""
+        live_preflight_ok_derivation, live_preflight_notes_derivation = validate_live_startup_requirements()
+
+        runner_mod.SETTINGS.clob_api_key = "api-key"
+        runner_mod.SETTINGS.clob_api_secret = ""
+        runner_mod.SETTINGS.clob_api_passphrase = "api-pass"
+        live_preflight_ok_partial, live_preflight_notes_partial = validate_live_startup_requirements()
+    finally:
+        runner_mod.SETTINGS.dry_run = original_dry_run
+        runner_mod.SETTINGS.private_key = original_private_key
+        runner_mod.SETTINGS.funder_address = original_funder_address
+        runner_mod.SETTINGS.clob_api_key = original_clob_api_key
+        runner_mod.SETTINGS.clob_api_secret = original_clob_api_secret
+        runner_mod.SETTINGS.clob_api_passphrase = original_clob_api_passphrase
+
     cases.extend([
         ("sync_open_positions_short_circuits_when_empty", synced_positions == [] and synced_notes == [] and dummy.calls == 0),
         ("pending_confirmation_holds_until_grace_expires", len(held_positions) == 1 and any("sync_hold token=pending-token" in note for note in held_notes)),
@@ -402,6 +436,25 @@ def main():
             and startup_logged_messages == ["startup sanity | journal reconcile note | exit without matching open entry in local journal | token=tok-startup"]
             and len(startup_events) == 1
             and startup_events[0].get("kind") == "startup_sanity"
+        ),
+        (
+            "live_preflight_blocks_missing_required_wallet_settings",
+            live_preflight_ok_missing is False
+            and live_preflight_notes_missing[0] == "live startup preflight failed | missing required settings: PRIVATE_KEY, FUNDER_ADDRESS"
+            and ".env.local or .env.secrets" in live_preflight_notes_missing[1]
+        ),
+        (
+            "live_preflight_allows_wallet_based_clob_derivation",
+            live_preflight_ok_derivation is True
+            and live_preflight_notes_derivation == [
+                "live startup preflight | CLOB_API_* not set; client will derive API creds from wallet"
+            ]
+        ),
+        (
+            "live_preflight_warns_on_partial_clob_creds",
+            live_preflight_ok_partial is True
+            and len(live_preflight_notes_partial) == 1
+            and "partial CLOB_API_* detected" in live_preflight_notes_partial[0]
         ),
         ("pending_orders_poll_every_second", abs(pending_order_poll_interval_seconds() - 1.0) < 1e-9),
         ("open_positions_poll_every_second", abs(open_position_poll_interval_seconds() - 1.0) < 1e-9),

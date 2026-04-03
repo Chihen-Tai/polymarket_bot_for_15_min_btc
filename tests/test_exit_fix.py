@@ -205,10 +205,16 @@ def main():
         dry_run=False,
     )
     principal_recovery_from_rejected_actual = sane_actual_value if sane_actual_value is not None else observed_partial_value
-    live_close_value, live_close_source = select_live_close_exit_value(
-        usdc_received_total=1.3846,
+    live_close_value_close_match, live_close_source_close_match = select_live_close_exit_value(
+        usdc_received_total=0.5920,
         usdc_received_source="close_response_takingAmount",
         cash_delta=0.5877,
+        cash_delta_source="cash_balance_delta",
+    )
+    live_close_value_mismatched, live_close_source_mismatched = select_live_close_exit_value(
+        usdc_received_total=1.3846,
+        usdc_received_source="close_response_takingAmount",
+        cash_delta=0.0589,
         cash_delta_source="cash_balance_delta",
     )
     residual_force_close_armed = should_arm_residual_force_close_after_stop_loss_scaleout(
@@ -275,6 +281,12 @@ def main():
         requested_shares=1.550382,
         sold_shares=0.91,
         remaining_hint=0.0,
+    )
+    resolved_close_remaining_partial_clip = resolve_close_remaining_shares(
+        requested_shares=1.550382,
+        sold_shares=0.91,
+        remaining_hint=0.0,
+        close_request_shares=0.91,
     )
     resolved_close_remaining_live_hint = resolve_close_remaining_shares(
         requested_shares=1.758613,
@@ -400,7 +412,8 @@ def main():
         ("sanitize_live_actual_exit_value_rejects_improbable_fill", sane_actual_value is None and sane_actual_source.startswith("sanity-rejected-")),
         ("sanitize_live_actual_exit_value_accepts_close_to_mark_fill", abs((accepted_actual_value or 0.0) - 0.5877) < 1e-9 and accepted_actual_source == "close_response_takingAmount"),
         ("rejected_actual_fill_falls_back_to_observed_mark_value", abs(principal_recovery_from_rejected_actual - observed_partial_value) < 1e-9),
-        ("live_close_exit_value_prefers_cash_delta", abs((live_close_value or 0.0) - 0.5877) < 1e-9 and live_close_source == "cash_balance_delta"),
+        ("live_close_exit_value_keeps_cash_delta_when_it_agrees", abs((live_close_value_close_match or 0.0) - 0.5877) < 1e-9 and live_close_source_close_match == "cash_balance_delta"),
+        ("live_close_exit_value_prefers_response_when_cash_delta_lags", abs((live_close_value_mismatched or 0.0) - 1.3846) < 1e-9 and live_close_source_mismatched == "close_response_takingAmount"),
         ("parse_balance_allowance_available_shares_handles_live_error", abs((parsed_balance_shares or 0.0) - 1.198827) < 1e-9),
         ("stop_loss_scaleout_arms_live_tail_cleanup", residual_force_close_armed is True),
         ("stop_loss_scaleout_tail_cleanup_skips_dry_run", residual_force_close_not_armed_dry_run is False),
@@ -409,6 +422,7 @@ def main():
         ("get_full_orderbook_accepts_object_style_orderbook", object_book.get("best_bid") == 0.48 and object_book.get("best_ask") == 0.49 and object_book.get("bids_volume") == 21.5 and object_book.get("asks_volume") == 18.0),
         ("has_exit_liquidity_accepts_object_style_levels", object_book_liquidity is True),
         ("close_remaining_shares_trusts_exchange_dust_hint", abs(resolved_close_remaining_dust - 0.0) < 1e-9),
+        ("close_remaining_shares_ignores_zero_hint_for_partial_clip", abs(resolved_close_remaining_partial_clip - 0.640382) < 1e-9),
         ("close_remaining_shares_preserves_non_dust_hint", abs(resolved_close_remaining_live_hint - 0.498613) < 1e-9),
         ("effective_closed_shares_uses_zero_remaining_hint_as_full_close", abs(effective_closed_from_zero_remaining_hint - 1.587300) < 1e-9),
         ("effective_closed_shares_preserves_partial_when_residual_remains", abs(effective_closed_with_live_residual_hint - 1.3793088) < 1e-9),
