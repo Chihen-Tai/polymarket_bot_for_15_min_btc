@@ -68,7 +68,19 @@ def open_position_poll_interval_seconds() -> float:
     return min(normal_poll_interval_seconds(), requested)
 
 
-def next_cycle_interval_seconds(*, has_pending_orders: bool, has_open_positions: bool = False) -> float:
+def near_stop_poll_interval_seconds() -> float:
+    requested = max(0.5, float(getattr(SETTINGS, "near_stop_poll_seconds", 0.5) or 0.5))
+    return min(open_position_poll_interval_seconds(), requested)
+
+
+def next_cycle_interval_seconds(
+    *,
+    has_pending_orders: bool,
+    has_open_positions: bool = False,
+    has_near_stop: bool = False,
+) -> float:
+    if has_near_stop:
+        return near_stop_poll_interval_seconds()
     if has_pending_orders:
         return pending_order_poll_interval_seconds()
     if has_open_positions:
@@ -76,7 +88,15 @@ def next_cycle_interval_seconds(*, has_pending_orders: bool, has_open_positions:
     return normal_poll_interval_seconds()
 
 
-def idle_sleep_seconds(*, has_open_positions: bool, has_pending_orders: bool, secs_left: float | None = None) -> float:
+def idle_sleep_seconds(
+    *,
+    has_open_positions: bool,
+    has_pending_orders: bool,
+    secs_left: float | None = None,
+    has_near_stop: bool = False,
+) -> float:
+    if has_near_stop:
+        return near_stop_poll_interval_seconds()
     if has_pending_orders:
         return pending_order_poll_interval_seconds()
     if has_open_positions:
@@ -109,6 +129,19 @@ def risk_block_sleep_seconds(
     if secs_left is None:
         return max(base_sleep, min_pause_sec)
     return max(base_sleep, min(max_pause_sec, max(min_pause_sec, float(secs_left) + 2.0)))
+
+
+def has_near_stop_open_position(open_positions: list["OpenPos"]) -> bool:
+    now_ts = time.time()
+    return any(float(getattr(pos, "near_stop_poll_until_ts", 0.0) or 0.0) > now_ts for pos in open_positions)
+
+
+def arm_near_stop_poll(pos: "OpenPos") -> None:
+    hold_sec = max(0.5, float(getattr(SETTINGS, "near_stop_poll_hold_sec", 15.0) or 15.0))
+    pos.near_stop_poll_until_ts = max(
+        float(getattr(pos, "near_stop_poll_until_ts", 0.0) or 0.0),
+        time.time() + hold_sec,
+    )
 
 
 def market_end_ts_from_slug(slug: str | None) -> float | None:
@@ -232,6 +265,8 @@ def maybe_log_position_watch(
     flags = []
     if getattr(pos, "pending_confirmation", False):
         flags.append("pending-confirmation")
+    if float(getattr(pos, "near_stop_poll_until_ts", 0.0) or 0.0) > now_ts:
+        flags.append("near-stop")
     if float(getattr(pos, "live_sync_protect_until_ts", 0.0) or 0.0) > now_ts:
         flags.append("sync-protected")
     if getattr(pos, "force_close_only", False):
@@ -297,6 +332,7 @@ class OpenPos:
     dust_retry_count: int = 0  # Number of times this residual lot has been kept for retry
     last_watch_log_ts: float = 0.0
     last_watch_log_sig: str = ""
+    near_stop_poll_until_ts: float = 0.0
     soft_stop_breach_ts: float = 0.0
     binance_adverse_breach_ts: float = 0.0
     binance_profit_protect_breach_ts: float = 0.0
@@ -651,6 +687,53 @@ class RuntimeFlags:
     ws_stale_streak: int = 0
     network_recovery_streak: int = 0
     last_api_latency_ms: float = 0.0
+
+
+def effective_max_open_positions() -> int:
+    configured = max(1, int(getattr(SETTINGS, "max_open_positions", 2) or 1))
+    if not bool(getattr(SETTINGS, "conservative_mode_enabled", False)):
+        return configured
+    conservative_cap = max(
+        1,
+        int(getattr(SETTINGS, "conservative_max_open_positions", configured) or configured),
+    )
+    return min(configured, conservative_cap)
+
+
+def effective_max_orders_per_5min() -> int:
+    configured = max(1, int(getattr(SETTINGS, "max_orders_per_5min", 1) or 1))
+    if not bool(getattr(SETTINGS, "conservative_mode_enabled", False)):
+        return configured
+    conservative_cap = max(
+        1,
+        int(getattr(SETTINGS, "conservative_max_orders_per_5min", configured) or configured),
+    )
+    return min(configured, conservative_cap)
+
+
+def conservative_entry_block_reason(
+    open_positions: list[OpenPos],
+    pending_orders: list[PendingOrder],
+    *,
+    now_ts: float | None = None,
+) -> str:
+    if not bool(getattr(SETTINGS, "conservative_mode_enabled", False)):
+        return ""
+
+    ref_now = time.time() if now_ts is None else now_ts
+    if bool(getattr(SETTINGS, "conservative_block_pending_orders", True)) and pending_orders:
+        return "conservative-pending-orders"
+
+    sync_miss_limit = max(1, int(getattr(SETTINGS, "conservative_sync_miss_limit", 1) or 1))
+    for pos in open_positions:
+        if bool(getattr(SETTINGS, "conservative_block_pending_confirmation", True)) and bool(getattr(pos, "pending_confirmation", False)):
+            return "conservative-pending-confirmation"
+        if bool(getattr(SETTINGS, "conservative_block_live_sync_protect", True)) and float(getattr(pos, "live_sync_protect_until_ts", 0.0) or 0.0) > ref_now:
+            return "conservative-live-sync-protect"
+        if int(getattr(pos, "live_miss_count", 0) or 0) >= sync_miss_limit:
+            return "conservative-live-sync-miss"
+
+    return ""
 
 
 def maybe_apply_stale_loss_streak_reset(
@@ -2733,9 +2816,11 @@ def main():
                 continue
 
             time_since_last_query = time.time() - last_rest_query_ts
+            has_near_stop_positions = has_near_stop_open_position(open_positions)
             cycle_interval = next_cycle_interval_seconds(
                 has_pending_orders=bool(pending_orders),
                 has_open_positions=bool(open_positions),
+                has_near_stop=has_near_stop_positions,
             )
             if time_since_last_query < cycle_interval:
                 time.sleep(cycle_interval - time_since_last_query)
@@ -3565,6 +3650,7 @@ def main():
                         urgent_exit = hard_stop_pnl_pct <= -SETTINGS.stop_loss_pct
 
                         if stop_warn and not urgent_exit:
+                            arm_near_stop_poll(p)
                             append_event({
                                 "kind": "risk_warning",
                                 "slug": p.slug,
@@ -3576,6 +3662,9 @@ def main():
                                 "hold_sec": hold_sec,
                             })
                             log(f"stop-loss warning | side={p.side} observed_return={pnl_pct:.2%} hold={hold_sec:.0f}s")
+
+                        if is_loss_exit_reason(exit_decision.reason):
+                            arm_near_stop_poll(p)
 
                         if exit_decision.should_close:
                             if exit_decision.reason == "scale-out":
@@ -4599,6 +4688,26 @@ def main():
                 smart_sleep(SETTINGS.poll_seconds)
                 continue
 
+            conservative_block_reason = conservative_entry_block_reason(
+                open_positions,
+                pending_orders,
+                now_ts=time.time(),
+            )
+            if conservative_block_reason:
+                maybe_record_cycle_label(
+                    state,
+                    "signal-blocked",
+                    slug=last_market_slug,
+                    side=signal_side,
+                    reason=conservative_block_reason,
+                )
+                log(
+                    f"skip entry: conservative mode guard | reason={conservative_block_reason} "
+                    f"open_positions={len(open_positions)} pending_orders={len(pending_orders)}"
+                )
+                smart_sleep(SETTINGS.poll_seconds)
+                continue
+
             if signal_side and signal_origin and entry_price and float(entry_price) > 0 and entry_edge is None:
                 effective_probability = signal_probability
                 try:
@@ -4659,6 +4768,28 @@ def main():
                     smart_sleep(SETTINGS.poll_seconds)
                     continue
 
+            if signal_side and signal_origin and entry_price and float(entry_price) > 0 and entry_edge is not None:
+                conservative_extra_edge = max(0.0, float(getattr(SETTINGS, "conservative_extra_edge", 0.0) or 0.0))
+                conservative_required_edge = float(entry_edge["required_edge"]) + conservative_extra_edge
+                if (
+                    bool(getattr(SETTINGS, "conservative_mode_enabled", False))
+                    and float(entry_edge["raw_edge"]) + 1e-9 < conservative_required_edge
+                ):
+                    maybe_record_cycle_label(
+                        state,
+                        "signal-blocked",
+                        slug=last_market_slug,
+                        side=signal_side,
+                        reason="conservative-edge-buffer",
+                    )
+                    log(
+                        f"skip entry: conservative edge buffer | strategy={signal_origin} side={signal_side} "
+                        f"price={float(entry_price):.3f} raw_edge={entry_edge['raw_edge']:.3f} "
+                        f"base_required={entry_edge['required_edge']:.3f} extra={conservative_extra_edge:.3f} "
+                        f"conservative_required={conservative_required_edge:.3f}"
+                    )
+                    smart_sleep(SETTINGS.poll_seconds)
+                    continue
 
             if signal_side and signal_origin and entry_price and float(entry_price) > 0 and entry_edge is not None:
                 log(
@@ -4901,7 +5032,7 @@ def main():
                 continue
 
 
-            _max_open = int(getattr(SETTINGS, "max_open_positions", 2))
+            _max_open = effective_max_open_positions()
             if len(open_positions) >= _max_open:
                 maybe_record_cycle_label(state, "signal-blocked", slug=last_market_slug, side=signal_side, reason="existing-position-still-open")
                 log(f"skip entry: max open positions reached ({len(open_positions)}/{_max_open})")
@@ -4961,7 +5092,7 @@ def main():
                 order_usd=order_usd,
                 min_equity=SETTINGS.min_equity,
                 max_exposure_usd=SETTINGS.max_exposure_usd,
-                max_orders_per_5min=SETTINGS.max_orders_per_5min,
+                max_orders_per_5min=effective_max_orders_per_5min(),
                 consec_losses=risk.consec_losses,
                 max_consec_loss=SETTINGS.max_consec_loss,
                 daily_pnl=risk.daily_pnl,
@@ -5087,6 +5218,13 @@ def main():
                         if slippage_breach:
                             expected_price = float(slippage_expected_price)
                             actual_avg_price = float(actual_entry_avg_price or 0.0)
+                            opened_ts = time.time()
+                            position_id = f"pos_{int(opened_ts)}_{token_id[-6:]}"
+                            entry_reason = f"{signal_origin or 'signal'}-slippage-guard"
+                            entry_execution_style = normalize_execution_style(
+                                resp.get("execution_style") if isinstance(resp, dict) else "",
+                                default="taker" if force_taker_entry else "maker",
+                            )
                             maybe_record_cycle_label(
                                 state,
                                 "entry-slippage-guard",
@@ -5107,6 +5245,25 @@ def main():
                                 "actual_entry_avg_price": actual_avg_price,
                                 "slippage_premium_pct": slippage_premium_pct,
                                 "response_mode": resp.get("mode") if isinstance(resp, dict) else "",
+                            })
+                            append_event({
+                                "kind": "entry",
+                                "slug": market["slug"],
+                                "side": signal_side,
+                                "token_id": token_id,
+                                "position_id": position_id,
+                                "shares": shares,
+                                "cost_usd": actual_entry_cost_usd,
+                                "opened_ts": opened_ts,
+                                "entry_reason": entry_reason,
+                                "classification": "entry-slippage-guard",
+                                "execution_style": entry_execution_style,
+                                "entry_price": float(entry_price),
+                                "entry_book_spread": (float(entry_book_quality.get("spread")) if entry_book_quality and entry_book_quality.get("spread") is not None else None),
+                                "entry_best_ask_size": (float(entry_book_quality.get("best_ask_size")) if entry_book_quality and entry_book_quality.get("best_ask_size") is not None else None),
+                                "entry_ask_depth_shares": (float(entry_book_quality.get("asks_volume")) if entry_book_quality and entry_book_quality.get("asks_volume") is not None else None),
+                                "mae_pnl_usd": 0.0,
+                                "mfe_pnl_usd": 0.0,
                             })
                             log(
                                 f"ENTRY SLIPPAGE GUARD: side={signal_side} slug={market['slug']} "
@@ -5152,6 +5309,7 @@ def main():
                                     "slug": market["slug"],
                                     "side": signal_side,
                                     "token_id": token_id,
+                                    "position_id": position_id,
                                     "closed_shares": sold_shares,
                                     "remaining_shares": remaining_shares,
                                     "realized_cost_usd": realized_cost,
@@ -5172,8 +5330,6 @@ def main():
                                     f"realized_pnl=${realized_pnl:.4f} remaining_shares={remaining_shares:.6f}"
                                 )
                                 if remaining_shares > LOT_EPS_SHARES:
-                                    opened_ts = time.time()
-                                    position_id = f"pos_{int(opened_ts)}_{token_id[-6:]}"
                                     open_positions.append(OpenPos(
                                         slug=market["slug"],
                                         side=signal_side,
@@ -5183,7 +5339,7 @@ def main():
                                         cost_usd=remaining_cost,
                                         opened_ts=opened_ts,
                                         position_id=position_id,
-                                        entry_reason=f"{signal_origin or 'signal'}-slippage-guard",
+                                        entry_reason=entry_reason,
                                         source="live-order",
                                         force_close_only=True,
                                         max_favorable_value_usd=remaining_cost,
@@ -5197,8 +5353,6 @@ def main():
                                         f"remaining_shares={remaining_shares:.6f} remaining_cost=${remaining_cost:.4f}"
                                     )
                             else:
-                                opened_ts = time.time()
-                                position_id = f"pos_{int(opened_ts)}_{token_id[-6:]}"
                                 open_positions.append(OpenPos(
                                     slug=market["slug"],
                                     side=signal_side,
@@ -5208,7 +5362,7 @@ def main():
                                     cost_usd=actual_entry_cost_usd,
                                     opened_ts=opened_ts,
                                     position_id=position_id,
-                                    entry_reason=f"{signal_origin or 'signal'}-slippage-guard",
+                                    entry_reason=entry_reason,
                                     source="live-order",
                                     pending_confirmation=True,
                                     force_close_only=True,
@@ -5387,6 +5541,7 @@ def main():
                     idle_sleep_seconds(
                         has_open_positions=bool(open_positions),
                         has_pending_orders=bool(pending_orders),
+                        has_near_stop=has_near_stop_open_position(open_positions),
                     )
                 )
                 continue
@@ -5396,6 +5551,7 @@ def main():
                     has_open_positions=bool(open_positions),
                     has_pending_orders=bool(pending_orders),
                     secs_left=secs_left if "secs_left" in locals() else None,
+                    has_near_stop=has_near_stop_open_position(open_positions),
                 )
             )
     except GracefulStop:

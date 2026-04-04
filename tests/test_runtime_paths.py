@@ -10,7 +10,10 @@ from core.runner import (
     OpenPos,
     PendingOrder,
     clear_expired_market_state,
+    conservative_entry_block_reason,
     dedupe_open_positions_by_token,
+    effective_max_open_positions,
+    effective_max_orders_per_5min,
     existing_token_entry_conflict,
     idle_sleep_seconds,
     maybe_apply_manual_daily_max_loss_reset,
@@ -32,6 +35,17 @@ from core.runtime_paths import mode_label, run_journal_path, runtime_state_path,
 
 
 def main():
+    runner_mod.SETTINGS.near_stop_poll_seconds = 0.5
+    runner_mod.SETTINGS.near_stop_poll_hold_sec = 15.0
+    runner_mod.SETTINGS.conservative_mode_enabled = True
+    runner_mod.SETTINGS.conservative_extra_edge = 0.015
+    runner_mod.SETTINGS.conservative_max_open_positions = 1
+    runner_mod.SETTINGS.conservative_max_orders_per_5min = 2
+    runner_mod.SETTINGS.conservative_sync_miss_limit = 1
+    runner_mod.SETTINGS.conservative_block_pending_orders = True
+    runner_mod.SETTINGS.conservative_block_pending_confirmation = True
+    runner_mod.SETTINGS.conservative_block_live_sync_protect = True
+
     cases = [
         ("dryrun_mode_label", mode_label(dry_run=True) == "dryrun"),
         ("live_mode_label", mode_label(dry_run=False) == "live"),
@@ -90,6 +104,8 @@ def main():
         ("expired_market_cancels_old_pending_order", canceled == ["old-order"]),
         ("expired_market_logs_cleanup", any("clear expired live runtime position" in note for note in cleanup_notes)),
         ("expired_market_normal_cleanup_has_no_unresolved_event", cleanup_events == []),
+        ("conservative_max_open_positions_caps_to_one", effective_max_open_positions() == 1),
+        ("conservative_max_orders_per_5min_caps_frequency", effective_max_orders_per_5min() == 2),
     ])
 
     _, _, unresolved_notes, unresolved_events = clear_expired_market_state(
@@ -331,6 +347,65 @@ def main():
         ],
         signal_side="UP",
         market_slug="btc-updown-5m-current",
+        now_ts=200.0,
+    )
+    conservative_pending_confirmation_reason = conservative_entry_block_reason(
+        [
+            OpenPos(
+                slug="btc-updown-5m-current",
+                side="UP",
+                token_id="confirm-token",
+                shares=1.0,
+                cost_usd=1.0,
+                opened_ts=1.0,
+                pending_confirmation=True,
+            ),
+        ],
+        [],
+        now_ts=200.0,
+    )
+    conservative_sync_miss_reason = conservative_entry_block_reason(
+        [
+            OpenPos(
+                slug="btc-updown-5m-current",
+                side="UP",
+                token_id="miss-token",
+                shares=1.0,
+                cost_usd=1.0,
+                opened_ts=1.0,
+                live_miss_count=1,
+            ),
+        ],
+        [],
+        now_ts=200.0,
+    )
+    conservative_sync_protect_reason = conservative_entry_block_reason(
+        [
+            OpenPos(
+                slug="btc-updown-5m-current",
+                side="UP",
+                token_id="protect-token",
+                shares=1.0,
+                cost_usd=1.0,
+                opened_ts=1.0,
+                live_sync_protect_until_ts=260.0,
+            ),
+        ],
+        [],
+        now_ts=200.0,
+    )
+    conservative_pending_orders_reason = conservative_entry_block_reason(
+        [],
+        [
+            PendingOrder(
+                order_id="po-conservative",
+                slug="btc-updown-5m-current",
+                side="UP",
+                token_id="pending-token",
+                placed_ts=1.0,
+                order_usd=1.0,
+            ),
+        ],
         now_ts=200.0,
     )
 
@@ -577,6 +652,22 @@ def main():
         ),
         ("same_direction_cooldown_scopes_to_current_market", same_market_cooldown_age is not None and abs(same_market_cooldown_age - 100.0) < 1e-9),
         ("same_direction_cooldown_ignores_other_markets", cross_market_cooldown_age is None),
+        (
+            "conservative_mode_blocks_pending_confirmation_positions",
+            conservative_pending_confirmation_reason == "conservative-pending-confirmation"
+        ),
+        (
+            "conservative_mode_blocks_live_sync_miss",
+            conservative_sync_miss_reason == "conservative-live-sync-miss"
+        ),
+        (
+            "conservative_mode_blocks_live_sync_protect_window",
+            conservative_sync_protect_reason == "conservative-live-sync-protect"
+        ),
+        (
+            "conservative_mode_blocks_any_pending_orders",
+            conservative_pending_orders_reason == "conservative-pending-orders"
+        ),
         ("loss_reversal_origin_flips_strategy_side", reversed_loss_origin == "model-ws_order_flow_up+loss-reversal"),
         ("clean_start_resets_stale_loss_streak", stale_loss_reset is True and abs(stale_loss_age - 350.0) < 1e-9),
         ("clean_start_keeps_recent_loss_streak", recent_loss_reset is False and abs(recent_loss_age - 250.0) < 1e-9),
@@ -663,9 +754,11 @@ def main():
         ("open_positions_poll_every_second", abs(open_position_poll_interval_seconds() - 1.0) < 1e-9),
         ("next_cycle_interval_uses_fast_pending_poll", abs(next_cycle_interval_seconds(has_pending_orders=True, has_open_positions=False) - 1.0) < 1e-9),
         ("next_cycle_interval_uses_fast_open_position_poll", abs(next_cycle_interval_seconds(has_pending_orders=False, has_open_positions=True) - 1.0) < 1e-9),
+        ("next_cycle_interval_uses_near_stop_poll_floor", abs(next_cycle_interval_seconds(has_pending_orders=False, has_open_positions=True, has_near_stop=True) - 0.5) < 1e-9),
         ("next_cycle_interval_uses_two_second_market_poll_floor", abs(next_cycle_interval_seconds(has_pending_orders=False, has_open_positions=False) - 2.0) < 1e-9),
         ("idle_sleep_prefers_fast_pending_poll", abs(idle_sleep_seconds(has_open_positions=False, has_pending_orders=True) - 1.0) < 1e-9),
         ("idle_sleep_prefers_fast_open_position_poll", abs(idle_sleep_seconds(has_open_positions=True, has_pending_orders=False) - 1.0) < 1e-9),
+        ("idle_sleep_prefers_near_stop_poll_floor", abs(idle_sleep_seconds(has_open_positions=True, has_pending_orders=False, has_near_stop=True) - 0.5) < 1e-9),
         ("daily_loss_pause_sleep_backs_off_until_market_end", abs(daily_loss_pause_sleep - 44.0) < 1e-9),
     ])
 

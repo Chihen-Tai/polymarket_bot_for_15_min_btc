@@ -759,6 +759,80 @@ def _collapse_overflow_residual_rows(rows: list[TradePairRow]) -> list[TradePair
     return [row for idx, row in enumerate(rows) if idx not in dropped_indices]
 
 
+def _collapse_entry_slippage_guard_rows(rows: list[TradePairRow]) -> list[TradePairRow]:
+    if not rows:
+        return rows
+
+    base_indices: dict[tuple[str, str, str], list[int]] = {}
+    for idx, row in enumerate(rows):
+        if row.status == "residual":
+            continue
+        if "market-settlement-imputed" not in row.flags:
+            continue
+        key = (str(row.market or "").strip(), str(row.side or "").strip(), str(row.token_id or "").strip())
+        if all(key):
+            base_indices.setdefault(key, []).append(idx)
+
+    dropped_indices: set[int] = set()
+    for idx, row in enumerate(rows):
+        if row.status != "residual" or "orphan-residual" not in row.flags:
+            continue
+        if str(row.close_reason or "").strip().lower() != "entry-slippage-guard":
+            continue
+        key = (str(row.market or "").strip(), str(row.side or "").strip(), str(row.token_id or "").strip())
+        if not all(key):
+            continue
+
+        row_closed_dt = _parse_iso_dt(row.closed_ts)
+        share_target = row.matched_exit_shares if row.matched_exit_shares > EPS else row.entry_shares
+        candidates = []
+        for base_idx in base_indices.get(key, []):
+            base_row = rows[base_idx]
+            base_open_dt = _parse_iso_dt(base_row.opened_ts)
+            age_sec = abs((row_closed_dt - base_open_dt).total_seconds()) if row_closed_dt is not None and base_open_dt is not None else 0.0
+            if row_closed_dt is not None and base_open_dt is not None and age_sec > 300:
+                continue
+            base_shares = base_row.entry_shares if base_row.entry_shares > EPS else base_row.matched_exit_shares
+            share_diff = abs(base_shares - share_target)
+            candidates.append((share_diff, age_sec, base_idx))
+
+        if not candidates:
+            continue
+
+        _, _, base_idx = min(candidates, key=lambda item: (item[0], item[1], item[2]))
+        base_row = rows[base_idx]
+        base_row.matched_cost_usd = base_row.entry_cost_usd
+        if share_target > EPS:
+            base_row.matched_exit_shares = share_target
+        base_row.exit_recovered_actual_usd = row.exit_recovered_actual_usd
+        base_row.exit_recovered_observed_usd = row.exit_recovered_observed_usd
+        base_row.close_reason = "entry-slippage-guard"
+        base_row.close_bucket = classify_close_bucket(base_row.close_reason)
+        base_row.closed_ts = row.closed_ts or base_row.closed_ts
+        base_row.status = "closed"
+        base_row.remaining_shares = 0.0
+        base_row.unmatched_entry_cost_usd = 0.0
+        base_row.unmatched_entry_shares = 0.0
+        if _actual_source_rank(row.actual_source_tier) >= _actual_source_rank(base_row.actual_source_tier):
+            base_row.actual_source = row.actual_source
+            base_row.actual_source_tier = row.actual_source_tier
+        if normalize_execution_style(row.exit_execution_style) != "unknown":
+            base_row.exit_execution_style = row.exit_execution_style
+        base_row.mae_pnl_usd = _coalesce_extreme(base_row.mae_pnl_usd, row.mae_pnl_usd, min)
+        base_row.mfe_pnl_usd = _coalesce_extreme(base_row.mfe_pnl_usd, row.mfe_pnl_usd, max)
+        base_row.legs = [leg for leg in base_row.legs if leg.kind != "expiry_settlement"] + row.legs
+        base_row.flags = list(dict.fromkeys([
+            flag for flag in base_row.flags
+            if flag not in {"market-settlement-imputed", "no-exit", "open-remainder", "ui-reconciliation-needed"}
+        ] + ["collapsed-entry-slippage-guard"]))
+        _recompute_pair_row_accounting(base_row)
+        dropped_indices.add(idx)
+
+    if not dropped_indices:
+        return rows
+    return [row for idx, row in enumerate(rows) if idx not in dropped_indices]
+
+
 def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
     open_entries: dict[str, deque[dict]] = {}
     rows: list[TradePairRow] = []
@@ -951,6 +1025,7 @@ def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
             rows.append(_finalize_pair_row(lot["event"], str(lot["event"].get("token_id") or ""), key, lot))
 
     rows = _collapse_overflow_residual_rows(rows)
+    rows = _collapse_entry_slippage_guard_rows(rows)
     rows = reconcile_rows_with_account_activity(rows)
     rows.sort(key=lambda row: (row.opened_ts or row.closed_ts or "", row.market, row.side, row.position_id))
     return rows

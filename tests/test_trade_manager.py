@@ -428,6 +428,43 @@ def main():
     finally:
         journal_analysis_mod._fetch_market_settlement = original_fetch_market_settlement
     settled_unmatched_summary = summarize_trade_pairs(settled_unmatched_rows)
+    original_fetch_market_settlement = journal_analysis_mod._fetch_market_settlement
+    journal_analysis_mod._fetch_market_settlement = lambda slug, side: (0.0, "market-expired-binary-loss")
+    try:
+        slippage_guard_collapsed_rows = build_trade_pairs([
+            {
+                "kind": "entry",
+                "ts": "2026-03-19T10:30:00+00:00",
+                "event_id": "entry_slippage_guard",
+                "position_id": "pos_slippage_guard_entry",
+                "slug": "btc-updown-5m-1773885840",
+                "side": "UP",
+                "token_id": "tok_slippage_guard",
+                "shares": 1.204817,
+                "cost_usd": 1.0,
+                "execution_style": "taker",
+            },
+            {
+                "kind": "exit",
+                "ts": "2026-03-19T10:30:10+00:00",
+                "event_id": "exit_slippage_guard",
+                "position_id": "",
+                "slug": "btc-updown-5m-1773885840",
+                "side": "UP",
+                "token_id": "tok_slippage_guard",
+                "closed_shares": 1.204817,
+                "remaining_shares": 0.0,
+                "realized_cost_usd": 1.0,
+                "actual_exit_value_usd": 0.984,
+                "actual_exit_value_source": "close_response_takingAmount",
+                "observed_exit_value_usd": 0.768,
+                "reason": "entry-slippage-guard",
+                "exit_execution_style": "taker",
+            },
+        ])
+    finally:
+        journal_analysis_mod._fetch_market_settlement = original_fetch_market_settlement
+    slippage_guard_collapsed_summary = summarize_trade_pairs(slippage_guard_collapsed_rows)
     original_funder_address = SETTINGS.funder_address
     original_fetch_activity = journal_analysis_mod._fetch_account_trade_activity
     original_fetch_market_settlement = journal_analysis_mod._fetch_market_settlement
@@ -1168,6 +1205,20 @@ def main():
             "expired_unmatched_settlement_counts_as_actual",
             abs((settled_unmatched_summary["actual_available_ratio"] or 0.0) - 1.0) < 1e-9
             and abs((settled_unmatched_summary["actual_pnl"]["sum"] or 0.0) + 1.0) < 1e-9
+        ),
+        (
+            "entry_slippage_guard_residual_rejoins_its_settled_entry_row",
+            len(slippage_guard_collapsed_rows) == 1
+            and slippage_guard_collapsed_rows[0].status == "closed"
+            and slippage_guard_collapsed_rows[0].close_reason == "entry-slippage-guard"
+            and abs((slippage_guard_collapsed_rows[0].actual_pnl_usd or 0.0) + 0.016) < 1e-9
+            and "collapsed-entry-slippage-guard" in slippage_guard_collapsed_rows[0].flags
+            and "market-settlement-imputed" not in slippage_guard_collapsed_rows[0].flags
+        ),
+        (
+            "entry_slippage_guard_collapse_restores_actual_performance",
+            abs((slippage_guard_collapsed_summary["actual_available_ratio"] or 0.0) - 1.0) < 1e-9
+            and abs((slippage_guard_collapsed_summary["actual_pnl"]["sum"] or 0.0) + 0.016) < 1e-9
         ),
         (
             "expired_settlement_prefers_account_activity_when_available",
