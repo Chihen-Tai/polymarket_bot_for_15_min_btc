@@ -519,7 +519,7 @@ def main():
         ("binance_profit_protect_exit_can_fire_without_current_confirmation", should_trigger_binance_profit_protect_exit(has_extracted_principal=False, side="DOWN", profit_pnl_pct=0.10, take_profit_soft_pct=0.18, hold_sec=12.0, peak_age_sec=7.0, breach_age_sec=1.1, secs_left=120.0, ws_velocity=0.0010, current_ws_velocity=0.0) is True),
         ("binance_profit_protect_prefers_taker_live", should_force_taker_profit_protection(reason="binance-profit-protect-exit", dry_run=False) is True),
         ("dry_run_stop_loss_partial_fraction_unchanged", abs(effective_stop_loss_partial_fraction(dry_run=True) - 0.50) < 1e-9),
-        ("live_stop_loss_partial_fraction_is_heavy", abs(effective_stop_loss_partial_fraction(dry_run=False) - 0.80) < 1e-9),
+        ("live_stop_loss_partial_fraction_leaves_small_recovery_runner", abs(effective_stop_loss_partial_fraction(dry_run=False) - 0.80) < 1e-9),
         ("runner_exports_exit_decision_for_force_close_branch", RunnerExitDecision(True, "residual-force-close").reason == "residual-force-close"),
         ("limit_order_type_prefers_post_only_when_available", _limit_order_type(LegacyOrderType) == "POST_ONLY"),
         ("limit_order_type_falls_back_to_gtc", _limit_order_type(ModernOrderType) == "GTC"),

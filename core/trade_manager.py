@@ -155,6 +155,7 @@ def decide_exit(
             "post_scaleout_loss_exit_pct",
             getattr(SETTINGS, "stop_loss_warn_pct", 0.08),
         )
+        and recovery_chance_low
     ):
         return ExitDecision(True, "post-scaleout-stop-loss", pnl_pct, hold_sec)
 
