@@ -128,6 +128,9 @@ def decide_exit(
         and secs_left is not None
         and secs_left >= getattr(SETTINGS, "failed_follow_through_min_secs_left", 90)
         and mfe_pnl_pct <= getattr(SETTINGS, "failed_follow_through_max_mfe_pct", 0.02)
+        and not has_taken_partial
+        and not has_scaled_out_loss
+        and not has_extracted_principal
     ):
         return ExitDecision(True, "failed-follow-through", pnl_pct, hold_sec)
 

@@ -102,10 +102,10 @@ def main():
     SETTINGS.breakeven_giveback_floor_pct = 0.0
     SETTINGS.breakeven_giveback_min_hold_sec = 12.0
     SETTINGS.breakeven_giveback_min_secs_left = 45.0
-    SETTINGS.failed_follow_through_window_sec = 45
-    SETTINGS.failed_follow_through_loss_pct = 0.03
-    SETTINGS.failed_follow_through_max_mfe_pct = 0.02
-    SETTINGS.failed_follow_through_min_secs_left = 90
+    SETTINGS.failed_follow_through_window_sec = 25
+    SETTINGS.failed_follow_through_loss_pct = 0.02
+    SETTINGS.failed_follow_through_max_mfe_pct = 0.015
+    SETTINGS.failed_follow_through_min_secs_left = 120
     SETTINGS.stalled_exit_window_sec = 35
     SETTINGS.stalled_exit_min_loss_pct = 0.01
     SETTINGS.stalled_exit_max_abs_pnl_pct = 0.02
@@ -961,8 +961,9 @@ def main():
             and decide_exit(pnl_pct=-0.07, hold_sec=5).reason == "stop-loss-full"
             and (setattr(SETTINGS, "force_full_exit_on_stop_loss_scaleout", False) or True),
         ),
-        ("failed_follow_through", decide_exit(pnl_pct=-0.04, hold_sec=50, secs_left=200, mfe_pnl_pct=0.01).reason == "failed-follow-through"),
-        ("failed_follow_through_skips_if_signal_showed_life", decide_exit(pnl_pct=-0.04, hold_sec=50, secs_left=200, mfe_pnl_pct=0.05).reason != "failed-follow-through"),
+        ("failed_follow_through", decide_exit(pnl_pct=-0.03, hold_sec=30, secs_left=200, mfe_pnl_pct=0.01).reason == "failed-follow-through"),
+        ("failed_follow_through_skips_before_early_cut_window", decide_exit(pnl_pct=-0.03, hold_sec=20, secs_left=200, mfe_pnl_pct=0.01).reason != "failed-follow-through"),
+        ("failed_follow_through_skips_if_signal_showed_life", decide_exit(pnl_pct=-0.03, hold_sec=30, secs_left=200, mfe_pnl_pct=0.05).reason != "failed-follow-through"),
         ("stalled_trade_exit", decide_exit(pnl_pct=-0.01, hold_sec=40, secs_left=55, mfe_pnl_pct=0.01).reason == "stalled-trade"),
         ("stalled_trade_skips_exact_flat", decide_exit(pnl_pct=0.0, hold_sec=40, secs_left=55, mfe_pnl_pct=0.01).reason != "stalled-trade"),
         ("stalled_trade_skips_if_trade_showed_life", decide_exit(pnl_pct=0.0, hold_sec=40, secs_left=55, mfe_pnl_pct=0.05).reason != "stalled-trade"),

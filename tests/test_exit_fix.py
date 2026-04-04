@@ -76,7 +76,7 @@ def main():
     # Keep these checks independent from any prior test file mutating SETTINGS.
     SETTINGS.loss_exit_retry_delay_sec = 0.25
     SETTINGS.loss_exit_max_attempts = 4
-    SETTINGS.leave_loss_tail_pct = 0.10
+    SETTINGS.leave_loss_tail_pct = 0.0
     SETTINGS.stop_loss_partial_pct = 0.10
     SETTINGS.soft_stop_confirm_sec = 2.5
     SETTINGS.soft_stop_confirm_buffer_pct = 0.015
@@ -452,8 +452,14 @@ def main():
         ("ws_order_flow_down_allows_flat_or_down_velocity", entry_velocity_gate_rejects("DOWN", "model-ws_order_flow_down", 0.0) is False and entry_velocity_gate_rejects("DOWN", "model-ws_order_flow_down", -0.0001) is False),
         ("loss_exit_reason_detects_stop_loss", is_loss_exit_reason("stop-loss") is True),
         ("loss_exit_reason_rejects_take_profit", is_loss_exit_reason("take-profit-principal") is False),
-        ("loss_exit_tail_uses_configured_ten_percent_for_stop_loss", abs(loss_exit_tail_fraction(reason="stop-loss-full", pnl_pct=-0.08) - 0.10) < 1e-9),
-        ("loss_exit_tail_uses_negative_pnl_for_stalled_loss", abs(loss_exit_tail_fraction(reason="stalled-trade", pnl_pct=-0.01) - 0.10) < 1e-9),
+        ("loss_exit_tail_defaults_to_zero_for_stop_loss", abs(loss_exit_tail_fraction(reason="stop-loss-full", pnl_pct=-0.08) - 0.0) < 1e-9),
+        ("loss_exit_tail_defaults_to_zero_for_stalled_loss", abs(loss_exit_tail_fraction(reason="stalled-trade", pnl_pct=-0.01) - 0.0) < 1e-9),
+        (
+            "loss_exit_tail_can_still_use_small_configured_fraction",
+            (setattr(SETTINGS, "leave_loss_tail_pct", 0.02) or True)
+            and abs(loss_exit_tail_fraction(reason="stop-loss-full", pnl_pct=-0.08) - 0.02) < 1e-9
+            and (setattr(SETTINGS, "leave_loss_tail_pct", 0.0) or True),
+        ),
         ("loss_exit_tail_skips_break_even_giveback_cleanup", abs(loss_exit_tail_fraction(reason="break-even-giveback", pnl_pct=-0.01) - 0.0) < 1e-9),
         ("loss_exit_tail_skips_profit_exit", abs(loss_exit_tail_fraction(reason="take-profit-principal", pnl_pct=0.12) - 0.0) < 1e-9),
         ("loss_exit_tail_skips_residual_force_close_cleanup", abs(loss_exit_tail_fraction(reason="residual-force-close", pnl_pct=-0.12) - 0.0) < 1e-9),
