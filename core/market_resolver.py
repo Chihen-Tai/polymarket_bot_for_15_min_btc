@@ -58,6 +58,12 @@ def _fetch_by_slug(slug: str):
     token_up, token_down = _extract_token_pair(m)
     if not token_up or not token_down:
         return None
+    strike_price = None
+    events = m.get("events", [])
+    if events and isinstance(events, list) and len(events) > 0:
+        event_metadata = events[0].get("eventMetadata", {})
+        strike_price = event_metadata.get("priceToBeat")
+        
     return {
         "question": m.get("question"),
         "slug": m.get("slug") or slug,
@@ -67,6 +73,7 @@ def _fetch_by_slug(slug: str):
         "outcomes": m.get("outcomes"),
         "outcomePrices": m.get("outcomePrices"),
         "endDate": m.get("endDate") or m.get("end_date_iso"),
+        "strike_price": strike_price,
     }
 
 

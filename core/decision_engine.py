@@ -254,7 +254,9 @@ def explain_choose_side(
     candidates = {}
 
     # Extract Strike Price for Advanced Strategies
-    strike_price = _extract_strike_price(market.get("question", ""))
+    strike_price = market.get("strike_price")
+    if strike_price is None:
+        strike_price = _extract_strike_price(market.get("question", ""))
 
     # Advanced Strategy 1: Theta Bleed Arbitrage
     if getattr(SETTINGS, "theta_bleed_enabled", True) and strike_price is not None:
