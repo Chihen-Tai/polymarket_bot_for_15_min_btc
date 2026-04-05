@@ -215,7 +215,7 @@ def explain_choose_side(
     base_result = {
         "ok": False,
         "side": None,
-        "reason": "unknown",
+        "reason": "no_valid_signals",
         "up": up,
         "down": down,
         "secs_left": secs_left,
@@ -268,7 +268,7 @@ def explain_choose_side(
                     binance_mid = (binance_bba.get("b", 0.0) + binance_bba.get("a", 0.0)) / 2.0
                     if binance_mid > 0:
                         dist = binance_mid - strike_price
-                        theta_dist = float(getattr(SETTINGS, "theta_bleed_distance", 120.0))
+                        theta_dist = float(getattr(SETTINGS, "theta_bleed_distance", 50.0))
                         
                         # If Binance is > 120 dist ABOVE strike, UP is highly certain
                         if dist > theta_dist and snipe_valid_up:
@@ -305,7 +305,7 @@ def explain_choose_side(
             if BINANCE_WS.get_last_update_age() < 5.0:
                 oldest, newest = BINANCE_WS.get_recent_prices_window(seconds=5.0)
                 if oldest is not None and newest is not None:
-                    gap = float(getattr(SETTINGS, "strike_cross_gap", 20.0))
+                    gap = float(getattr(SETTINGS, "strike_cross_gap", 10.0))
                     
                     # Crossed UP securely
                     if oldest < strike_price and newest > (strike_price + gap) and snipe_valid_up:
@@ -314,7 +314,7 @@ def explain_choose_side(
                             side="UP",
                             strategy_key="strike_cross_snipe_up",
                             entry_price=float(up),
-                            model_probability=0.90,  # High, but lower than distance bleed
+                            model_probability=0.99,  # High, exempts from stabilization
                             signal_confidence=0.95,
                             extras={"oldest": oldest, "newest": newest, "strike_price": strike_price},
                         )
@@ -327,7 +327,7 @@ def explain_choose_side(
                             side="DOWN",
                             strategy_key="strike_cross_snipe_down",
                             entry_price=float(down),
-                            model_probability=0.90,
+                            model_probability=0.99, # High, exempts from stabilization
                             signal_confidence=0.95,
                             extras={"oldest": oldest, "newest": newest, "strike_price": strike_price},
                         )

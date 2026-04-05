@@ -1963,10 +1963,14 @@ def summarize_entry_edge(*, win_rate: float, entry_price: float, secs_left: floa
         "history_count": history_count,
     }
 
-
-def stabilize_entry_win_rate(win_rate: float, decisive_history_count: int) -> float:
+def stabilize_entry_win_rate(win_rate: float, decisive_history_count: int, signal_origin: str = "") -> float:
     min_decisive = int(getattr(SETTINGS, "scoreboard_entry_gate_min_decisive_trades", 5))
     observed = min(0.99, max(0.01, float(win_rate)))
+    
+    # Exempt extreme confidence sniper signals from stabilization penalty
+    if observed >= 0.98 or "ws_flash_snipe" in str(signal_origin):
+        return observed
+        
     if decisive_history_count >= min_decisive:
         return observed
     if min_decisive <= 0:
@@ -2015,7 +2019,7 @@ def score_entry_candidate(
         and "ws_flash_snipe" not in strategy_name
         and "early_underdog" not in strategy_name
     )
-    strategy_win_rate = stabilize_entry_win_rate(strategy_win_rate, strategy_decisive_trade_count)
+    strategy_win_rate = stabilize_entry_win_rate(strategy_win_rate, strategy_decisive_trade_count, signal_origin=strategy_name)
     effective_probability = strategy_win_rate if signal_probability is None else apply_scoreboard_aux_probability(signal_probability, strategy_win_rate)
     entry_edge = summarize_entry_edge(
         win_rate=effective_probability,
@@ -4832,7 +4836,7 @@ def main():
                     strategy_decisive_trade_count = SCOREBOARD.get_strategy_decisive_trade_count(signal_origin)
                 except Exception as e:
                     log(f"scoreboard lookup error: {e}")
-                strategy_win_rate = stabilize_entry_win_rate(strategy_win_rate, strategy_decisive_trade_count)
+                strategy_win_rate = stabilize_entry_win_rate(strategy_win_rate, strategy_decisive_trade_count, signal_origin=signal_origin)
 
                 # Hard-block gate: if we have enough history and the raw win rate is terrible, block regardless of model
                 # SNIPER PASS: Exempt flash snipe from this win-rate gate since it buys cheap tickets for skewed payouts
