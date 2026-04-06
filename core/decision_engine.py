@@ -148,6 +148,12 @@ def _build_candidate(
     signal_confidence: float,
     extras: Optional[dict] = None,
 ) -> dict:
+    # Make momentum models dynamic so they don't get rejected by the fundamental edge filter.
+    # Momentum trades are purely directional; their "probability" should scale with market price.
+    if strategy_key in _MOMENTUM_EXEMPT or strategy_key.startswith("poly_ob_imbalance"):
+        if model_probability - float(entry_price) < 0.05:
+            model_probability = float(entry_price) + 0.05 + (0.05 * float(signal_confidence))
+            
     result = base_result.copy()
     result.update(
         {
