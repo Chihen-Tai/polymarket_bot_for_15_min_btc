@@ -736,6 +736,29 @@ def conservative_entry_block_reason(
     return ""
 
 
+def session_hour_entry_block_reason() -> str:
+    """Block new entries during UTC hours that historically lose money.
+
+    Reads ENTRY_BLOCKED_UTC_HOURS from settings (comma-separated ints, e.g. "1,8,13,20,21,23").
+    Returns empty string if trading is allowed; non-empty reason string if blocked.
+    Skipped in dry-run mode so back-tests are unaffected.
+    """
+    if bool(getattr(SETTINGS, "dry_run", False)):
+        return ""
+    raw = str(getattr(SETTINGS, "entry_blocked_utc_hours", "") or "")
+    if not raw.strip():
+        return ""
+    try:
+        from datetime import datetime, timezone
+        blocked = {int(h.strip()) for h in raw.split(",") if h.strip().lstrip("-").isdigit()}
+        current_utc_hour = datetime.now(timezone.utc).hour
+        if current_utc_hour in blocked:
+            return f"session-hour-blocked(UTC{current_utc_hour:02d})"
+    except Exception:
+        pass
+    return ""
+
+
 def maybe_apply_stale_loss_streak_reset(
     risk: RiskState,
     flags: RuntimeFlags,
@@ -3288,74 +3311,80 @@ def main():
                         arbitrage_triggered = True
 
                     if not arbitrage_triggered:
-                        model_decision = explain_choose_side(
-                            market, yes_price_window, up_price_window, down_price_window,
-                            observed_up=up, observed_down=down,
-                            binance_1m=binance_1m, binance_5m=binance_5m,
-                            ws_bba=ws_bba, ws_trades=ws_trades,
-                            poly_ob_up=poly_ob_up, poly_ob_down=poly_ob_down
-                        )
-                        no_entry_reason = model_decision.get("reason")
-                        _entry_ws_vel = 0.0
-                        _entry_ws_vel_now = 0.0
-                        try:
-                            _entry_ws_vel = BINANCE_WS.get_price_velocity(
-                                3.0,
-                                lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
-                            )
-                            _entry_ws_vel_now = BINANCE_WS.get_price_velocity(3.0, lag_sec=0.0)
-                        except Exception:
-                            p.binance_adverse_breach_ts = 0.0
-                            pass
-
-                        chosen_candidate, candidate_rejections = select_ranked_entry_candidate(
-                            model_decision,
-                            ws_velocity=_entry_ws_vel,
-                            current_ws_velocity=_entry_ws_vel_now,
-                            secs_left=secs_left,
-                        )
-                        if chosen_candidate:
-                            signal_side = chosen_candidate.get("side")
-                            signal_origin = chosen_candidate.get("strategy_name") or ""
-                            signal_probability = chosen_candidate.get("signal_probability")
-                            entry_price = chosen_candidate.get("entry_price")
-                            strategy_win_rate = float(chosen_candidate.get("strategy_win_rate") or 0.5)
-                            strategy_trade_count = int(chosen_candidate.get("strategy_trade_count") or 0)
-                            strategy_decisive_trade_count = int(chosen_candidate.get("strategy_decisive_trade_count") or 0)
-                            effective_probability = float(chosen_candidate.get("effective_probability") or strategy_win_rate)
-                            entry_edge = chosen_candidate.get("entry_edge")
-                            rank = int(chosen_candidate.get("rank") or 1)
-                            candidate_count = int(chosen_candidate.get("candidate_count") or 1)
-                            if rank > 1:
-                                log(
-                                    f"candidate fallback | picked rank={rank}/{candidate_count} "
-                                    f"strategy={signal_origin} side={signal_side}"
-                                )
+                        # Session hour filter: skip new entries during historically losing UTC hours
+                        _session_block = session_hour_entry_block_reason()
+                        if _session_block:
+                            no_entry_reason = _session_block
+                            log(f"no entry | slug={market['slug']} reason={_session_block} secs_left={secs_left}")
                         else:
-                            signal_side = None
-                            signal_origin = ""
-                            signal_probability = None
-                            if candidate_rejections:
-                                no_entry_reason = candidate_rejections[0]
+                            model_decision = explain_choose_side(
+                                market, yes_price_window, up_price_window, down_price_window,
+                                observed_up=up, observed_down=down,
+                                binance_1m=binance_1m, binance_5m=binance_5m,
+                                ws_bba=ws_bba, ws_trades=ws_trades,
+                                poly_ob_up=poly_ob_up, poly_ob_down=poly_ob_down
+                            )
+                            no_entry_reason = model_decision.get("reason")
+                            _entry_ws_vel = 0.0
+                            _entry_ws_vel_now = 0.0
+                            try:
+                                _entry_ws_vel = BINANCE_WS.get_price_velocity(
+                                    3.0,
+                                    lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
+                                )
+                                _entry_ws_vel_now = BINANCE_WS.get_price_velocity(3.0, lag_sec=0.0)
+                            except Exception:
+                                p.binance_adverse_breach_ts = 0.0
+                                pass
 
-                        if (
-                            signal_side is None
-                            and bool(getattr(SETTINGS, "enable_dump_trigger", False))
-                            and secs_left is not None
-                            and 90 <= secs_left <= 240
-                        ):
-                            dumped_side = should_trigger_dump(prev_up, prev_down, up, down, SETTINGS.dump_move_threshold)
-                            if dumped_side:
-                                signal_side = dumped_side
-                                signal_origin = "dump-trigger"
-                                no_entry_reason = ""
+                            chosen_candidate, candidate_rejections = select_ranked_entry_candidate(
+                                model_decision,
+                                ws_velocity=_entry_ws_vel,
+                                current_ws_velocity=_entry_ws_vel_now,
+                                secs_left=secs_left,
+                            )
+                            if chosen_candidate:
+                                signal_side = chosen_candidate.get("side")
+                                signal_origin = chosen_candidate.get("strategy_name") or ""
+                                signal_probability = chosen_candidate.get("signal_probability")
+                                entry_price = chosen_candidate.get("entry_price")
+                                strategy_win_rate = float(chosen_candidate.get("strategy_win_rate") or 0.5)
+                                strategy_trade_count = int(chosen_candidate.get("strategy_trade_count") or 0)
+                                strategy_decisive_trade_count = int(chosen_candidate.get("strategy_decisive_trade_count") or 0)
+                                effective_probability = float(chosen_candidate.get("effective_probability") or strategy_win_rate)
+                                entry_edge = chosen_candidate.get("entry_edge")
+                                rank = int(chosen_candidate.get("rank") or 1)
+                                candidate_count = int(chosen_candidate.get("candidate_count") or 1)
+                                if rank > 1:
+                                    log(
+                                        f"candidate fallback | picked rank={rank}/{candidate_count} "
+                                        f"strategy={signal_origin} side={signal_side}"
+                                    )
+                            else:
+                                signal_side = None
+                                signal_origin = ""
                                 signal_probability = None
-                                strategy_win_rate = 0.5
-                                strategy_trade_count = 0
-                                strategy_decisive_trade_count = 0
-                                effective_probability = None
-                                entry_edge = None
-                                log(f"dump trigger | side={dumped_side} prev_up={prev_up} up={up} prev_down={prev_down} down={down}")
+                                if candidate_rejections:
+                                    no_entry_reason = candidate_rejections[0]
+
+                            if (
+                                signal_side is None
+                                and bool(getattr(SETTINGS, "enable_dump_trigger", False))
+                                and secs_left is not None
+                                and 90 <= secs_left <= 240
+                            ):
+                                dumped_side = should_trigger_dump(prev_up, prev_down, up, down, SETTINGS.dump_move_threshold)
+                                if dumped_side:
+                                    signal_side = dumped_side
+                                    signal_origin = "dump-trigger"
+                                    no_entry_reason = ""
+                                    signal_probability = None
+                                    strategy_win_rate = 0.5
+                                    strategy_trade_count = 0
+                                    strategy_decisive_trade_count = 0
+                                    effective_probability = None
+                                    entry_edge = None
+                                    log(f"dump trigger | side={dumped_side} prev_up={prev_up} up={up} prev_down={prev_down} down={down}")
 
                     prev_up, prev_down = up, down
 
