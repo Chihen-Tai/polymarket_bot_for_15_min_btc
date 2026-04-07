@@ -485,14 +485,18 @@ class PolymarketExchange:
                             signature_type=sig,
                         )
                     )
+                    success = False
                     for k in ("balance", "available", "available_balance"):
                         if isinstance(resp, dict) and k in resp:
+                            success = True
                             v = _to_float(resp.get(k), 0.0)
                             # USDC 常見為 6 decimals（回傳最小單位）
                             if v > 100000:
                                 v = v / 1_000_000
                             if v > best:
                                 best = v
+                    if success:
+                        break
                 except Exception:
                     continue
             return best
@@ -732,10 +736,11 @@ class PolymarketExchange:
                 min_live_order_shares,
                 min_live_order_usd,
             )
-            if live_order_hard_cap_usd > 0.0 and actual_order_usd > live_order_hard_cap_usd + 1e-9:
+            expected_cost_usd = size_rounded * (simulated_price if simulated_price and simulated_price > 0 else price_rounded)
+            if live_order_hard_cap_usd > 0.0 and expected_cost_usd > live_order_hard_cap_usd + 1e-9:
                 raise ValueError(
                     f"order notional exceeds live cap: requested=${amount_usd:.2f} "
-                    f"actual=${actual_order_usd:.4f} cap=${live_order_hard_cap_usd:.2f}"
+                    f"actual=${expected_cost_usd:.4f} cap=${live_order_hard_cap_usd:.2f}"
                 )
             order = self.client.create_order(
                 OrderArgs(
@@ -754,10 +759,11 @@ class PolymarketExchange:
                 min_live_order_shares,
                 min_live_order_usd,
             )
-            if live_order_hard_cap_usd > 0.0 and actual_order_usd > live_order_hard_cap_usd + 1e-9:
+            expected_cost_usd = size_rounded * (simulated_price if simulated_price and simulated_price > 0 else price_rounded)
+            if live_order_hard_cap_usd > 0.0 and expected_cost_usd > live_order_hard_cap_usd + 1e-9:
                 raise ValueError(
                     f"order notional exceeds live cap: requested=${amount_usd:.2f} "
-                    f"actual=${actual_order_usd:.4f} cap=${live_order_hard_cap_usd:.2f}"
+                    f"actual=${expected_cost_usd:.4f} cap=${live_order_hard_cap_usd:.2f}"
                 )
             book = self.get_full_orderbook(token_id)
             if book:
@@ -774,10 +780,11 @@ class PolymarketExchange:
                     min_live_order_shares,
                     min_live_order_usd,
                 )
-                if live_order_hard_cap_usd > 0.0 and actual_order_usd > live_order_hard_cap_usd + 1e-9:
+                expected_cost_usd = size_rounded * (simulated_price if simulated_price and simulated_price > 0 else price_rounded)
+                if live_order_hard_cap_usd > 0.0 and expected_cost_usd > live_order_hard_cap_usd + 1e-9:
                     raise ValueError(
                         f"order notional exceeds live cap: requested=${amount_usd:.2f} "
-                        f"actual=${actual_order_usd:.4f} cap=${live_order_hard_cap_usd:.2f}"
+                        f"actual=${expected_cost_usd:.4f} cap=${live_order_hard_cap_usd:.2f}"
                     )
 
             order = self.client.create_order(
