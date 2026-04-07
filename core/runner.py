@@ -759,6 +759,35 @@ def session_hour_entry_block_reason() -> str:
     return ""
 
 
+def volatility_gate_block_reason(binance_5m: list[dict] | None) -> str:
+    """Block new entries when BTC is in a low-volatility / choppy regime.
+
+    Reads VOLATILITY_GATE_ENABLED and VOLATILITY_GATE_MIN_RANGE_USD from settings.
+    Uses the last completed 5-minute candle's high-low range as the volatility proxy.
+    Returns a non-empty reason string when entries should be blocked.
+    """
+    if not bool(getattr(SETTINGS, "volatility_gate_enabled", True)):
+        return ""
+    min_range = float(getattr(SETTINGS, "volatility_gate_min_range_usd", 25.0) or 25.0)
+    if min_range <= 0:
+        return ""
+    if not binance_5m or not isinstance(binance_5m, list):
+        return ""  # no data → don't block (fail-open)
+    try:
+        # Use the second-to-last candle (last complete one; the newest is still forming)
+        candle = binance_5m[-2] if len(binance_5m) >= 2 else binance_5m[-1]
+        high = float(candle.get("high") or 0.0)
+        low = float(candle.get("low") or 0.0)
+        if high <= 0 or low <= 0:
+            return ""
+        rng = high - low
+        if rng < min_range:
+            return f"volatility-gate(range=${rng:.0f}<${min_range:.0f})"
+    except Exception:
+        pass
+    return ""
+
+
 def maybe_apply_stale_loss_streak_reset(
     risk: RiskState,
     flags: RuntimeFlags,
@@ -3317,7 +3346,13 @@ def main():
                             no_entry_reason = _session_block
                             log(f"no entry | slug={market['slug']} reason={_session_block} secs_left={secs_left}")
                         else:
-                            model_decision = explain_choose_side(
+                            # Volatility gate: skip entries when BTC is choppy/flat
+                            _vol_block = volatility_gate_block_reason(binance_5m)
+                            if _vol_block:
+                                no_entry_reason = _vol_block
+                                log(f"no entry | slug={market['slug']} reason={_vol_block} secs_left={secs_left}")
+                            else:
+                                model_decision = explain_choose_side(
                                 market, yes_price_window, up_price_window, down_price_window,
                                 observed_up=up, observed_down=down,
                                 binance_1m=binance_1m, binance_5m=binance_5m,
@@ -3562,6 +3597,31 @@ def main():
                                                         pass
                                 # else: lottery 尚未啟動 → 完全視為一般單，exit_decision 不做任何蓋掉
 
+
+                        # ── Late Certainty Hold（末段確定性持倉策略）──
+                        # 當剩餘時間極短且倉位幾乎確定獲勝時，放棄早出，等到期結算。
+                        # 根據歷史資料：expiry-binary-WIN 平均 +$0.50，active-close 只有 +$0.10。
+                        # 只攔截「止盈」類型的出場；止損、panic-dump 等保護性出場仍照常執行。
+                        if (
+                            exit_decision.should_close
+                            and "take-profit" in exit_decision.reason
+                            and "deadline" not in exit_decision.reason
+                            and bool(getattr(SETTINGS, "late_certainty_hold_enabled", True))
+                        ):
+                            _lch_max_secs = float(getattr(SETTINGS, "late_certainty_hold_max_secs_left", 35.0) or 35.0)
+                            _lch_min_mark = float(getattr(SETTINGS, "late_certainty_hold_min_mark", 0.80) or 0.80)
+                            if (
+                                secs_left is not None
+                                and secs_left <= _lch_max_secs
+                                and mark is not None
+                                and float(mark) >= _lch_min_mark
+                            ):
+                                log(
+                                    f"⏳ LATE CERTAINTY HOLD | slug={p.slug} side={p.side} "
+                                    f"mark={mark:.3f} secs_left={secs_left:.0f} "
+                                    f"was='{exit_decision.reason}' → hold-to-expiry"
+                                )
+                                exit_decision = ExitDecision(False, "late-certainty-hold", hard_stop_pnl_pct, hold_sec)
                         maybe_log_position_watch(
                             p,
                             pnl_pct=pnl_pct,
@@ -5306,10 +5366,83 @@ def main():
                         force_taker_snipe = True
                 except Exception:
                     pass
-                use_market_entry = (not SETTINGS.dry_run) and bool(getattr(SETTINGS, "live_entry_use_market_orders", True))
-                force_taker_entry = force_taker_snipe or use_market_entry
 
-                resp, order_latencies, order_attempts = place_entry_order_with_retry(
+                # Determine if we must be a taker (speed-critical strategies)
+                _snipe_strategy = "ws_flash_snipe" in str(signal_origin) or "theta_bleed" in str(signal_origin)
+                use_market_entry = (not SETTINGS.dry_run) and bool(getattr(SETTINGS, "live_entry_use_market_orders", True))
+                force_taker_entry = force_taker_snipe or use_market_entry or _snipe_strategy
+
+                # ── Maker-First Entry（策略 4：費用節省）──
+                # 如果沒有強制 Taker 的理由，先試 Maker 下單（費率 0.5% vs 1.56%）
+                # 等待 MAKER_ENTRY_TIMEOUT_SEC 秒後未成交，自動轉 Taker FOK。
+                maker_entry_enabled = bool(getattr(SETTINGS, "maker_entry_enabled", True))
+                if maker_entry_enabled and not force_taker_entry and not SETTINGS.dry_run:
+                    maker_timeout_sec = float(getattr(SETTINGS, "maker_entry_timeout_sec", 3.0) or 3.0)
+                    log(f"🔖 MAKER ENTRY attempt | side={signal_side} timeout={maker_timeout_sec:.1f}s")
+                    try:
+                        maker_resp, maker_latencies, _ = place_entry_order_with_retry(
+                            ex,
+                            signal_side,
+                            order_usd,
+                            token_override,
+                            simulated_price=sim_price,
+                            force_taker=False,  # GTC/POST_ONLY maker
+                            max_attempts=1,
+                            backoff_sec=0.0,
+                        )
+                        for idx, latency_ms in enumerate(maker_latencies, start=1):
+                            cycle_had_slow_api = observe_api_latency(flags, f"maker_order#{idx}", latency_ms) or cycle_had_slow_api
+                        if entry_response_has_actionable_state(maker_resp):
+                            # Maker filled: use it directly
+                            log(f"✅ MAKER ENTRY filled | side={signal_side} style=maker")
+                            resp = maker_resp
+                            order_latencies = maker_latencies
+                            order_attempts = 1
+                        else:
+                            # Maker posted but not yet confirmed: wait briefly then fallback to taker
+                            log(f"⏳ maker posted, waiting {maker_timeout_sec:.1f}s for fill...")
+                            _maker_wait_start = time.time()
+                            _maker_filled = False
+                            while time.time() - _maker_wait_start < maker_timeout_sec:
+                                time.sleep(0.5)
+                                # Check if the maker order filled by querying positions
+                                try:
+                                    if ex.has_exit_liquidity(token_override, order_usd / max(float(sim_price or 0.5), 0.01)):
+                                        _maker_filled = True
+                                        break
+                                except Exception:
+                                    pass
+                            if _maker_filled:
+                                log(f"✅ MAKER ENTRY confirmed | side={signal_side} style=maker-delayed")
+                                resp = maker_resp
+                                order_latencies = maker_latencies
+                                order_attempts = 1
+                            else:
+                                log(f"⚡ maker timeout, falling back to taker | side={signal_side}")
+                                resp, order_latencies, order_attempts = place_entry_order_with_retry(
+                                    ex,
+                                    signal_side,
+                                    order_usd,
+                                    token_override,
+                                    simulated_price=sim_price,
+                                    force_taker=True,
+                                    max_attempts=int(getattr(SETTINGS, "entry_retry_attempts", 3)),
+                                    backoff_sec=float(getattr(SETTINGS, "entry_retry_backoff_sec", 2.0)),
+                                )
+                    except Exception as _me:
+                        log(f"maker entry failed ({_me}), falling back to taker")
+                        resp, order_latencies, order_attempts = place_entry_order_with_retry(
+                            ex,
+                            signal_side,
+                            order_usd,
+                            token_override,
+                            simulated_price=sim_price,
+                            force_taker=True,
+                            max_attempts=int(getattr(SETTINGS, "entry_retry_attempts", 3)),
+                            backoff_sec=float(getattr(SETTINGS, "entry_retry_backoff_sec", 2.0)),
+                        )
+                else:
+                    resp, order_latencies, order_attempts = place_entry_order_with_retry(
                     ex,
                     signal_side,
                     order_usd,
