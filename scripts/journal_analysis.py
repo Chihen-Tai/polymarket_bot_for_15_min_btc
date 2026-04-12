@@ -5,7 +5,8 @@ from datetime import datetime, timezone
 import json
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from collections import defaultdict, deque, Counter
 from dataclasses import asdict, dataclass
@@ -85,7 +86,9 @@ def _market_end_dt_from_slug(slug: str | None) -> datetime | None:
     return datetime.fromtimestamp(start_epoch + 300, tz=timezone.utc)
 
 
-def _fetch_market_settlement(slug: str | None, side: str | None) -> tuple[float | None, str | None]:
+def _fetch_market_settlement(
+    slug: str | None, side: str | None
+) -> tuple[float | None, str | None]:
     slug_text = str(slug or "").strip()
     side_text = str(side or "").strip().lower()
     cache_key = (slug_text, side_text)
@@ -117,7 +120,9 @@ def _fetch_market_settlement(slug: str | None, side: str | None) -> tuple[float 
             if idx >= len(prices):
                 break
             try:
-                price_by_outcome[str(outcome or "").strip().lower()] = float(prices[idx])
+                price_by_outcome[str(outcome or "").strip().lower()] = float(
+                    prices[idx]
+                )
             except Exception:
                 continue
         settlement_price = price_by_outcome.get(side_text)
@@ -136,7 +141,9 @@ def _fetch_market_settlement(slug: str | None, side: str | None) -> tuple[float 
     return _SETTLEMENT_CACHE[cache_key]
 
 
-def _fetch_account_trade_activity(*, user: str | None, market: str | None = None, limit: int = 200) -> list[dict]:
+def _fetch_account_trade_activity(
+    *, user: str | None, market: str | None = None, limit: int = 200
+) -> list[dict]:
     user_text = str(user or "").strip()
     market_text = str(market or "").strip()
     if not user_text:
@@ -185,7 +192,9 @@ def _fetch_account_trade_activity(*, user: str | None, market: str | None = None
 def _build_activity_sell_ledger(activity_rows: list[dict]) -> list[dict]:
     inventories: dict[str, deque[dict[str, float | str]]] = defaultdict(deque)
     sells: list[dict] = []
-    for row in sorted(activity_rows or [], key=lambda item: _f(item.get("timestamp"), 0.0)):
+    for row in sorted(
+        activity_rows or [], key=lambda item: _f(item.get("timestamp"), 0.0)
+    ):
         if str(row.get("type") or "").upper() != "TRADE":
             continue
         asset = str(row.get("asset") or "").strip()
@@ -196,11 +205,13 @@ def _build_activity_sell_ledger(activity_rows: list[dict]) -> list[dict]:
         if not asset or size <= EPS:
             continue
         if trade_side == "BUY":
-            inventories[asset].append({
-                "remaining_shares": size,
-                "remaining_cost_usd": usdc_size,
-                "slug": slug,
-            })
+            inventories[asset].append(
+                {
+                    "remaining_shares": size,
+                    "remaining_cost_usd": usdc_size,
+                    "slug": slug,
+                }
+            )
             continue
         if trade_side != "SELL":
             continue
@@ -224,16 +235,24 @@ def _build_activity_sell_ledger(activity_rows: list[dict]) -> list[dict]:
             if _f(lot.get("remaining_shares"), 0.0) <= EPS:
                 lots.popleft()
 
-        sells.append({
-            "asset": asset,
-            "slug": slug,
-            "timestamp": _f(row.get("timestamp"), 0.0),
-            "ts": datetime.fromtimestamp(_f(row.get("timestamp"), 0.0), tz=timezone.utc).isoformat() if _f(row.get("timestamp"), 0.0) > 0 else "",
-            "shares": size,
-            "usdc_size": usdc_size,
-            "matched_cost_usd": matched_cost_usd if matched_cost_usd > EPS else None,
-            "transaction_hash": str(row.get("transactionHash") or ""),
-        })
+        sells.append(
+            {
+                "asset": asset,
+                "slug": slug,
+                "timestamp": _f(row.get("timestamp"), 0.0),
+                "ts": datetime.fromtimestamp(
+                    _f(row.get("timestamp"), 0.0), tz=timezone.utc
+                ).isoformat()
+                if _f(row.get("timestamp"), 0.0) > 0
+                else "",
+                "shares": size,
+                "usdc_size": usdc_size,
+                "matched_cost_usd": matched_cost_usd
+                if matched_cost_usd > EPS
+                else None,
+                "transaction_hash": str(row.get("transactionHash") or ""),
+            }
+        )
     return sells
 
 
@@ -252,7 +271,10 @@ def reconcile_rows_with_account_activity(
 
     for row in rows:
         is_orphan_residual = row.status == "residual" and "orphan-residual" in row.flags
-        is_settlement_imputed = row.actual_source == "market-settlement-lookup" or "market-settlement-imputed" in row.flags
+        is_settlement_imputed = (
+            row.actual_source == "market-settlement-lookup"
+            or "market-settlement-imputed" in row.flags
+        )
         if not (is_orphan_residual or is_settlement_imputed):
             continue
         market = str(row.market or "").strip()
@@ -264,7 +286,11 @@ def reconcile_rows_with_account_activity(
 
         candidates = []
         row_dt = _parse_iso_dt(row.closed_ts)
-        target_shares = row.matched_exit_shares if row.matched_exit_shares > EPS else row.entry_shares
+        target_shares = (
+            row.matched_exit_shares
+            if row.matched_exit_shares > EPS
+            else row.entry_shares
+        )
         ref_exit_value = (
             row.exit_recovered_actual_usd
             if row.exit_recovered_actual_usd is not None
@@ -279,9 +305,15 @@ def reconcile_rows_with_account_activity(
             shares_diff = abs(_f(sell.get("shares"), 0.0) - target_shares)
             if target_shares > EPS and shares_diff > max(0.05, target_shares * 0.05):
                 continue
-            value_diff = abs((_maybe_float(sell.get("usdc_size")) or 0.0) - (ref_exit_value or 0.0))
+            value_diff = abs(
+                (_maybe_float(sell.get("usdc_size")) or 0.0) - (ref_exit_value or 0.0)
+            )
             sell_dt = _parse_iso_dt(str(sell.get("ts") or ""))
-            time_diff = abs((sell_dt - row_dt).total_seconds()) if sell_dt is not None and row_dt is not None else 0.0
+            time_diff = (
+                abs((sell_dt - row_dt).total_seconds())
+                if sell_dt is not None and row_dt is not None
+                else 0.0
+            )
             if row_dt is not None and sell_dt is not None and time_diff > 3600:
                 continue
             if is_settlement_imputed:
@@ -336,11 +368,22 @@ def reconcile_rows_with_account_activity(
             else None
         )
         row.actual_source = "account-activity-reconcile"
-        row.actual_source_tier = "high" if row.exit_recovered_actual_usd is not None else row.actual_source_tier
-        row.flags = list(dict.fromkeys([
-            flag for flag in row.flags
-            if flag not in {"ui-reconciliation-needed", "market-settlement-imputed"}
-        ] + ["account-activity-reconciled-leg"]))
+        row.actual_source_tier = (
+            "high"
+            if row.exit_recovered_actual_usd is not None
+            else row.actual_source_tier
+        )
+        row.flags = list(
+            dict.fromkeys(
+                [
+                    flag
+                    for flag in row.flags
+                    if flag
+                    not in {"ui-reconciliation-needed", "market-settlement-imputed"}
+                ]
+                + ["account-activity-reconciled-leg"]
+            )
+        )
 
     return rows
 
@@ -424,8 +467,12 @@ class TradePairRow:
     legs: list[TradeLeg]
 
 
-def load_trade_events(limit: int = 0, run_id: str | None = None, since_ts: str | None = None) -> list[dict]:
-    events = [ev for ev in read_events(limit=limit) if ev.get("kind") in {"entry", "exit"}]
+def load_trade_events(
+    limit: int = 0, run_id: str | None = None, since_ts: str | None = None
+) -> list[dict]:
+    events = [
+        ev for ev in read_events(limit=limit) if ev.get("kind") in {"entry", "exit"}
+    ]
     if not run_id and not since_ts:
         return events
 
@@ -467,11 +514,15 @@ def load_trade_events(limit: int = 0, run_id: str | None = None, since_ts: str |
                 if event_id:
                     selected_ids.add(event_id)
 
-    selected.sort(key=lambda ev: (str(ev.get("ts") or ""), str(ev.get("event_id") or "")))
+    selected.sort(
+        key=lambda ev: (str(ev.get("ts") or ""), str(ev.get("event_id") or ""))
+    )
     return selected
 
 
-def classify_actual_source_tier(source: str | None, actual_value: float | None = None) -> str:
+def classify_actual_source_tier(
+    source: str | None, actual_value: float | None = None
+) -> str:
     src = str(source or "").strip().lower()
     if actual_value is None:
         return "none"
@@ -483,11 +534,26 @@ def classify_actual_source_tier(source: str | None, actual_value: float | None =
         return "medium"
     if "balance-delta" in src or "balance_delta" in src:
         return "high"
-    if src in {"close_response_amount", "close_response_value", "close_response_raw_amount", "actual_close_response_value", "response_amount", "response_value"}:
+    if src in {
+        "close_response_amount",
+        "close_response_value",
+        "close_response_raw_amount",
+        "actual_close_response_value",
+        "response_amount",
+        "response_value",
+    }:
         return "medium"
     if src == "paper_trade_simulation":
         return "medium"
-    if src in {"actual_exit_value", "observed_mark_estimate", "observed_only", "unavailable", "cash_balance_non_positive", "cash_balance_unavailable", ""}:
+    if src in {
+        "actual_exit_value",
+        "observed_mark_estimate",
+        "observed_only",
+        "unavailable",
+        "cash_balance_non_positive",
+        "cash_balance_unavailable",
+        "",
+    }:
         return "low"
     if "cash_balance" in src:
         return "high"
@@ -498,7 +564,12 @@ def classify_actual_source_tier(source: str | None, actual_value: float | None =
 
 def actual_status_for_exit(ev: dict) -> str:
     actual = _maybe_float(ev.get("actual_exit_value_usd"))
-    tier = classify_actual_source_tier(ev.get("actual_exit_value_source") or ev.get("actual_close_response_value_source") or ev.get("pnl_source"), actual)
+    tier = classify_actual_source_tier(
+        ev.get("actual_exit_value_source")
+        or ev.get("actual_close_response_value_source")
+        or ev.get("pnl_source"),
+        actual,
+    )
     if actual is None:
         return "missing"
     if tier == "high":
@@ -508,7 +579,9 @@ def actual_status_for_exit(ev: dict) -> str:
     return "low_confidence"
 
 
-def exit_flags_for_event(ev: dict, actual: float | None, observed: float | None, diff: float | None) -> list[str]:
+def exit_flags_for_event(
+    ev: dict, actual: float | None, observed: float | None, diff: float | None
+) -> list[str]:
     flags: list[str] = []
     status = actual_status_for_exit(ev)
     if status == "missing":
@@ -544,35 +617,54 @@ def build_exit_accounting_rows(events: list[dict]) -> list[ExitAccountingRow]:
             diff = actual_value - observed
             if realized_cost > EPS:
                 diff_pct = diff / realized_cost
-        source = str(ev.get("actual_exit_value_source") or ev.get("close_response_value_source") or ev.get("actual_close_response_value_source") or ev.get("pnl_source") or "unavailable")
+        source = str(
+            ev.get("actual_exit_value_source")
+            or ev.get("close_response_value_source")
+            or ev.get("actual_close_response_value_source")
+            or ev.get("pnl_source")
+            or "unavailable"
+        )
         tier = classify_actual_source_tier(source, actual_value)
-        rows.append(ExitAccountingRow(
-            ts=str(ev.get("ts") or ""),
-            event_id=str(ev.get("event_id") or ""),
-            position_id=str(ev.get("position_id") or ""),
-            market=str(ev.get("slug") or ""),
-            side=str(ev.get("side") or ""),
-            reason=str(ev.get("reason") or ""),
-            entry_quality=str(ev.get("entry_quality") or "unknown"),
-            closed_shares=_f(ev.get("closed_shares"), 0.0),
-            remaining_shares=_maybe_float(ev.get("remaining_shares")),
-            realized_cost_usd=realized_cost,
-            actual_exit_value_usd=actual_value,
-            observed_exit_value_usd=observed,
-            actual_source=source,
-            actual_source_tier=tier,
-            observed_source=str(ev.get("observed_exit_value_source") or ev.get("pnl_source") or "observed_mark_price"),
-            difference_usd=diff,
-            difference_pct_of_cost=diff_pct,
-            actual_status=actual_status_for_exit(ev),
-            mae_pnl_usd=_maybe_float(ev.get("mae_pnl_usd")),
-            mfe_pnl_usd=_maybe_float(ev.get("mfe_pnl_usd")),
-            flags=exit_flags_for_event(ev, actual_value, observed, diff),
-        ))
+        rows.append(
+            ExitAccountingRow(
+                ts=str(ev.get("ts") or ""),
+                event_id=str(ev.get("event_id") or ""),
+                position_id=str(ev.get("position_id") or ""),
+                market=str(ev.get("slug") or ""),
+                side=str(ev.get("side") or ""),
+                reason=str(ev.get("reason") or ""),
+                entry_quality=str(ev.get("entry_quality") or "unknown"),
+                closed_shares=_f(ev.get("closed_shares"), 0.0),
+                remaining_shares=_maybe_float(ev.get("remaining_shares")),
+                realized_cost_usd=realized_cost,
+                actual_exit_value_usd=actual_value,
+                observed_exit_value_usd=observed,
+                actual_source=source,
+                actual_source_tier=tier,
+                observed_source=str(
+                    ev.get("observed_exit_value_source")
+                    or ev.get("pnl_source")
+                    or "observed_mark_price"
+                ),
+                difference_usd=diff,
+                difference_pct_of_cost=diff_pct,
+                actual_status=actual_status_for_exit(ev),
+                mae_pnl_usd=_maybe_float(ev.get("mae_pnl_usd")),
+                mfe_pnl_usd=_maybe_float(ev.get("mfe_pnl_usd")),
+                flags=exit_flags_for_event(ev, actual_value, observed, diff),
+            )
+        )
     return rows
 
 
-def classify_pair_status(*, remaining_shares: float, has_exit: bool, exit_count: int, matched_shares: float, entry_shares: float) -> str:
+def classify_pair_status(
+    *,
+    remaining_shares: float,
+    has_exit: bool,
+    exit_count: int,
+    matched_shares: float,
+    entry_shares: float,
+) -> str:
     if not has_exit:
         return "unmatched"
     if remaining_shares > 1e-6:
@@ -605,7 +697,12 @@ def normalize_execution_style(style: str | None) -> str:
         return "expiry-settlement"
     if "taker" in text:
         return "taker"
-    if text in {"maker-timeout-fallback", "simulated-cross", "dry-run-cross", "dry_run_cross"}:
+    if text in {
+        "maker-timeout-fallback",
+        "simulated-cross",
+        "dry-run-cross",
+        "dry_run_cross",
+    }:
         return "taker"
     if "timeout-fallback" in text:
         return "taker"
@@ -616,7 +713,9 @@ def normalize_execution_style(style: str | None) -> str:
     return text
 
 
-def execution_fee_rate(style: str | None, *, close_reason: str | None = None, for_exit: bool = False) -> float:
+def execution_fee_rate(
+    style: str | None, *, close_reason: str | None = None, for_exit: bool = False
+) -> float:
     if for_exit and classify_close_bucket(close_reason) != "active-close":
         return 0.0
     normalized = normalize_execution_style(style)
@@ -634,8 +733,12 @@ def estimate_pair_fees(
     exit_execution_style: str | None,
     close_reason: str | None,
 ) -> tuple[float | None, float | None, float | None, float | None]:
-    entry_fee_rate = execution_fee_rate(entry_execution_style, close_reason=close_reason, for_exit=False)
-    exit_fee_rate = execution_fee_rate(exit_execution_style, close_reason=close_reason, for_exit=True)
+    entry_fee_rate = execution_fee_rate(
+        entry_execution_style, close_reason=close_reason, for_exit=False
+    )
+    exit_fee_rate = execution_fee_rate(
+        exit_execution_style, close_reason=close_reason, for_exit=True
+    )
     entry_fee = matched_cost_usd * entry_fee_rate if matched_cost_usd > EPS else 0.0
 
     actual_total_fees = None
@@ -714,16 +817,27 @@ def _collapse_overflow_residual_rows(rows: list[TradePairRow]) -> list[TradePair
         candidates = []
         for base_idx in base_indices.get(base_key, []):
             base_row = rows[base_idx]
-            if base_row.market != row.market or base_row.side != row.side or base_row.token_id != row.token_id:
+            if (
+                base_row.market != row.market
+                or base_row.side != row.side
+                or base_row.token_id != row.token_id
+            ):
                 continue
             if not base_row.opened_ts:
                 continue
             base_dt = _parse_iso_dt(base_row.closed_ts)
             row_dt = _parse_iso_dt(row.closed_ts)
-            time_diff = abs((base_dt - row_dt).total_seconds()) if base_dt is not None and row_dt is not None else 0.0
+            time_diff = (
+                abs((base_dt - row_dt).total_seconds())
+                if base_dt is not None and row_dt is not None
+                else 0.0
+            )
             if base_dt is not None and row_dt is not None and time_diff > 120:
                 continue
-            reason_match = str(base_row.close_reason or "").strip().lower() == str(row.close_reason or "").strip().lower()
+            reason_match = (
+                str(base_row.close_reason or "").strip().lower()
+                == str(row.close_reason or "").strip().lower()
+            )
             candidates.append((0 if reason_match else 1, time_diff, base_idx))
         if not candidates:
             continue
@@ -731,26 +845,43 @@ def _collapse_overflow_residual_rows(rows: list[TradePairRow]) -> list[TradePair
         _, _, base_idx = min(candidates, key=lambda item: (item[0], item[1], item[2]))
         base_row = rows[base_idx]
         if row.exit_recovered_actual_usd is not None:
-            base_row.exit_recovered_actual_usd = (base_row.exit_recovered_actual_usd or 0.0) + row.exit_recovered_actual_usd
-        elif row.exit_recovered_observed_usd is not None and base_row.exit_recovered_actual_usd is not None:
+            base_row.exit_recovered_actual_usd = (
+                base_row.exit_recovered_actual_usd or 0.0
+            ) + row.exit_recovered_actual_usd
+        elif (
+            row.exit_recovered_observed_usd is not None
+            and base_row.exit_recovered_actual_usd is not None
+        ):
             # When a later exit leg is missing live actuals, keep the already-realized
             # accounting whole by falling back only that leg to its observed value.
-            base_row.exit_recovered_actual_usd = (base_row.exit_recovered_actual_usd or 0.0) + row.exit_recovered_observed_usd
+            base_row.exit_recovered_actual_usd = (
+                base_row.exit_recovered_actual_usd or 0.0
+            ) + row.exit_recovered_observed_usd
             base_row.actual_source = "mixed-actual-observed-fallback"
             base_row.actual_source_tier = "medium"
             base_row.flags.append("actual-partial-observed-fallback")
         if row.exit_recovered_observed_usd is not None:
-            base_row.exit_recovered_observed_usd = (base_row.exit_recovered_observed_usd or 0.0) + row.exit_recovered_observed_usd
-        if _actual_source_rank(row.actual_source_tier) > _actual_source_rank(base_row.actual_source_tier):
+            base_row.exit_recovered_observed_usd = (
+                base_row.exit_recovered_observed_usd or 0.0
+            ) + row.exit_recovered_observed_usd
+        if _actual_source_rank(row.actual_source_tier) > _actual_source_rank(
+            base_row.actual_source_tier
+        ):
             base_row.actual_source = row.actual_source
             base_row.actual_source_tier = row.actual_source_tier
         if normalize_execution_style(base_row.exit_execution_style) == "unknown":
             base_row.exit_execution_style = row.exit_execution_style
         base_row.legs.extend(row.legs)
-        base_row.flags = list(dict.fromkeys([
-            flag for flag in base_row.flags
-            if flag not in {"ui-reconciliation-needed"}
-        ] + ["collapsed-overflow-residual"]))
+        base_row.flags = list(
+            dict.fromkeys(
+                [
+                    flag
+                    for flag in base_row.flags
+                    if flag not in {"ui-reconciliation-needed"}
+                ]
+                + ["collapsed-overflow-residual"]
+            )
+        )
         _recompute_pair_row_accounting(base_row)
         dropped_indices.add(idx)
 
@@ -769,7 +900,11 @@ def _collapse_entry_slippage_guard_rows(rows: list[TradePairRow]) -> list[TradeP
             continue
         if "market-settlement-imputed" not in row.flags:
             continue
-        key = (str(row.market or "").strip(), str(row.side or "").strip(), str(row.token_id or "").strip())
+        key = (
+            str(row.market or "").strip(),
+            str(row.side or "").strip(),
+            str(row.token_id or "").strip(),
+        )
         if all(key):
             base_indices.setdefault(key, []).append(idx)
 
@@ -779,20 +914,36 @@ def _collapse_entry_slippage_guard_rows(rows: list[TradePairRow]) -> list[TradeP
             continue
         if str(row.close_reason or "").strip().lower() != "entry-slippage-guard":
             continue
-        key = (str(row.market or "").strip(), str(row.side or "").strip(), str(row.token_id or "").strip())
+        key = (
+            str(row.market or "").strip(),
+            str(row.side or "").strip(),
+            str(row.token_id or "").strip(),
+        )
         if not all(key):
             continue
 
         row_closed_dt = _parse_iso_dt(row.closed_ts)
-        share_target = row.matched_exit_shares if row.matched_exit_shares > EPS else row.entry_shares
+        share_target = (
+            row.matched_exit_shares
+            if row.matched_exit_shares > EPS
+            else row.entry_shares
+        )
         candidates = []
         for base_idx in base_indices.get(key, []):
             base_row = rows[base_idx]
             base_open_dt = _parse_iso_dt(base_row.opened_ts)
-            age_sec = abs((row_closed_dt - base_open_dt).total_seconds()) if row_closed_dt is not None and base_open_dt is not None else 0.0
+            age_sec = (
+                abs((row_closed_dt - base_open_dt).total_seconds())
+                if row_closed_dt is not None and base_open_dt is not None
+                else 0.0
+            )
             if row_closed_dt is not None and base_open_dt is not None and age_sec > 300:
                 continue
-            base_shares = base_row.entry_shares if base_row.entry_shares > EPS else base_row.matched_exit_shares
+            base_shares = (
+                base_row.entry_shares
+                if base_row.entry_shares > EPS
+                else base_row.matched_exit_shares
+            )
             share_diff = abs(base_shares - share_target)
             candidates.append((share_diff, age_sec, base_idx))
 
@@ -813,18 +964,38 @@ def _collapse_entry_slippage_guard_rows(rows: list[TradePairRow]) -> list[TradeP
         base_row.remaining_shares = 0.0
         base_row.unmatched_entry_cost_usd = 0.0
         base_row.unmatched_entry_shares = 0.0
-        if _actual_source_rank(row.actual_source_tier) >= _actual_source_rank(base_row.actual_source_tier):
+        if _actual_source_rank(row.actual_source_tier) >= _actual_source_rank(
+            base_row.actual_source_tier
+        ):
             base_row.actual_source = row.actual_source
             base_row.actual_source_tier = row.actual_source_tier
         if normalize_execution_style(row.exit_execution_style) != "unknown":
             base_row.exit_execution_style = row.exit_execution_style
-        base_row.mae_pnl_usd = _coalesce_extreme(base_row.mae_pnl_usd, row.mae_pnl_usd, min)
-        base_row.mfe_pnl_usd = _coalesce_extreme(base_row.mfe_pnl_usd, row.mfe_pnl_usd, max)
-        base_row.legs = [leg for leg in base_row.legs if leg.kind != "expiry_settlement"] + row.legs
-        base_row.flags = list(dict.fromkeys([
-            flag for flag in base_row.flags
-            if flag not in {"market-settlement-imputed", "no-exit", "open-remainder", "ui-reconciliation-needed"}
-        ] + ["collapsed-entry-slippage-guard"]))
+        base_row.mae_pnl_usd = _coalesce_extreme(
+            base_row.mae_pnl_usd, row.mae_pnl_usd, min
+        )
+        base_row.mfe_pnl_usd = _coalesce_extreme(
+            base_row.mfe_pnl_usd, row.mfe_pnl_usd, max
+        )
+        base_row.legs = [
+            leg for leg in base_row.legs if leg.kind != "expiry_settlement"
+        ] + row.legs
+        base_row.flags = list(
+            dict.fromkeys(
+                [
+                    flag
+                    for flag in base_row.flags
+                    if flag
+                    not in {
+                        "market-settlement-imputed",
+                        "no-exit",
+                        "open-remainder",
+                        "ui-reconciliation-needed",
+                    }
+                ]
+                + ["collapsed-entry-slippage-guard"]
+            )
+        )
         _recompute_pair_row_accounting(base_row)
         dropped_indices.add(idx)
 
@@ -847,30 +1018,34 @@ def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
             continue
 
         if kind == "entry":
-            open_entries.setdefault(key, deque()).append({
-                "event": ev,
-                "remaining_shares": _f(ev.get("shares"), 0.0),
-                "remaining_cost_usd": _f(ev.get("cost_usd"), 0.0),
-                "matched_shares": 0.0,
-                "matched_cost_usd": 0.0,
-                "exit_recovered_actual_usd": 0.0,
-                "exit_recovered_observed_usd": 0.0,
-                "has_actual": False,
-                "has_observed": False,
-                "actual_source": "unavailable",
-                "actual_source_tier": "none",
-                "observed_fallback_actual_usd": 0.0,
-                "entry_execution_style": normalize_execution_style(ev.get("execution_style")),
-                "exit_execution_style": "unknown",
-                "close_reason": "",
-                "entry_quality": "unknown",
-                "closed_ts": "",
-                "exit_count": 0,
-                "flags": [],
-                "legs": [],
-                "mae_pnl_usd": _maybe_float(ev.get("mae_pnl_usd")),
-                "mfe_pnl_usd": _maybe_float(ev.get("mfe_pnl_usd")),
-            })
+            open_entries.setdefault(key, deque()).append(
+                {
+                    "event": ev,
+                    "remaining_shares": _f(ev.get("shares"), 0.0),
+                    "remaining_cost_usd": _f(ev.get("cost_usd"), 0.0),
+                    "matched_shares": 0.0,
+                    "matched_cost_usd": 0.0,
+                    "exit_recovered_actual_usd": 0.0,
+                    "exit_recovered_observed_usd": 0.0,
+                    "has_actual": False,
+                    "has_observed": False,
+                    "actual_source": "unavailable",
+                    "actual_source_tier": "none",
+                    "observed_fallback_actual_usd": 0.0,
+                    "entry_execution_style": normalize_execution_style(
+                        ev.get("execution_style")
+                    ),
+                    "exit_execution_style": "unknown",
+                    "close_reason": "",
+                    "entry_quality": "unknown",
+                    "closed_ts": "",
+                    "exit_count": 0,
+                    "flags": [],
+                    "legs": [],
+                    "mae_pnl_usd": _maybe_float(ev.get("mae_pnl_usd")),
+                    "mfe_pnl_usd": _maybe_float(ev.get("mfe_pnl_usd")),
+                }
+            )
             continue
 
         if kind != "exit":
@@ -883,7 +1058,13 @@ def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
         actual_total = _maybe_float(ev.get("actual_exit_value_usd"))
         observed_total = _maybe_float(ev.get("observed_exit_value_usd"))
         actual_value = actual_total if actual_total is not None else None
-        actual_source = str(ev.get("actual_exit_value_source") or ev.get("close_response_value_source") or ev.get("actual_close_response_value_source") or ev.get("pnl_source") or "unavailable")
+        actual_source = str(
+            ev.get("actual_exit_value_source")
+            or ev.get("close_response_value_source")
+            or ev.get("actual_close_response_value_source")
+            or ev.get("pnl_source")
+            or "unavailable"
+        )
         actual_tier = classify_actual_source_tier(actual_source, actual_value)
         lots = open_entries.get(key) or deque()
 
@@ -905,7 +1086,9 @@ def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
                 actual_piece = actual_value * (matched / exit_shares)
                 lot["exit_recovered_actual_usd"] += actual_piece
                 lot["has_actual"] = True
-                if _actual_source_rank(actual_tier) >= _actual_source_rank(str(lot.get("actual_source_tier") or "none")):
+                if _actual_source_rank(actual_tier) >= _actual_source_rank(
+                    str(lot.get("actual_source_tier") or "none")
+                ):
                     lot["actual_source"] = actual_source
                     lot["actual_source_tier"] = actual_tier
 
@@ -922,33 +1105,43 @@ def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
             lot["matched_shares"] += matched
             lot["matched_cost_usd"] += cost_piece
             lot["close_reason"] = str(ev.get("reason") or lot["close_reason"] or "")
-            lot["entry_quality"] = str(ev.get("entry_quality") or lot.get("entry_quality") or "unknown")
+            lot["entry_quality"] = str(
+                ev.get("entry_quality") or lot.get("entry_quality") or "unknown"
+            )
             lot["closed_ts"] = str(ev.get("ts") or lot["closed_ts"] or "")
             lot["exit_count"] += 1
-            lot["exit_execution_style"] = normalize_execution_style(ev.get("exit_execution_style"))
-            lot["mae_pnl_usd"] = _coalesce_extreme(lot.get("mae_pnl_usd"), _maybe_float(ev.get("mae_pnl_usd")), min)
-            lot["mfe_pnl_usd"] = _coalesce_extreme(lot.get("mfe_pnl_usd"), _maybe_float(ev.get("mfe_pnl_usd")), max)
+            lot["exit_execution_style"] = normalize_execution_style(
+                ev.get("exit_execution_style")
+            )
+            lot["mae_pnl_usd"] = _coalesce_extreme(
+                lot.get("mae_pnl_usd"), _maybe_float(ev.get("mae_pnl_usd")), min
+            )
+            lot["mfe_pnl_usd"] = _coalesce_extreme(
+                lot.get("mfe_pnl_usd"), _maybe_float(ev.get("mfe_pnl_usd")), max
+            )
             if actual_tier == "medium":
                 lot["flags"].append("actual-medium-confidence")
             elif actual_tier == "low":
                 lot["flags"].append("actual-low-confidence")
             if actual_value is None and observed_total is not None:
                 lot["flags"].append("observed-only")
-            lot["legs"].append(TradeLeg(
-                ts=str(ev.get("ts") or ""),
-                event_id=str(ev.get("event_id") or ""),
-                kind="exit",
-                shares=matched,
-                cost_usd=cost_piece,
-                recovered_actual_usd=actual_piece,
-                recovered_observed_usd=observed_piece,
-                reason=str(ev.get("reason") or ""),
-                source=actual_source,
-                source_tier=actual_tier,
-                remaining_shares=_maybe_float(ev.get("remaining_shares")),
-                mae_pnl_usd=_maybe_float(ev.get("mae_pnl_usd")),
-                mfe_pnl_usd=_maybe_float(ev.get("mfe_pnl_usd")),
-            ))
+            lot["legs"].append(
+                TradeLeg(
+                    ts=str(ev.get("ts") or ""),
+                    event_id=str(ev.get("event_id") or ""),
+                    kind="exit",
+                    shares=matched,
+                    cost_usd=cost_piece,
+                    recovered_actual_usd=actual_piece,
+                    recovered_observed_usd=observed_piece,
+                    reason=str(ev.get("reason") or ""),
+                    source=actual_source,
+                    source_tier=actual_tier,
+                    remaining_shares=_maybe_float(ev.get("remaining_shares")),
+                    mae_pnl_usd=_maybe_float(ev.get("mae_pnl_usd")),
+                    mfe_pnl_usd=_maybe_float(ev.get("mfe_pnl_usd")),
+                )
+            )
             remaining -= matched
 
             if lot["remaining_shares"] <= EPS:
@@ -958,88 +1151,123 @@ def build_trade_pairs(events: list[dict]) -> list[TradePairRow]:
 
         if remaining > EPS:
             residual_counter += 1
-            actual_piece = actual_value * (remaining / exit_shares) if actual_value is not None and exit_shares > EPS else None
-            observed_piece = observed_total * (remaining / exit_shares) if observed_total is not None and exit_shares > EPS else None
-            residual_flags = ["orphan-residual", "no-entry-match", "ui-reconciliation-needed"]
+            actual_piece = (
+                actual_value * (remaining / exit_shares)
+                if actual_value is not None and exit_shares > EPS
+                else None
+            )
+            observed_piece = (
+                observed_total * (remaining / exit_shares)
+                if observed_total is not None and exit_shares > EPS
+                else None
+            )
+            residual_flags = [
+                "orphan-residual",
+                "no-entry-match",
+                "ui-reconciliation-needed",
+            ]
             if actual_tier == "medium":
                 residual_flags.append("actual-medium-confidence")
             elif actual_tier == "low":
                 residual_flags.append("actual-low-confidence")
             if actual_piece is None and observed_piece is not None:
                 residual_flags.append("observed-only")
-            rows.append(TradePairRow(
-                position_id=f"{key}#residual{residual_counter}",
-                token_id=token_id,
-                market=str(ev.get("slug") or ""),
-                side=str(ev.get("side") or ""),
-                status="residual",
-                opened_ts="",
-                closed_ts=str(ev.get("ts") or ""),
-                entry_cost_usd=0.0,
-                entry_shares=0.0,
-                matched_cost_usd=0.0,
-                matched_exit_shares=remaining,
-                exit_recovered_actual_usd=actual_piece,
-                exit_recovered_observed_usd=observed_piece,
-                actual_pnl_usd=None,
-                observed_pnl_usd=None,
-                fee_adjusted_actual_pnl_usd=None,
-                fee_adjusted_observed_pnl_usd=None,
-                estimated_total_fees_actual_usd=None,
-                estimated_total_fees_observed_usd=None,
-                actual_source=actual_source,
-                actual_source_tier=actual_tier,
-                entry_execution_style="unknown",
-                exit_execution_style=normalize_execution_style(ev.get("exit_execution_style")),
-                close_bucket=classify_close_bucket(ev.get("reason")),
-                close_reason=str(ev.get("reason") or ""),
-                entry_quality=str(ev.get("entry_quality") or "unknown"),
-                remaining_shares=0.0,
-                unmatched_entry_cost_usd=0.0,
-                unmatched_entry_shares=0.0,
-                mae_pnl_usd=_maybe_float(ev.get("mae_pnl_usd")),
-                mfe_pnl_usd=_maybe_float(ev.get("mfe_pnl_usd")),
-                flags=residual_flags,
-                legs=[TradeLeg(
-                    ts=str(ev.get("ts") or ""),
-                    event_id=str(ev.get("event_id") or ""),
-                    kind="residual_exit",
-                    shares=remaining,
-                    cost_usd=0.0,
-                    recovered_actual_usd=actual_piece,
-                    recovered_observed_usd=observed_piece,
-                    reason=str(ev.get("reason") or ""),
-                    source=actual_source,
-                    source_tier=actual_tier,
-                    remaining_shares=_maybe_float(ev.get("remaining_shares")),
+            rows.append(
+                TradePairRow(
+                    position_id=f"{key}#residual{residual_counter}",
+                    token_id=token_id,
+                    market=str(ev.get("slug") or ""),
+                    side=str(ev.get("side") or ""),
+                    status="residual",
+                    opened_ts="",
+                    closed_ts=str(ev.get("ts") or ""),
+                    entry_cost_usd=0.0,
+                    entry_shares=0.0,
+                    matched_cost_usd=0.0,
+                    matched_exit_shares=remaining,
+                    exit_recovered_actual_usd=actual_piece,
+                    exit_recovered_observed_usd=observed_piece,
+                    actual_pnl_usd=None,
+                    observed_pnl_usd=None,
+                    fee_adjusted_actual_pnl_usd=None,
+                    fee_adjusted_observed_pnl_usd=None,
+                    estimated_total_fees_actual_usd=None,
+                    estimated_total_fees_observed_usd=None,
+                    actual_source=actual_source,
+                    actual_source_tier=actual_tier,
+                    entry_execution_style="unknown",
+                    exit_execution_style=normalize_execution_style(
+                        ev.get("exit_execution_style")
+                    ),
+                    close_bucket=classify_close_bucket(ev.get("reason")),
+                    close_reason=str(ev.get("reason") or ""),
+                    entry_quality=str(ev.get("entry_quality") or "unknown"),
+                    remaining_shares=0.0,
+                    unmatched_entry_cost_usd=0.0,
+                    unmatched_entry_shares=0.0,
                     mae_pnl_usd=_maybe_float(ev.get("mae_pnl_usd")),
                     mfe_pnl_usd=_maybe_float(ev.get("mfe_pnl_usd")),
-                )],
-            ))
+                    flags=residual_flags,
+                    legs=[
+                        TradeLeg(
+                            ts=str(ev.get("ts") or ""),
+                            event_id=str(ev.get("event_id") or ""),
+                            kind="residual_exit",
+                            shares=remaining,
+                            cost_usd=0.0,
+                            recovered_actual_usd=actual_piece,
+                            recovered_observed_usd=observed_piece,
+                            reason=str(ev.get("reason") or ""),
+                            source=actual_source,
+                            source_tier=actual_tier,
+                            remaining_shares=_maybe_float(ev.get("remaining_shares")),
+                            mae_pnl_usd=_maybe_float(ev.get("mae_pnl_usd")),
+                            mfe_pnl_usd=_maybe_float(ev.get("mfe_pnl_usd")),
+                        )
+                    ],
+                )
+            )
 
         if key in open_entries and not open_entries[key]:
             open_entries.pop(key, None)
 
     for key, lots in open_entries.items():
         for lot in lots:
-            rows.append(_finalize_pair_row(lot["event"], str(lot["event"].get("token_id") or ""), key, lot))
+            rows.append(
+                _finalize_pair_row(
+                    lot["event"], str(lot["event"].get("token_id") or ""), key, lot
+                )
+            )
 
     rows = _collapse_overflow_residual_rows(rows)
     rows = _collapse_entry_slippage_guard_rows(rows)
     rows = reconcile_rows_with_account_activity(rows)
-    rows.sort(key=lambda row: (row.opened_ts or row.closed_ts or "", row.market, row.side, row.position_id))
+    rows.sort(
+        key=lambda row: (
+            row.opened_ts or row.closed_ts or "",
+            row.market,
+            row.side,
+            row.position_id,
+        )
+    )
     return rows
 
 
-def _finalize_pair_row(entry_ev: dict, token_id: str, key: str, lot: dict) -> TradePairRow:
+def _finalize_pair_row(
+    entry_ev: dict, token_id: str, key: str, lot: dict
+) -> TradePairRow:
     entry_cost = _f(entry_ev.get("cost_usd"), 0.0)
     entry_shares = _f(entry_ev.get("shares"), 0.0)
     exit_actual = lot["exit_recovered_actual_usd"] if lot.get("has_actual") else None
-    exit_observed = lot["exit_recovered_observed_usd"] if lot.get("has_observed") else None
+    exit_observed = (
+        lot["exit_recovered_observed_usd"] if lot.get("has_observed") else None
+    )
     observed_fallback_actual = float(lot.get("observed_fallback_actual_usd") or 0.0)
     matched_cost = float(lot.get("matched_cost_usd") or 0.0)
     matched_exit_shares = float(lot.get("matched_shares") or 0.0)
-    entry_execution_style = normalize_execution_style(lot.get("entry_execution_style") or entry_ev.get("execution_style"))
+    entry_execution_style = normalize_execution_style(
+        lot.get("entry_execution_style") or entry_ev.get("execution_style")
+    )
     exit_execution_style = normalize_execution_style(lot.get("exit_execution_style"))
     close_reason = str(lot.get("close_reason") or "")
     remaining_shares = float(lot.get("remaining_shares") or 0.0)
@@ -1072,24 +1300,34 @@ def _finalize_pair_row(entry_ev: dict, token_id: str, key: str, lot: dict) -> Tr
             actual_source = "market-settlement-lookup"
             actual_source_tier = classify_actual_source_tier(actual_source, exit_actual)
             exit_execution_style = "expiry-settlement"
-            close_reason = settlement_reason if not close_reason else f"{close_reason}+{settlement_reason}"
-            settlement_end_dt = _market_end_dt_from_slug(str(entry_ev.get("slug") or ""))
-            settlement_closed_ts = settlement_end_dt.isoformat() if settlement_end_dt is not None else ""
-            legs.append(TradeLeg(
-                ts=settlement_closed_ts,
-                event_id=f"{key}#settlement",
-                kind="expiry_settlement",
-                shares=remaining_shares,
-                cost_usd=remaining_cost,
-                recovered_actual_usd=settlement_value,
-                recovered_observed_usd=settlement_value,
-                reason=settlement_reason,
-                source=actual_source,
-                source_tier=actual_source_tier,
-                remaining_shares=0.0,
-                mae_pnl_usd=None,
-                mfe_pnl_usd=None,
-            ))
+            close_reason = (
+                settlement_reason
+                if not close_reason
+                else f"{close_reason}+{settlement_reason}"
+            )
+            settlement_end_dt = _market_end_dt_from_slug(
+                str(entry_ev.get("slug") or "")
+            )
+            settlement_closed_ts = (
+                settlement_end_dt.isoformat() if settlement_end_dt is not None else ""
+            )
+            legs.append(
+                TradeLeg(
+                    ts=settlement_closed_ts,
+                    event_id=f"{key}#settlement",
+                    kind="expiry_settlement",
+                    shares=remaining_shares,
+                    cost_usd=remaining_cost,
+                    recovered_actual_usd=settlement_value,
+                    recovered_observed_usd=settlement_value,
+                    reason=settlement_reason,
+                    source=actual_source,
+                    source_tier=actual_source_tier,
+                    remaining_shares=0.0,
+                    mae_pnl_usd=None,
+                    mfe_pnl_usd=None,
+                )
+            )
             remaining_shares = 0.0
             flags.append("market-settlement-imputed")
 
@@ -1103,8 +1341,16 @@ def _finalize_pair_row(entry_ev: dict, token_id: str, key: str, lot: dict) -> Tr
         exit_execution_style=exit_execution_style,
         close_reason=close_reason,
     )
-    fee_adjusted_actual_pnl = (actual_pnl - actual_total_fees) if actual_pnl is not None and actual_total_fees is not None else None
-    fee_adjusted_observed_pnl = (observed_pnl - observed_total_fees) if observed_pnl is not None and observed_total_fees is not None else None
+    fee_adjusted_actual_pnl = (
+        (actual_pnl - actual_total_fees)
+        if actual_pnl is not None and actual_total_fees is not None
+        else None
+    )
+    fee_adjusted_observed_pnl = (
+        (observed_pnl - observed_total_fees)
+        if observed_pnl is not None and observed_total_fees is not None
+        else None
+    )
     if remaining_shares > EPS:
         flags.append("open-remainder")
     if not lot.get("exit_count") and not settlement_applied:
@@ -1117,7 +1363,8 @@ def _finalize_pair_row(entry_ev: dict, token_id: str, key: str, lot: dict) -> Tr
         status=classify_pair_status(
             remaining_shares=remaining_shares,
             has_exit=bool(lot.get("exit_count")) or settlement_applied,
-            exit_count=int(lot.get("exit_count") or 0) + (1 if settlement_applied else 0),
+            exit_count=int(lot.get("exit_count") or 0)
+            + (1 if settlement_applied else 0),
             matched_shares=matched_exit_shares,
             entry_shares=entry_shares,
         ),
@@ -1143,7 +1390,9 @@ def _finalize_pair_row(entry_ev: dict, token_id: str, key: str, lot: dict) -> Tr
         close_reason=close_reason,
         entry_quality=str(lot.get("entry_quality") or "unknown"),
         remaining_shares=remaining_shares,
-        unmatched_entry_cost_usd=float(lot.get("remaining_cost_usd") or 0.0) if remaining_shares > EPS else 0.0,
+        unmatched_entry_cost_usd=float(lot.get("remaining_cost_usd") or 0.0)
+        if remaining_shares > EPS
+        else 0.0,
         unmatched_entry_shares=remaining_shares,
         mae_pnl_usd=lot.get("mae_pnl_usd"),
         mfe_pnl_usd=lot.get("mfe_pnl_usd"),
@@ -1152,7 +1401,9 @@ def _finalize_pair_row(entry_ev: dict, token_id: str, key: str, lot: dict) -> Tr
     )
 
 
-def _coalesce_extreme(current: float | None, candidate: float | None, chooser) -> float | None:
+def _coalesce_extreme(
+    current: float | None, candidate: float | None, chooser
+) -> float | None:
     if candidate is None:
         return current
     if current is None:
@@ -1162,10 +1413,14 @@ def _coalesce_extreme(current: float | None, candidate: float | None, chooser) -
 
 def dataclass_list_to_json(rows: list[Any], path: str | Path) -> None:
     payload = [asdict(row) for row in rows]
-    Path(path).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    Path(path).write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
-def dataclass_list_to_csv(rows: list[Any], path: str | Path, *, flatten_legs: bool = False) -> None:
+def dataclass_list_to_csv(
+    rows: list[Any], path: str | Path, *, flatten_legs: bool = False
+) -> None:
     data = []
     for row in rows:
         item = asdict(row)
@@ -1196,9 +1451,15 @@ def summarize_trade_pairs(rows: list[TradePairRow]) -> dict[str, Any]:
     by_tier = Counter(row.actual_source_tier for row in rows)
     actual_rows = [row for row in rows if row.actual_pnl_usd is not None]
     observed_rows = [row for row in rows if row.observed_pnl_usd is not None]
-    fee_actual_rows = [row for row in rows if row.fee_adjusted_actual_pnl_usd is not None]
-    fee_observed_rows = [row for row in rows if row.fee_adjusted_observed_pnl_usd is not None]
-    scratch_threshold = max(0.0, float(getattr(SETTINGS, "report_scratch_pnl_pct", 0.03)))
+    fee_actual_rows = [
+        row for row in rows if row.fee_adjusted_actual_pnl_usd is not None
+    ]
+    fee_observed_rows = [
+        row for row in rows if row.fee_adjusted_observed_pnl_usd is not None
+    ]
+    scratch_threshold = max(
+        0.0, float(getattr(SETTINGS, "report_scratch_pnl_pct", 0.03))
+    )
 
     def _summarize_values(items: list[TradePairRow], attr: str) -> dict[str, Any]:
         values = [getattr(row, attr) for row in items if getattr(row, attr) is not None]
@@ -1220,19 +1481,59 @@ def summarize_trade_pairs(rows: list[TradePairRow]) -> dict[str, Any]:
         )
         if basis_pnl is None or row.entry_cost_usd <= EPS:
             return False
-        return abs(float(basis_pnl)) / max(float(row.entry_cost_usd), EPS) <= scratch_threshold
+        return (
+            abs(float(basis_pnl)) / max(float(row.entry_cost_usd), EPS)
+            <= scratch_threshold
+        )
+
+    def _summarize_actual_minus_observed(items: list[TradePairRow]) -> dict[str, Any]:
+        values = [
+            float(row.actual_pnl_usd) - float(row.observed_pnl_usd)
+            for row in items
+            if row.actual_pnl_usd is not None and row.observed_pnl_usd is not None
+        ]
+        total = round(sum(values), 10) if values else None
+        average = round(total / len(values), 10) if values else None
+        return {
+            "count": len(values),
+            "sum": total,
+            "average": average,
+        }
 
     scratch_rows = [row for row in rows if _scratch_like(row)]
-    scratch_reasons = Counter(row.close_reason for row in scratch_rows if row.close_reason)
+    scratch_reasons = Counter(
+        row.close_reason for row in scratch_rows if row.close_reason
+    )
+    deadline_loss_rows = [
+        row
+        for row in rows
+        if str(row.close_reason or "").strip() == "deadline-exit-loss"
+    ]
+    deadline_loss_reasons = Counter(
+        row.close_reason for row in deadline_loss_rows if row.close_reason
+    )
+    weak_trade_recycle_rows = [
+        row
+        for row in rows
+        if str(row.close_reason or "").strip()
+        in {"stalled-trade", "failed-follow-through"}
+    ]
+    weak_trade_recycle_reasons = Counter(
+        row.close_reason for row in weak_trade_recycle_rows if row.close_reason
+    )
 
     bucket_summary: dict[str, Any] = {}
+    bucket_gap_summary: dict[str, Any] = {}
     for bucket in sorted(by_bucket):
         bucket_rows = [row for row in rows if row.close_bucket == bucket]
         bucket_summary[bucket] = {
             "count": len(bucket_rows),
             "actual_pnl": _summarize_values(bucket_rows, "actual_pnl_usd"),
-            "fee_adjusted_actual_pnl": _summarize_values(bucket_rows, "fee_adjusted_actual_pnl_usd"),
+            "fee_adjusted_actual_pnl": _summarize_values(
+                bucket_rows, "fee_adjusted_actual_pnl_usd"
+            ),
         }
+        bucket_gap_summary[bucket] = _summarize_actual_minus_observed(bucket_rows)
 
     return {
         "total_trades": total,
@@ -1241,29 +1542,54 @@ def summarize_trade_pairs(rows: list[TradePairRow]) -> dict[str, Any]:
         "close_reason_counts": dict(sorted(by_reason.items())),
         "close_bucket_counts": dict(sorted(by_bucket.items())),
         "close_bucket_pnl": bucket_summary,
+        "close_bucket_actual_vs_observed": bucket_gap_summary,
         "actual_source_tier_counts": dict(sorted(by_tier.items())),
         "actual_available_ratio": (len(actual_rows) / total) if total else None,
         "actual_pnl": _summarize_values(actual_rows, "actual_pnl_usd"),
         "observed_pnl": _summarize_values(observed_rows, "observed_pnl_usd"),
-        "fee_adjusted_actual_pnl": _summarize_values(fee_actual_rows, "fee_adjusted_actual_pnl_usd"),
-        "fee_adjusted_observed_pnl": _summarize_values(fee_observed_rows, "fee_adjusted_observed_pnl_usd"),
+        "actual_minus_observed_gap": _summarize_actual_minus_observed(rows),
+        "fee_adjusted_actual_pnl": _summarize_values(
+            fee_actual_rows, "fee_adjusted_actual_pnl_usd"
+        ),
+        "fee_adjusted_observed_pnl": _summarize_values(
+            fee_observed_rows, "fee_adjusted_observed_pnl_usd"
+        ),
         "scratch_trades": {
             "count": len(scratch_rows),
             "ratio": (len(scratch_rows) / total) if total else None,
             "close_reason_counts": dict(sorted(scratch_reasons.items())),
-            "fee_adjusted_actual_pnl": _summarize_values(scratch_rows, "fee_adjusted_actual_pnl_usd"),
+            "fee_adjusted_actual_pnl": _summarize_values(
+                scratch_rows, "fee_adjusted_actual_pnl_usd"
+            ),
+        },
+        "deadline_loss_trades": {
+            "count": len(deadline_loss_rows),
+            "ratio": (len(deadline_loss_rows) / total) if total else None,
+            "close_reason_counts": dict(sorted(deadline_loss_reasons.items())),
+        },
+        "weak_trade_recycles": {
+            "count": len(weak_trade_recycle_rows),
+            "ratio": (len(weak_trade_recycle_rows) / total) if total else None,
+            "close_reason_counts": dict(sorted(weak_trade_recycle_reasons.items())),
         },
         "mae": {
             "count": sum(1 for row in rows if row.mae_pnl_usd is not None),
-            "average": (sum(row.mae_pnl_usd for row in rows if row.mae_pnl_usd is not None) / max(1, sum(1 for row in rows if row.mae_pnl_usd is not None))),
+            "average": (
+                sum(row.mae_pnl_usd for row in rows if row.mae_pnl_usd is not None)
+                / max(1, sum(1 for row in rows if row.mae_pnl_usd is not None))
+            ),
         },
         "mfe": {
             "count": sum(1 for row in rows if row.mfe_pnl_usd is not None),
-            "average": (sum(row.mfe_pnl_usd for row in rows if row.mfe_pnl_usd is not None) / max(1, sum(1 for row in rows if row.mfe_pnl_usd is not None))),
+            "average": (
+                sum(row.mfe_pnl_usd for row in rows if row.mfe_pnl_usd is not None)
+                / max(1, sum(1 for row in rows if row.mfe_pnl_usd is not None))
+            ),
         },
         "notes": {
             "actual_unavailable": "actual_pnl average uses only rows with actual data; missing actual rows are excluded, not imputed"
-            if len(actual_rows) < total else "all rows have actual pnl",
+            if len(actual_rows) < total
+            else "all rows have actual pnl",
             "fee_model": "fee_adjusted pnl applies assumed taker fees only to legs tagged taker/mixed; maker-like and unknown legs are treated as zero-fee, and expiry settlements pay no exit fee",
         },
     }
@@ -1283,11 +1609,25 @@ def summarize_exit_accounting(rows: list[ExitAccountingRow]) -> dict[str, Any]:
         "actual_source_tier_counts": dict(sorted(by_tier.items())),
         "flag_counts": dict(sorted(flagged.items())),
         "actual_available_ratio": (len(actual_rows) / total) if total else None,
-        "average_actual_exit_value_usd": (sum(row.actual_exit_value_usd for row in actual_rows) / len(actual_rows)) if actual_rows else None,
-        "average_observed_exit_value_usd": (sum(row.observed_exit_value_usd for row in observed_rows) / len(observed_rows)) if observed_rows else None,
-        "average_actual_minus_observed_usd": (sum(row.difference_usd for row in diff_rows) / len(diff_rows)) if diff_rows else None,
+        "average_actual_exit_value_usd": (
+            sum(row.actual_exit_value_usd for row in actual_rows) / len(actual_rows)
+        )
+        if actual_rows
+        else None,
+        "average_observed_exit_value_usd": (
+            sum(row.observed_exit_value_usd for row in observed_rows)
+            / len(observed_rows)
+        )
+        if observed_rows
+        else None,
+        "average_actual_minus_observed_usd": (
+            sum(row.difference_usd for row in diff_rows) / len(diff_rows)
+        )
+        if diff_rows
+        else None,
         "notes": {
             "actual_unavailable": "actual averages use only rows with actual data; unavailable actual values are excluded"
-            if len(actual_rows) < total else "all rows have actual exit values",
+            if len(actual_rows) < total
+            else "all rows have actual exit values",
         },
     }

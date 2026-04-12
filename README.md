@@ -6,7 +6,7 @@ A high-frequency, event-driven trading bot designed specifically for **Polymarke
 
 ## 🇹🇼 中文說明 (Chinese Documentation)
 
-這個機器人專注於高頻率的 5 分鐘二元期權市場，藉由同步與 **幣安 (Binance) WebSocket** 的訂單流數據，進行極短線的動能預測與套利。本版本已經過大幅度「正期望值 (EV) 最佳化」，以適應微型籌碼（每單 $1 USD）的暴力打法。
+這個機器人專注於高頻率的 5 分鐘二元期權市場，藉由同步與 **幣安 (Binance) WebSocket** 的訂單流數據，進行極短線的動能預測與套利。請把目前版本視為**持續硬化中的策略研究系統**，不是已被證明穩定正收益的成品；任何「變好」都必須以 `actual`、`fee-adjusted` 與 `observed` 差異一起驗證，而不是只看表面勝率或 mark-to-market 報酬。
 
 ### 🚀 核心殺手鐧 (Core Strategies)
 
@@ -48,14 +48,20 @@ bash scripts/start_bot_with_market_data.sh
 ### 📊 產出與報表
 
 每次執行後，所有日誌與自動生成的摘要報表會存在 `data/` 目錄：
-*   最新報表：`data/latest_run_report.txt` (請隨時查看此檔以掌握 PNL)
+*   最新報表：`data/latest_run_report.txt`
 *   完整交易對帳單：執行 `python scripts/trade_pair_ledger.py --limit 30 --summary`
+*   驗證重點不是只有 `observed pnl`，還要一起看：
+    * `actual_minus_observed_gap`
+    * `close_bucket_actual_vs_observed`
+    * `fee_adjusted_actual_pnl`
+    * `active-close` bucket 是否持續為負
+*   若 `observed` 看起來賺、但 `actual` / `fee-adjusted` 仍差，請把它視為 execution / accounting 問題尚未解決，而不是策略已經成功。
 
 ---
 
 ## 🇬🇧 English Documentation
 
-This bot specializes in high-frequency trading for Polymarket's 5-minute binary options, leveraging **Binance WebSocket** order flow data for ultra-short-term momentum prediction. This version has been heavily optimized for "Positive Expected Value (+EV)" with micro-bet sizing ($1 per trade).
+This bot specializes in high-frequency trading for Polymarket's 5-minute binary options, leveraging **Binance WebSocket** order flow data for ultra-short-term momentum prediction. Treat the current version as an **actively hardened research system**, not a proven positive-EV production strategy; improvements must be judged against `actual`, `fee-adjusted`, and `observed` outcome gaps rather than headline win rate or mark-based PnL alone.
 
 ### 🚀 Advanced Strategies
 
@@ -98,3 +104,9 @@ bash scripts/start_bot_with_market_data.sh
 All logs and auto-generated run reports are saved to the `data/` directory:
 *   Quick summary: `data/latest_run_report.txt`
 *   Full PNL & Ledger: Run `python scripts/trade_pair_ledger.py --summary`
+*   Verification should emphasize:
+    * `actual_minus_observed_gap`
+    * `close_bucket_actual_vs_observed`
+    * `fee_adjusted_actual_pnl`
+    * whether the `active-close` bucket remains negative after costs
+*   If `observed` looks profitable while `actual` or `fee-adjusted` results do not, treat that as unresolved execution/accounting drift rather than strategy success.
