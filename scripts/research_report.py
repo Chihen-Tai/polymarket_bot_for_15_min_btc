@@ -60,13 +60,15 @@ def analyze_journal(journal_path):
                 
                 fee_adj_pnl = pnl - fees
                 hold_time = float(exit_ev.get("hold_sec") or 0.0)
+                rtt_ms = float(entry.get("rtt_ms") or 0.0)
 
                 # Bucketing
                 price_bucket = get_bucket(price, [0.3, 0.7], ["<0.3", "0.3-0.7", ">0.7"])
                 time_bucket = get_bucket(secs_left, [60, 120], ["<60s", "60-120s", ">120s"])
+                latency_bucket = get_bucket(rtt_ms, [200, 500], ["<200ms", "200-500ms", ">500ms"])
                 
                 # Update Stats
-                for key in [("strategy", strategy), ("price", price_bucket), ("time", time_bucket)]:
+                for key in [("strategy", strategy), ("price", price_bucket), ("time", time_bucket), ("latency", latency_bucket)]:
                     s = stats[key]
                     s["count"] += 1
                     s["wins"] += win
