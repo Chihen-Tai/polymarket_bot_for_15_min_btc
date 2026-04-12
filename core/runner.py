@@ -1723,7 +1723,13 @@ def should_allow_normal_taker_fallback(
     buffer_edge = float(
         getattr(SETTINGS, "entry_require_maker_edge_buffer", 0.01) or 0.0
     )
-    return float(raw_edge or 0.0) >= float(required_edge or 0.0) + buffer_edge
+    fallback_extra = float(
+        getattr(SETTINGS, "maker_fallback_extra_edge_buffer", 0.01) or 0.0
+    )
+    return (
+        float(raw_edge or 0.0)
+        >= float(required_edge or 0.0) + buffer_edge + fallback_extra
+    )
 
 
 def maker_entry_timeout_seconds() -> float:
@@ -2479,10 +2485,23 @@ def price_aware_kelly_fraction(win_rate: float, entry_price: float) -> float:
 
 
 def apply_scoreboard_aux_probability(
-    model_probability: float, scoreboard_win_rate: float
+    model_probability: float,
+    scoreboard_win_rate: float,
+    *,
+    probability_source: str | None = None,
 ) -> float:
+    base_probability = float(model_probability)
+    if str(probability_source or "").strip().lower() == "heuristic":
+        heuristic_weight = max(
+            0.0,
+            min(
+                1.0,
+                float(getattr(SETTINGS, "heuristic_probability_weight", 0.35) or 0.35),
+            ),
+        )
+        base_probability = 0.5 + ((base_probability - 0.5) * heuristic_weight)
     aux_weight = max(0.0, float(getattr(SETTINGS, "scoreboard_aux_weight", 0.0)))
-    adjusted = ((1.0 - aux_weight) * float(model_probability)) + (
+    adjusted = ((1.0 - aux_weight) * base_probability) + (
         aux_weight * float(scoreboard_win_rate)
     )
     return min(0.99, max(0.01, adjusted))
@@ -2546,6 +2565,7 @@ def score_entry_candidate(
         strategy_name = f"model-{strategy_name}"
     entry_price = float(candidate.get("entry_price") or 0.0)
     model_probability = candidate.get("model_probability")
+    probability_source = str(candidate.get("probability_source") or "").strip()
     signal_probability = (
         float(model_probability) if model_probability is not None else None
     )
@@ -2586,7 +2606,11 @@ def score_entry_candidate(
     effective_probability = (
         strategy_win_rate
         if signal_probability is None
-        else apply_scoreboard_aux_probability(signal_probability, strategy_win_rate)
+        else apply_scoreboard_aux_probability(
+            signal_probability,
+            strategy_win_rate,
+            probability_source=probability_source,
+        )
     )
     entry_edge = summarize_entry_edge(
         win_rate=effective_probability,
@@ -2606,6 +2630,7 @@ def score_entry_candidate(
         "strategy_name": strategy_name,
         "entry_price": entry_price,
         "signal_probability": signal_probability,
+        "probability_source": probability_source,
         "raw_strategy_win_rate": raw_strategy_win_rate,
         "strategy_win_rate": strategy_win_rate,
         "strategy_trade_count": strategy_trade_count,
@@ -4041,6 +4066,7 @@ def main():
             no_entry_reason = ""
             entry_price = None
             signal_probability = None
+            signal_probability_source = ""
             strategy_win_rate = 0.5
             strategy_trade_count = 0
             strategy_decisive_trade_count = 0
@@ -4318,6 +4344,9 @@ def main():
                                 signal_probability = chosen_candidate.get(
                                     "signal_probability"
                                 )
+                                signal_probability_source = str(
+                                    chosen_candidate.get("probability_source") or ""
+                                )
                                 entry_price = chosen_candidate.get("entry_price")
                                 strategy_win_rate = float(
                                     chosen_candidate.get("strategy_win_rate") or 0.5
@@ -4349,6 +4378,7 @@ def main():
                                 signal_side = None
                                 signal_origin = ""
                                 signal_probability = None
+                                signal_probability_source = ""
                                 if candidate_rejections:
                                     no_entry_reason = candidate_rejections[0]
 
@@ -6493,6 +6523,10 @@ def main():
                                     signal_probability = reversed_candidate.get(
                                         "signal_probability"
                                     )
+                                    signal_probability_source = str(
+                                        reversed_candidate.get("probability_source")
+                                        or ""
+                                    )
                                     entry_price = reversed_candidate.get("entry_price")
                                     strategy_win_rate = float(
                                         reversed_candidate.get("strategy_win_rate")
@@ -6863,7 +6897,9 @@ def main():
                     effective_probability = strategy_win_rate
                 else:
                     effective_probability = apply_scoreboard_aux_probability(
-                        effective_probability, strategy_win_rate
+                        effective_probability,
+                        strategy_win_rate,
+                        probability_source=signal_probability_source,
                     )
                 entry_edge = summarize_entry_edge(
                     win_rate=effective_probability,

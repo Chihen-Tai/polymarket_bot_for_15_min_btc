@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.config import SETTINGS
+import core.decision_engine as decision_engine_mod
 from core.decision_engine import explain_choose_side
 from core.journal import replay_open_positions
 from core.learning import StrategyScoreboard
@@ -13,6 +14,7 @@ from core.market_resolver import _extract_token_pair
 from core.risk import can_place_order
 from core.runner import (
     RuntimeFlags,
+    PendingOrder,
     assess_entry_liquidity,
     apply_scoreboard_aux_probability,
     build_recent_active_close_summary_from_events,
@@ -1278,6 +1280,17 @@ def main():
             != "failed-follow-through",
         ),
         (
+            "failed_follow_through_recycles_earlier_when_executable_profit_is_also_weak",
+            decide_exit(
+                pnl_pct=-0.03,
+                profit_pnl_pct=-0.03,
+                hold_sec=20,
+                secs_left=200,
+                mfe_pnl_pct=0.01,
+            ).reason
+            == "failed-follow-through",
+        ),
+        (
             "failed_follow_through_skips_if_signal_showed_life",
             decide_exit(
                 pnl_pct=-0.03, hold_sec=30, secs_left=200, mfe_pnl_pct=0.05
@@ -2398,6 +2411,303 @@ def main():
 
 def test_main():
     main()
+
+
+def test_summarize_trade_pairs_reports_actual_minus_observed_gap():
+    rows = build_trade_pairs(
+        [
+            {
+                "kind": "entry",
+                "event_id": "entry_1",
+                "position_id": "pos_1",
+                "token_id": "tok_1",
+                "slug": "btc-updown-5m-test",
+                "side": "UP",
+                "shares": 1.0,
+                "cost_usd": 0.40,
+                "opened_ts": 1.0,
+                "ts": "2026-04-12T00:00:00+00:00",
+            },
+            {
+                "kind": "exit",
+                "event_id": "exit_1",
+                "position_id": "pos_1",
+                "token_id": "tok_1",
+                "slug": "btc-updown-5m-test",
+                "side": "UP",
+                "closed_shares": 1.0,
+                "actual_exit_value_usd": 0.48,
+                "observed_exit_value_usd": 0.62,
+                "actual_exit_value_source": "close_response_takingAmount",
+                "reason": "manual-close",
+                "ts": "2026-04-12T00:01:00+00:00",
+            },
+        ]
+    )
+
+    summary = summarize_trade_pairs(rows)
+
+    assert summary["actual_minus_observed_gap"] == {
+        "count": 1,
+        "sum": -0.14,
+        "average": -0.14,
+    }
+    assert summary["close_bucket_actual_vs_observed"]["active-close"] == {
+        "count": 1,
+        "sum": -0.14,
+        "average": -0.14,
+    }
+
+
+def test_summarize_trade_pairs_reports_deadline_losses_and_weak_recycles():
+    rows = build_trade_pairs(
+        [
+            {
+                "kind": "entry",
+                "event_id": "entry_deadline",
+                "position_id": "pos_deadline",
+                "token_id": "tok_deadline",
+                "slug": "btc-updown-5m-deadline",
+                "side": "UP",
+                "shares": 1.0,
+                "cost_usd": 1.0,
+                "opened_ts": 1.0,
+                "ts": "2026-04-12T00:00:00+00:00",
+            },
+            {
+                "kind": "exit",
+                "event_id": "exit_deadline",
+                "position_id": "pos_deadline",
+                "token_id": "tok_deadline",
+                "slug": "btc-updown-5m-deadline",
+                "side": "UP",
+                "closed_shares": 1.0,
+                "actual_exit_value_usd": 0.70,
+                "observed_exit_value_usd": 0.70,
+                "actual_exit_value_source": "close_response_takingAmount",
+                "reason": "deadline-exit-loss",
+                "ts": "2026-04-12T00:01:00+00:00",
+            },
+            {
+                "kind": "entry",
+                "event_id": "entry_stalled",
+                "position_id": "pos_stalled",
+                "token_id": "tok_stalled",
+                "slug": "btc-updown-5m-stalled",
+                "side": "UP",
+                "shares": 1.0,
+                "cost_usd": 1.0,
+                "opened_ts": 2.0,
+                "ts": "2026-04-12T00:02:00+00:00",
+            },
+            {
+                "kind": "exit",
+                "event_id": "exit_stalled",
+                "position_id": "pos_stalled",
+                "token_id": "tok_stalled",
+                "slug": "btc-updown-5m-stalled",
+                "side": "UP",
+                "closed_shares": 1.0,
+                "actual_exit_value_usd": 0.99,
+                "observed_exit_value_usd": 0.99,
+                "actual_exit_value_source": "close_response_takingAmount",
+                "reason": "stalled-trade",
+                "ts": "2026-04-12T00:03:00+00:00",
+            },
+            {
+                "kind": "entry",
+                "event_id": "entry_failed",
+                "position_id": "pos_failed",
+                "token_id": "tok_failed",
+                "slug": "btc-updown-5m-failed",
+                "side": "UP",
+                "shares": 1.0,
+                "cost_usd": 1.0,
+                "opened_ts": 3.0,
+                "ts": "2026-04-12T00:04:00+00:00",
+            },
+            {
+                "kind": "exit",
+                "event_id": "exit_failed",
+                "position_id": "pos_failed",
+                "token_id": "tok_failed",
+                "slug": "btc-updown-5m-failed",
+                "side": "UP",
+                "closed_shares": 1.0,
+                "actual_exit_value_usd": 0.96,
+                "observed_exit_value_usd": 0.96,
+                "actual_exit_value_source": "close_response_takingAmount",
+                "reason": "failed-follow-through",
+                "ts": "2026-04-12T00:05:00+00:00",
+            },
+            {
+                "kind": "entry",
+                "event_id": "entry_tp",
+                "position_id": "pos_tp",
+                "token_id": "tok_tp",
+                "slug": "btc-updown-5m-tp",
+                "side": "UP",
+                "shares": 1.0,
+                "cost_usd": 1.0,
+                "opened_ts": 4.0,
+                "ts": "2026-04-12T00:06:00+00:00",
+            },
+            {
+                "kind": "exit",
+                "event_id": "exit_tp",
+                "position_id": "pos_tp",
+                "token_id": "tok_tp",
+                "slug": "btc-updown-5m-tp",
+                "side": "UP",
+                "closed_shares": 1.0,
+                "actual_exit_value_usd": 1.20,
+                "observed_exit_value_usd": 1.20,
+                "actual_exit_value_source": "close_response_takingAmount",
+                "reason": "take-profit-hard",
+                "ts": "2026-04-12T00:07:00+00:00",
+            },
+        ]
+    )
+
+    summary = summarize_trade_pairs(rows)
+
+    assert summary["deadline_loss_trades"] == {
+        "count": 1,
+        "ratio": 0.25,
+        "close_reason_counts": {"deadline-exit-loss": 1},
+    }
+    assert summary["weak_trade_recycles"] == {
+        "count": 2,
+        "ratio": 0.5,
+        "close_reason_counts": {
+            "failed-follow-through": 1,
+            "stalled-trade": 1,
+        },
+    }
+
+
+def test_build_candidate_marks_probability_source_as_heuristic():
+    candidate = decision_engine_mod._build_candidate(
+        {},
+        side="UP",
+        strategy_key="ws_order_flow_up",
+        entry_price=0.45,
+        model_probability=0.75,
+        signal_confidence=0.8,
+    )
+
+    assert candidate["probability_source"] == "heuristic"
+
+
+def test_heuristic_probability_is_downweighted_before_entry_edge():
+    class FlatScoreboard:
+        def get_strategy_score(self, _strategy_name):
+            return 0.50
+
+        def get_strategy_trade_count(self, _strategy_name):
+            return 10
+
+        def get_strategy_decisive_trade_count(self, _strategy_name):
+            return 10
+
+    original_aux_weight = SETTINGS.scoreboard_aux_weight
+    original_heuristic_weight = getattr(SETTINGS, "heuristic_probability_weight", None)
+
+    try:
+        SETTINGS.scoreboard_aux_weight = 0.0
+        SETTINGS.heuristic_probability_weight = 0.35
+
+        heuristic_effective = score_entry_candidate(
+            {
+                "side": "UP",
+                "strategy_name": "model-ws_order_flow_up",
+                "entry_price": 0.45,
+                "model_probability": 0.75,
+                "probability_source": "heuristic",
+            },
+            secs_left=180,
+            scoreboard=FlatScoreboard(),
+        )["effective_probability"]
+
+        direct_effective = score_entry_candidate(
+            {
+                "side": "UP",
+                "strategy_name": "model-ws_order_flow_up",
+                "entry_price": 0.45,
+                "model_probability": 0.75,
+            },
+            secs_left=180,
+            scoreboard=FlatScoreboard(),
+        )["effective_probability"]
+
+        assert abs(direct_effective - 0.75) < 1e-9
+        assert abs(heuristic_effective - 0.5875) < 1e-9
+    finally:
+        SETTINGS.scoreboard_aux_weight = original_aux_weight
+        if original_heuristic_weight is None:
+            delattr(SETTINGS, "heuristic_probability_weight")
+        else:
+            SETTINGS.heuristic_probability_weight = original_heuristic_weight
+
+
+def test_pending_order_fallback_blocks_marginal_edge_timeout():
+    original_entry_buffer = SETTINGS.entry_require_maker_edge_buffer
+    original_fallback_buffer = getattr(
+        SETTINGS, "maker_fallback_extra_edge_buffer", None
+    )
+
+    try:
+        SETTINGS.entry_require_maker_edge_buffer = 0.01
+        SETTINGS.maker_fallback_extra_edge_buffer = 0.01
+
+        order = PendingOrder(
+            order_id="po-1",
+            slug="btc-updown-5m-test",
+            side="UP",
+            token_id="tok-up",
+            placed_ts=1.0,
+            order_usd=1.0,
+            raw_edge=0.069,
+            required_edge=0.05,
+        )
+
+        assert pending_order_allows_taker_fallback(order) is False
+    finally:
+        SETTINGS.entry_require_maker_edge_buffer = original_entry_buffer
+        if original_fallback_buffer is None:
+            delattr(SETTINGS, "maker_fallback_extra_edge_buffer")
+        else:
+            SETTINGS.maker_fallback_extra_edge_buffer = original_fallback_buffer
+
+
+def test_pending_order_fallback_allows_only_thick_edge_timeout():
+    original_entry_buffer = SETTINGS.entry_require_maker_edge_buffer
+    original_fallback_buffer = getattr(
+        SETTINGS, "maker_fallback_extra_edge_buffer", None
+    )
+
+    try:
+        SETTINGS.entry_require_maker_edge_buffer = 0.01
+        SETTINGS.maker_fallback_extra_edge_buffer = 0.01
+
+        order = PendingOrder(
+            order_id="po-2",
+            slug="btc-updown-5m-test",
+            side="UP",
+            token_id="tok-up",
+            placed_ts=1.0,
+            order_usd=1.0,
+            raw_edge=0.08,
+            required_edge=0.05,
+        )
+
+        assert pending_order_allows_taker_fallback(order) is True
+    finally:
+        SETTINGS.entry_require_maker_edge_buffer = original_entry_buffer
+        if original_fallback_buffer is None:
+            delattr(SETTINGS, "maker_fallback_extra_edge_buffer")
+        else:
+            SETTINGS.maker_fallback_extra_edge_buffer = original_fallback_buffer
 
 
 if __name__ == "__main__":

@@ -133,6 +133,9 @@ class Settings:
     )
     entry_execution_cost_buffer: float = _f("ENTRY_EXECUTION_COST_BUFFER", 0.015)
     entry_require_maker_edge_buffer: float = _f("ENTRY_REQUIRE_MAKER_EDGE_BUFFER", 0.01)
+    maker_fallback_extra_edge_buffer: float = _f(
+        "MAKER_FALLBACK_EXTRA_EDGE_BUFFER", 0.01
+    )
     conservative_active_close_loss_streak: int = _i(
         "CONSERVATIVE_ACTIVE_CLOSE_LOSS_STREAK", 3
     )
@@ -289,6 +292,7 @@ class Settings:
     hard_stop_shield_velocity: float = _f("HARD_STOP_SHIELD_VELOCITY", 0.0)
     late_entry_edge_penalty: float = _f("LATE_ENTRY_EDGE_PENALTY", 0.015)
     rich_price_edge_penalty: float = _f("RICH_PRICE_EDGE_PENALTY", 0.015)
+    heuristic_probability_weight: float = _f("HEURISTIC_PROBABILITY_WEIGHT", 0.35)
     binary_kelly_divisor: float = _f("BINARY_KELLY_DIVISOR", 4.0)
     force_full_exit_on_take_profit: bool = _b("FORCE_FULL_EXIT_ON_TAKE_PROFIT", False)
     live_take_profit_force_taker: bool = _b("LIVE_TAKE_PROFIT_FORCE_TAKER", False)
@@ -356,6 +360,9 @@ class Settings:
     soft_stop_confirm_buffer_pct: float = _f("SOFT_STOP_CONFIRM_BUFFER_PCT", 0.015)
     soft_stop_adverse_velocity: float = _f("SOFT_STOP_ADVERSE_VELOCITY", 0.00018)
     failed_follow_through_window_sec: int = _i("FAILED_FOLLOW_THROUGH_WINDOW_SEC", 25)
+    failed_follow_through_fast_window_sec: int = _i(
+        "FAILED_FOLLOW_THROUGH_FAST_WINDOW_SEC", 20
+    )
     failed_follow_through_loss_pct: float = _f("FAILED_FOLLOW_THROUGH_LOSS_PCT", 0.02)
     failed_follow_through_max_mfe_pct: float = _f(
         "FAILED_FOLLOW_THROUGH_MAX_MFE_PCT", 0.015

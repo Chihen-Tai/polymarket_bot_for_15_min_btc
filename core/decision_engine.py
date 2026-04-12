@@ -40,7 +40,9 @@ def get_outcome_prices(market: dict) -> dict:
     prices = _parse_listish(market.get("outcomePrices"))
     result = {}
     for i, outcome in enumerate(outcomes):
-        result[str(outcome).strip().lower()] = _sf(prices[i]) if i < len(prices) else None
+        result[str(outcome).strip().lower()] = (
+            _sf(prices[i]) if i < len(prices) else None
+        )
     return result
 
 
@@ -48,10 +50,11 @@ def _extract_strike_price(question: str) -> float | None:
     if not question:
         return None
     import re
-    match = re.search(r'\$([\d,]+(\.\d+)?)', question)
+
+    match = re.search(r"\$([\d,]+(\.\d+)?)", question)
     if match:
         try:
-            return float(match.group(1).replace(',', ''))
+            return float(match.group(1).replace(",", ""))
         except Exception:
             return None
     return None
@@ -85,13 +88,17 @@ def _check_imbalance(ob: dict) -> float:
     return bids / (bids + asks)
 
 
-def mean_reversion_signal(yes_price: Optional[float], yes_window: deque) -> tuple[Optional[str], Optional[float]]:
-    if yes_price is None or len(yes_window) < 10:  # Require at least 10 ticks (~150s of data) for stability
+def mean_reversion_signal(
+    yes_price: Optional[float], yes_window: deque
+) -> tuple[Optional[str], Optional[float]]:
+    if (
+        yes_price is None or len(yes_window) < 10
+    ):  # Require at least 10 ticks (~150s of data) for stability
         return None, None
     vals = list(yes_window)
     mean = sum(vals) / len(vals)
     var = sum((x - mean) ** 2 for x in vals) / len(vals)
-    std = var ** 0.5
+    std = var**0.5
     if std <= 1e-9:
         return None, None
     z = (yes_price - mean) / std
@@ -103,19 +110,31 @@ def mean_reversion_signal(yes_price: Optional[float], yes_window: deque) -> tupl
 
 
 # Strategies that already encode velocity / order-flow — skip extra momentum filter
-_MOMENTUM_EXEMPT = frozenset([
-    "ws_order_flow_up", "ws_order_flow_down",
-    "ws_flash_snipe_up", "ws_flash_snipe_down",
-    "time_snipe_up", "time_snipe_down",
-    "binance_macd_rsi_up", "binance_macd_rsi_down",
-    "cex_oracle_pump", "cex_oracle_dump", # Exempt front-running to ensure early entry!
-    "liquidation_fade_up", "liquidation_fade_down", # Exempt mean-reverting liquidations
-    "theta_bleed_up", "theta_bleed_down", # Exempt distance arbitrage
-    "strike_cross_snipe_up", "strike_cross_snipe_down", # Exempt cross front-run
-])
+_MOMENTUM_EXEMPT = frozenset(
+    [
+        "ws_order_flow_up",
+        "ws_order_flow_down",
+        "ws_flash_snipe_up",
+        "ws_flash_snipe_down",
+        "time_snipe_up",
+        "time_snipe_down",
+        "binance_macd_rsi_up",
+        "binance_macd_rsi_down",
+        "cex_oracle_pump",
+        "cex_oracle_dump",  # Exempt front-running to ensure early entry!
+        "liquidation_fade_up",
+        "liquidation_fade_down",  # Exempt mean-reverting liquidations
+        "theta_bleed_up",
+        "theta_bleed_down",  # Exempt distance arbitrage
+        "strike_cross_snipe_up",
+        "strike_cross_snipe_down",  # Exempt cross front-run
+    ]
+)
 
 
-def _has_momentum(side: str, up_window: deque, down_window: deque, min_move: float | None = None) -> bool:
+def _has_momentum(
+    side: str, up_window: deque, down_window: deque, min_move: float | None = None
+) -> bool:
     if min_move is None:
         min_move = SETTINGS.momentum_min_move
     ticks = max(2, SETTINGS.momentum_ticks)
@@ -133,7 +152,9 @@ def _confidence_from_signal(strength: float, trigger: float, ceiling: float) -> 
     return _clamp((strength - trigger) / max(ceiling - trigger, 1e-9), 0.0, 1.0)
 
 
-def _probability_from_confidence(confidence: float, *, floor: float, ceiling: float) -> float:
+def _probability_from_confidence(
+    confidence: float, *, floor: float, ceiling: float
+) -> float:
     confidence = _clamp(confidence, 0.0, 1.0)
     return floor + (ceiling - floor) * confidence
 
@@ -152,8 +173,10 @@ def _build_candidate(
     # Momentum trades are purely directional; their "probability" should scale with market price.
     if strategy_key in _MOMENTUM_EXEMPT or strategy_key.startswith("poly_ob_imbalance"):
         if model_probability - float(entry_price) < 0.05:
-            model_probability = float(entry_price) + 0.05 + (0.05 * float(signal_confidence))
-            
+            model_probability = (
+                float(entry_price) + 0.05 + (0.05 * float(signal_confidence))
+            )
+
     result = base_result.copy()
     result.update(
         {
@@ -164,6 +187,7 @@ def _build_candidate(
             "entry_price": float(entry_price),
             "market_probability": float(entry_price),
             "model_probability": _clamp(float(model_probability), 0.01, 0.99),
+            "probability_source": "heuristic",
             "signal_confidence": _clamp(float(signal_confidence), 0.0, 1.0),
         }
     )
@@ -199,9 +223,9 @@ def _select_best_candidate(candidates: dict[str, dict]) -> Optional[dict]:
 
 
 def explain_choose_side(
-    market: dict, 
-    yes_window: deque, 
-    up_window: Optional[deque] = None, 
+    market: dict,
+    yes_window: deque,
+    up_window: Optional[deque] = None,
     down_window: Optional[deque] = None,
     observed_up: Optional[float] = None,
     observed_down: Optional[float] = None,
@@ -210,7 +234,7 @@ def explain_choose_side(
     ws_bba: Optional[dict] = None,
     ws_trades: Optional[list[dict]] = None,
     poly_ob_up: Optional[dict] = None,
-    poly_ob_down: Optional[dict] = None
+    poly_ob_down: Optional[dict] = None,
 ) -> dict:
     prices = get_outcome_prices(market)
     gamma_up = prices.get("up") or prices.get("漲")
@@ -229,7 +253,7 @@ def explain_choose_side(
         "entry_price": None,
         "mr_side": None,
     }
-    
+
     if up is None or down is None:
         base_result["reason"] = "missing_prices"
         return base_result
@@ -246,15 +270,27 @@ def explain_choose_side(
         else:
             time_valid = True
 
-    regular_valid_up = up is not None and SETTINGS.min_entry_price <= float(up) <= SETTINGS.max_entry_price
-    regular_valid_down = down is not None and SETTINGS.min_entry_price <= float(down) <= SETTINGS.max_entry_price
+    regular_valid_up = (
+        up is not None
+        and SETTINGS.min_entry_price <= float(up) <= SETTINGS.max_entry_price
+    )
+    regular_valid_down = (
+        down is not None
+        and SETTINGS.min_entry_price <= float(down) <= SETTINGS.max_entry_price
+    )
 
     _snipe_min = float(getattr(SETTINGS, "snipe_min_entry_price", 0.05))
     _snipe_max = float(getattr(SETTINGS, "snipe_max_entry_price", 0.96))
     snipe_valid_up = up is not None and _snipe_min <= float(up) <= _snipe_max
     snipe_valid_down = down is not None and _snipe_min <= float(down) <= _snipe_max
 
-    if base_result.get("reason") == "no_valid_signals" and not regular_valid_up and not regular_valid_down and not snipe_valid_up and not snipe_valid_down:
+    if (
+        base_result.get("reason") == "no_valid_signals"
+        and not regular_valid_up
+        and not regular_valid_down
+        and not snipe_valid_up
+        and not snipe_valid_down
+    ):
         base_result["reason"] = f"prices_out_of_bounds_up{up}_down{down}"
 
     candidates = {}
@@ -268,14 +304,21 @@ def explain_choose_side(
     if getattr(SETTINGS, "theta_bleed_enabled", True) and strike_price is not None:
         try:
             from core.ws_binance import BINANCE_WS
-            if secs_left is not None and secs_left <= float(getattr(SETTINGS, "theta_bleed_min_sec", 60.0)):
+
+            if secs_left is not None and secs_left <= float(
+                getattr(SETTINGS, "theta_bleed_min_sec", 60.0)
+            ):
                 if BINANCE_WS.get_last_update_age() < 5.0:
                     binance_bba = BINANCE_WS.get_bba()
-                    binance_mid = (binance_bba.get("b", 0.0) + binance_bba.get("a", 0.0)) / 2.0
+                    binance_mid = (
+                        binance_bba.get("b", 0.0) + binance_bba.get("a", 0.0)
+                    ) / 2.0
                     if binance_mid > 0:
                         dist = binance_mid - strike_price
-                        theta_dist = float(getattr(SETTINGS, "theta_bleed_distance", 120.0))
-                        
+                        theta_dist = float(
+                            getattr(SETTINGS, "theta_bleed_distance", 120.0)
+                        )
+
                         # If Binance is > 120 dist ABOVE strike, UP is highly certain
                         if dist > theta_dist and snipe_valid_up:
                             r = _build_candidate(
@@ -285,10 +328,14 @@ def explain_choose_side(
                                 entry_price=float(up),
                                 model_probability=0.99,  # Extremely high probability
                                 signal_confidence=1.0,
-                                extras={"binance_mid": binance_mid, "strike_price": strike_price, "dist": dist},
+                                extras={
+                                    "binance_mid": binance_mid,
+                                    "strike_price": strike_price,
+                                    "dist": dist,
+                                },
                             )
                             candidates["theta_bleed_up"] = r
-                            
+
                         # If Binance is < 120 dist BELOW strike, DOWN is highly certain
                         elif dist < -theta_dist and snipe_valid_down:
                             r = _build_candidate(
@@ -298,23 +345,35 @@ def explain_choose_side(
                                 entry_price=float(down),
                                 model_probability=0.99,
                                 signal_confidence=1.0,
-                                extras={"binance_mid": binance_mid, "strike_price": strike_price, "dist": dist},
+                                extras={
+                                    "binance_mid": binance_mid,
+                                    "strike_price": strike_price,
+                                    "dist": dist,
+                                },
                             )
                             candidates["theta_bleed_down"] = r
         except Exception:
             pass
 
     # Advanced Strategy 3: Strike Cross Front-run Snipe
-    if getattr(SETTINGS, "strike_cross_snipe_enabled", True) and strike_price is not None:
+    if (
+        getattr(SETTINGS, "strike_cross_snipe_enabled", True)
+        and strike_price is not None
+    ):
         try:
             from core.ws_binance import BINANCE_WS
+
             if BINANCE_WS.get_last_update_age() < 5.0:
                 oldest, newest = BINANCE_WS.get_recent_prices_window(seconds=5.0)
                 if oldest is not None and newest is not None:
                     gap = float(getattr(SETTINGS, "strike_cross_gap", 20.0))
-                    
+
                     # Crossed UP securely
-                    if oldest < strike_price and newest > (strike_price + gap) and snipe_valid_up:
+                    if (
+                        oldest < strike_price
+                        and newest > (strike_price + gap)
+                        and snipe_valid_up
+                    ):
                         r = _build_candidate(
                             base_result,
                             side="UP",
@@ -322,20 +381,32 @@ def explain_choose_side(
                             entry_price=float(up),
                             model_probability=0.99,  # High, exempts from stabilization
                             signal_confidence=0.95,
-                            extras={"oldest": oldest, "newest": newest, "strike_price": strike_price},
+                            extras={
+                                "oldest": oldest,
+                                "newest": newest,
+                                "strike_price": strike_price,
+                            },
                         )
                         candidates["strike_cross_snipe_up"] = r
-                        
+
                     # Crossed DOWN securely
-                    elif oldest > strike_price and newest < (strike_price - gap) and snipe_valid_down:
+                    elif (
+                        oldest > strike_price
+                        and newest < (strike_price - gap)
+                        and snipe_valid_down
+                    ):
                         r = _build_candidate(
                             base_result,
                             side="DOWN",
                             strategy_key="strike_cross_snipe_down",
                             entry_price=float(down),
-                            model_probability=0.99, # High, exempts from stabilization
+                            model_probability=0.99,  # High, exempts from stabilization
                             signal_confidence=0.95,
-                            extras={"oldest": oldest, "newest": newest, "strike_price": strike_price},
+                            extras={
+                                "oldest": oldest,
+                                "newest": newest,
+                                "strike_price": strike_price,
+                            },
                         )
                         candidates["strike_cross_snipe_down"] = r
         except Exception:
@@ -359,7 +430,7 @@ def explain_choose_side(
     #         closes = [c['close'] for c in binance_5m]
     #         zlsma = calc_zlsma(closes, length=50)
     #         chandelier_dir = calc_chandelier_exit(binance_5m, atr_period=1, mult=2.0)
-    #         
+    #
     #         if zlsma is not None:
     #             current_close = closes[-1]
     #             if current_close > zlsma and chandelier_dir == 1 and valid_up:
@@ -385,11 +456,15 @@ def explain_choose_side(
                 max(0.0, ofi_threshold - 0.5),
                 0.5,
             )
-            ofi_probability = _probability_from_confidence(ofi_confidence, floor=0.55, ceiling=0.85)
+            ofi_probability = _probability_from_confidence(
+                ofi_confidence, floor=0.55, ceiling=0.85
+            )
 
             # Polymarket OB cross-confirmation: also check that Poly bid pressure agrees
             poly_up_imbalance = _check_imbalance(poly_ob_up) if poly_ob_up else 0.5
-            poly_down_imbalance = _check_imbalance(poly_ob_down) if poly_ob_down else 0.5
+            poly_down_imbalance = (
+                _check_imbalance(poly_ob_down) if poly_ob_down else 0.5
+            )
 
             if ofi_ratio > ofi_threshold and regular_valid_up:
                 # Binance says UP: Polymarket UP token must also have bid pressure > 0.55
@@ -401,7 +476,10 @@ def explain_choose_side(
                         entry_price=float(up),
                         model_probability=ofi_probability,
                         signal_confidence=ofi_confidence,
-                        extras={"ofi_ratio": ofi_ratio, "poly_up_imbalance": poly_up_imbalance},
+                        extras={
+                            "ofi_ratio": ofi_ratio,
+                            "poly_up_imbalance": poly_up_imbalance,
+                        },
                     )
                     candidates["ws_order_flow_up"] = r
             elif ofi_ratio < (1.0 - ofi_threshold) and regular_valid_down:
@@ -414,15 +492,22 @@ def explain_choose_side(
                         entry_price=float(down),
                         model_probability=ofi_probability,
                         signal_confidence=ofi_confidence,
-                        extras={"ofi_ratio": ofi_ratio, "poly_down_imbalance": poly_down_imbalance},
+                        extras={
+                            "ofi_ratio": ofi_ratio,
+                            "poly_down_imbalance": poly_down_imbalance,
+                        },
                     )
                     candidates["ws_order_flow_down"] = r
 
-
     # Strategy 7: WS Flash Snipe (WebSocket 閃電狙擊 0.3%)
-    if getattr(SETTINGS, "ws_flash_snipe_threshold", 0.0) > 0 and ws_bba and ws_bba.get("b", 0.0) > 0:
+    if (
+        getattr(SETTINGS, "ws_flash_snipe_threshold", 0.0) > 0
+        and ws_bba
+        and ws_bba.get("b", 0.0) > 0
+    ):
         try:
             from core.ws_binance import BINANCE_WS
+
             # Guard: skip if WS has been silent for > 5 seconds (disconnected)
             if BINANCE_WS.get_last_update_age() < 5.0:
                 vel = BINANCE_WS.get_price_velocity(
@@ -430,8 +515,12 @@ def explain_choose_side(
                     lag_sec=float(getattr(SETTINGS, "binance_signal_lag_sec", 0.0)),
                 )
                 flash_threshold = float(SETTINGS.ws_flash_snipe_threshold)
-                flash_confidence = _confidence_from_signal(abs(vel), flash_threshold, flash_threshold * 2.0)
-                flash_probability = _probability_from_confidence(flash_confidence, floor=0.54, ceiling=0.88)
+                flash_confidence = _confidence_from_signal(
+                    abs(vel), flash_threshold, flash_threshold * 2.0
+                )
+                flash_probability = _probability_from_confidence(
+                    flash_confidence, floor=0.54, ceiling=0.88
+                )
                 if vel > SETTINGS.ws_flash_snipe_threshold and snipe_valid_up:
                     r = _build_candidate(
                         base_result,
@@ -461,11 +550,15 @@ def explain_choose_side(
     if poly_ob_up and poly_ob_down:
         imbalance_up = _check_imbalance(poly_ob_up)
         imbalance_down = _check_imbalance(poly_ob_down)
-        
+
         # If bids dominate asks heavily (lowered threshold 0.85→0.78 to increase trade frequency)
         if imbalance_up > 0.78 and regular_valid_up:
-            imbalance_confidence = _confidence_from_signal(imbalance_up - 0.5, 0.28, 0.5)
-            imbalance_probability = _probability_from_confidence(imbalance_confidence, floor=0.53, ceiling=0.72)
+            imbalance_confidence = _confidence_from_signal(
+                imbalance_up - 0.5, 0.28, 0.5
+            )
+            imbalance_probability = _probability_from_confidence(
+                imbalance_confidence, floor=0.53, ceiling=0.72
+            )
             r = _build_candidate(
                 base_result,
                 side="UP",
@@ -477,8 +570,12 @@ def explain_choose_side(
             )
             candidates["poly_ob_imbalance_up"] = r
         if imbalance_down > 0.78 and regular_valid_down:
-            imbalance_confidence = _confidence_from_signal(imbalance_down - 0.5, 0.28, 0.5)
-            imbalance_probability = _probability_from_confidence(imbalance_confidence, floor=0.53, ceiling=0.72)
+            imbalance_confidence = _confidence_from_signal(
+                imbalance_down - 0.5, 0.28, 0.5
+            )
+            imbalance_probability = _probability_from_confidence(
+                imbalance_confidence, floor=0.53, ceiling=0.72
+            )
             r = _build_candidate(
                 base_result,
                 side="DOWN",
@@ -509,31 +606,39 @@ def explain_choose_side(
     # Strategy 11: Binance Liquidation Fader
     try:
         from core.ws_binance import BINANCE_WS
-        if getattr(SETTINGS, "liquidation_fade_min_usd", 0.0) > 0 and BINANCE_WS.get_last_update_age() < 5.0:
+
+        if (
+            getattr(SETTINGS, "liquidation_fade_min_usd", 0.0) > 0
+            and BINANCE_WS.get_last_update_age() < 5.0
+        ):
             window = float(getattr(SETTINGS, "liquidation_fade_window_sec", 20.0))
             lqs = BINANCE_WS.get_recent_liquidations(seconds=window)
             if lqs:
                 long_liq_usd = sum(lq["usd_size"] for lq in lqs if lq["side"] == "SELL")
                 short_liq_usd = sum(lq["usd_size"] for lq in lqs if lq["side"] == "BUY")
                 min_thresh = float(SETTINGS.liquidation_fade_min_usd)
-                
+
                 # If massive long liquidations (price spikes down), we fade by buying UP
                 if long_liq_usd >= min_thresh and regular_valid_up:
-                    fade_confidence = _clamp(long_liq_usd / (min_thresh * 3.0), 0.6, 1.0) # Scale confidence
+                    fade_confidence = _clamp(
+                        long_liq_usd / (min_thresh * 3.0), 0.6, 1.0
+                    )  # Scale confidence
                     r = _build_candidate(
                         base_result,
                         side="UP",
                         strategy_key="liquidation_fade_up",
                         entry_price=float(up),
-                        model_probability=0.75, # High fixed probability for liquidation fade
+                        model_probability=0.75,  # High fixed probability for liquidation fade
                         signal_confidence=fade_confidence,
                         extras={"long_liq_usd": long_liq_usd},
                     )
                     candidates["liquidation_fade_up"] = r
-                    
+
                 # If massive short liquidations (price spikes up), we fade by buying DOWN
                 elif short_liq_usd >= min_thresh and regular_valid_down:
-                    fade_confidence = _clamp(short_liq_usd / (min_thresh * 3.0), 0.6, 1.0)
+                    fade_confidence = _clamp(
+                        short_liq_usd / (min_thresh * 3.0), 0.6, 1.0
+                    )
                     r = _build_candidate(
                         base_result,
                         side="DOWN",
@@ -554,6 +659,7 @@ def explain_choose_side(
             if secs_left >= min_time:
                 max_price = float(getattr(SETTINGS, "early_underdog_max_price", 0.35))
                 from core.ws_binance import BINANCE_WS
+
                 if BINANCE_WS.get_last_update_age() < 5.0:
                     vel = BINANCE_WS.get_price_velocity(seconds=3.0)
                     # UP is the underdog (priced <= max_price) and Binance has positive velocity
@@ -563,14 +669,18 @@ def explain_choose_side(
                             side="UP",
                             strategy_key="early_underdog_up",
                             entry_price=float(up),
-                            model_probability=0.76, # High fixed probability to ensure it buys despite high edge require
+                            model_probability=0.76,  # High fixed probability to ensure it buys despite high edge require
                             signal_confidence=0.8,
                             extras={"secs_left": secs_left, "vel": vel},
                         )
                         candidates["early_underdog_up"] = r
-                    
+
                     # DOWN is the underdog
-                    elif down is not None and 0.0 < float(down) <= max_price and vel < -0.0003:
+                    elif (
+                        down is not None
+                        and 0.0 < float(down) <= max_price
+                        and vel < -0.0003
+                    ):
                         r = _build_candidate(
                             base_result,
                             side="DOWN",
@@ -591,13 +701,17 @@ def explain_choose_side(
     if mr:
         side = mr
         entry_price = up if side == "UP" else down
-        if (side == "UP" and regular_valid_up) or (side == "DOWN" and regular_valid_down):
+        if (side == "UP" and regular_valid_up) or (
+            side == "DOWN" and regular_valid_down
+        ):
             mr_confidence = _confidence_from_signal(
                 abs(float(mr_zscore or 0.0)),
                 float(SETTINGS.zscore_threshold),
                 float(SETTINGS.zscore_threshold) * 2.0,
             )
-            mr_probability = _probability_from_confidence(mr_confidence, floor=0.52, ceiling=0.68)
+            mr_probability = _probability_from_confidence(
+                mr_confidence, floor=0.52, ceiling=0.68
+            )
             r = _build_candidate(
                 base_result,
                 side=side,
@@ -609,7 +723,6 @@ def explain_choose_side(
             )
             candidates["mean_reversion_signal"] = r
 
-
     # Apply Momentum Confirmation and Time Locks
     filtered_candidates = {}
     for name, s_result in candidates.items():
@@ -620,7 +733,7 @@ def explain_choose_side(
         if name in _MOMENTUM_EXEMPT:
             filtered_candidates[name] = s_result
             continue
-            
+
         # For non-exempt strategies, standard price bounds strictly apply
         if not regular_valid_up and s_result.get("side") == "UP":
             continue
@@ -636,10 +749,14 @@ def explain_choose_side(
         r = base_result.copy()
         # Report why — if momentum or time lock filter ate everything vs no candidates at all
         if candidates:
-            r["reason"] = f"flow_too_weak_{len(candidates)}{int(secs_left or 0)}" if time_valid else r.get("reason", "too_late_in_market")
+            r["reason"] = (
+                f"flow_too_weak_{len(candidates)}{int(secs_left or 0)}"
+                if time_valid
+                else r.get("reason", "too_late_in_market")
+            )
         else:
             if r.get("reason") is None or r.get("reason") == "":
-                 r["reason"] = "no_valid_signals"
+                r["reason"] = "no_valid_signals"
         return r
 
     best_decision = _select_best_candidate(filtered_candidates)
@@ -652,9 +769,9 @@ def explain_choose_side(
 
 
 def choose_side(
-    market: dict, 
-    yes_window: deque, 
-    up_window: Optional[deque] = None, 
+    market: dict,
+    yes_window: deque,
+    up_window: Optional[deque] = None,
     down_window: Optional[deque] = None,
     observed_up: Optional[float] = None,
     observed_down: Optional[float] = None,
@@ -663,7 +780,7 @@ def choose_side(
     ws_bba: Optional[dict] = None,
     ws_trades: Optional[list[dict]] = None,
     poly_ob_up: Optional[dict] = None,
-    poly_ob_down: Optional[dict] = None
+    poly_ob_down: Optional[dict] = None,
 ) -> Optional[str]:
     decision = explain_choose_side(
         market,
