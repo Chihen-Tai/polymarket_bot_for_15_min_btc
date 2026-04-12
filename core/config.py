@@ -110,7 +110,50 @@ class Settings:
 
     # Auto market selection
     auto_market_selection: bool = _b("AUTO_MARKET_SELECTION", True)
+    market_profile: str = os.getenv("MARKET_PROFILE", "btc_5m")
+    market_duration_sec: float = _f("MARKET_DURATION_SEC", 300.0)
     market_slug_prefix: str = os.getenv("MARKET_SLUG_PREFIX", "btc-updown-5m-")
+
+    # 15m Value Entry Band Settings
+    value_entry_min_price: float = _f("VALUE_ENTRY_MIN_PRICE", 0.05)
+    value_entry_max_price: float = _f("VALUE_ENTRY_MAX_PRICE", 0.90)
+    hard_no_chase_above: float = _f("HARD_NO_CHASE_ABOVE", 0.90)
+    soft_no_chase_above: float = _f("SOFT_NO_CHASE_ABOVE", 0.85)
+    cheap_ticket_max_price: float = _f("CHEAP_TICKET_MAX_PRICE", 0.50)
+    sweet_spot_min_price: float = _f("SWEET_SPOT_MIN_PRICE", 0.60)
+    sweet_spot_max_price: float = _f("SWEET_SPOT_MAX_PRICE", 0.70)
+
+    # 15m Hybrid Maker Execution Settings
+    hybrid_maker_mode_enabled: bool = _b("HYBRID_MAKER_MODE_ENABLED", False)
+    maker_reprice_enabled: bool = _b("MAKER_REPRICE_ENABLED", False)
+    maker_reprice_ticks: int = _i("MAKER_REPRICE_TICKS", 1)
+    maker_max_reprice_attempts: int = _i("MAKER_MAX_REPRICE_ATTEMPTS", 2)
+    high_confidence_taker_fallback_enabled: bool = _b("HIGH_CONFIDENCE_TAKER_FALLBACK_ENABLED", False)
+    high_confidence_edge_extra: float = _f("HIGH_CONFIDENCE_EDGE_EXTRA", 0.02)
+    max_acceptable_entry_premium_pct: float = _f("MAX_ACCEPTABLE_ENTRY_PREMIUM_PCT", 0.05)
+
+    # 15m Time Regime Split Settings
+    regime_opening_end_sec: float = _f("REGIME_OPENING_END_SEC", 300.0) # elapsed from start
+    regime_mid_end_sec: float = _f("REGIME_MID_END_SEC", 720.0)       # elapsed from start
+
+    # 15m Exit Control Flags
+    no_early_exit_if_value_entry: bool = _b("NO_EARLY_EXIT_IF_VALUE_ENTRY", False)
+    extreme_fade_hold_to_expiry: bool = _b("EXTREME_FADE_HOLD_TO_EXPIRY", False)
+    late_regime_certainty_hold: bool = _b("LATE_REGIME_CERTAINTY_HOLD", False)
+
+    # AI Advisor Settings (Google AI Studio / Gemma 4 31B)
+    ai_advisor_enabled: bool = _b("AI_ADVISOR_ENABLED", False)
+    ai_advisor_provider: str = os.getenv("AI_ADVISOR_PROVIDER", "google_ai_studio")
+    ai_api_key: str = os.getenv("GOOGLE_AI_API_KEY", "")
+    ai_advisor_model: str = os.getenv("AI_ADVISOR_MODEL", "gemini-1.5-flash") # gemma-4-31b proxy
+    ai_advisor_timeout_sec: float = _f("AI_ADVISOR_TIMEOUT_SEC", 5.0)
+    ai_advisor_json_strict: bool = _b("AI_ADVISOR_JSON_STRICT", True)
+    ai_advisor_fail_open: bool = _b("AI_ADVISOR_FAIL_OPEN", True)
+    ai_advisor_regime_enabled: bool = _b("AI_ADVISOR_REGIME_ENABLED", True)
+    ai_advisor_blocked_trade_review_enabled: bool = _b("AI_ADVISOR_BLOCKED_TRADE_REVIEW_ENABLED", True)
+
+    # Shadow Journaling
+    enable_shadow_journal: bool = _b("ENABLE_SHADOW_JOURNAL", True)
 
     # Integrated decision rules (from prior paper simulations)
     edge_threshold: float = _f("EDGE_THRESHOLD", 0.02)
@@ -429,6 +472,34 @@ class Settings:
     )
 
     def __post_init__(self) -> None:
+        if self.market_profile == "btc_15m":
+            self.market_duration_sec = 900.0
+            if os.getenv("MARKET_SLUG_PREFIX") is None:
+                self.market_slug_prefix = "btc-updown-15m-"
+            
+            # 15m Default overrides for value-entry / expiry-first
+            self.vpn_disable_flash_snipe = True
+            self.vpn_disable_strike_cross = True
+            self.vpn_disable_theta_bleed = True
+            self.hybrid_maker_mode_enabled = True
+            self.no_early_exit_if_value_entry = True
+            self.extreme_fade_hold_to_expiry = True
+            self.late_regime_certainty_hold = True
+            self.vpn_expiry_first = True
+            
+            # 15m Window overrides
+            self.vpn_entry_max_secs_left = 900.0
+            self.vpn_entry_min_secs_left = 120.0
+            self.entry_window_min_sec = 120.0
+            self.exit_deadline_sec = 15.0 # more breathing room
+            
+            # 15m Value entry defaults
+            self.hard_no_chase_above = 0.90
+            self.soft_no_chase_above = 0.85
+            self.sweet_spot_min_price = 0.60
+            self.sweet_spot_max_price = 0.70
+            self.cheap_ticket_max_price = 0.50
+
         if self.take_profit_hard_pct <= self.take_profit_soft_pct:
             normalized_soft = min(
                 self.take_profit_soft_pct,

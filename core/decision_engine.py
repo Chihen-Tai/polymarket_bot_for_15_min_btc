@@ -202,6 +202,16 @@ def _select_best_candidate(candidates: dict[str, Any], base_result: dict) -> Opt
     return best
 
 
+from core.ai_advisor import AI_ADVISOR
+
+def _get_time_regime(secs_left: float) -> str:
+    elapsed = SETTINGS.market_duration_sec - secs_left
+    if elapsed <= SETTINGS.regime_opening_end_sec:
+        return "opening"
+    if elapsed <= SETTINGS.regime_mid_end_sec:
+        return "mid"
+    return "late"
+
 def explain_choose_side(
     market: dict,
     yes_window: deque,
@@ -222,6 +232,10 @@ def explain_choose_side(
     up = observed_up if observed_up is not None else gamma_up
     down = observed_down if observed_down is not None else gamma_down
     secs_left = seconds_to_market_end(market)
+    
+    # 15m Time Regime Split
+    regime = _get_time_regime(secs_left) if secs_left is not None else "unknown"
+
     base_result = {
         "ok": False,
         "side": None,
@@ -232,6 +246,7 @@ def explain_choose_side(
         "spread": None,
         "entry_price": None,
         "mr_side": None,
+        "regime": regime,
     }
 
     if up is None or down is None:
@@ -241,6 +256,24 @@ def explain_choose_side(
     if secs_left is None:
         base_result["reason"] = "missing_end_time"
         return base_result
+    
+    # Get AI Advisory for 15m
+    ai_advice = {"no_trade_bias": False, "allow_strategies": [], "confidence_modifier": 0.0}
+    if SETTINGS.market_profile == "btc_15m" and SETTINGS.ai_advisor_enabled:
+        vel_3s = 0.0
+        try:
+            from core.ws_binance import BINANCE_WS
+            vel_3s = BINANCE_WS.get_price_velocity(3.0)
+        except Exception: pass
+        
+        ai_advice = AI_ADVISOR.get_advisory(
+            market.get("slug", ""),
+            secs_left,
+            float(up),
+            float(down),
+            vel_3s
+        )
+
     time_valid = False
     if secs_left is not None:
         if secs_left > SETTINGS.entry_window_max_sec:
@@ -562,6 +595,35 @@ def explain_choose_side(
     except Exception:
         pass
 
+    # Strategy 13: 15m Extreme-Price Fade (Counter-trend Value Entry)
+    if SETTINGS.market_profile == "btc_15m":
+        # Fade UP (Price of UP is too high, entry DOWN is cheap)
+        if float(up) >= SETTINGS.soft_no_chase_above and float(down) <= SETTINGS.cheap_ticket_max_price:
+            if regime in ["mid", "late"]:
+                 r = _build_candidate(
+                    base_result,
+                    side="DOWN",
+                    strategy_key="extreme_price_fade_down",
+                    entry_price=float(down),
+                    model_probability=0.68,
+                    signal_confidence=0.8,
+                    extras={"fade_target": "UP", "price": up, "regime": regime}
+                )
+                 candidates["extreme_price_fade_down"] = r
+        # Fade DOWN (Price of DOWN is too high, entry UP is cheap)
+        elif float(down) >= SETTINGS.soft_no_chase_above and float(up) <= SETTINGS.cheap_ticket_max_price:
+            if regime in ["mid", "late"]:
+                 r = _build_candidate(
+                    base_result,
+                    side="UP",
+                    strategy_key="extreme_price_fade_up",
+                    entry_price=float(up),
+                    model_probability=0.68,
+                    signal_confidence=0.8,
+                    extras={"fade_target": "DOWN", "price": down, "regime": regime}
+                )
+                 candidates["extreme_price_fade_up"] = r
+
     # Mean Reversion
     mr_res = mean_reversion.run(up, yes_window, SETTINGS)
     if mr_res:
@@ -575,11 +637,41 @@ def explain_choose_side(
         if not time_valid:
             continue
         
+        # 15m Strategy Blacklist (Disable latency-sensitive 5m strategies)
+        if SETTINGS.market_profile == "btc_15m":
+            if any(k in name for k in ["ws_flash_snipe", "strike_cross_snipe", "theta_bleed"]):
+                continue
+            
+            # AI Advisor Strategy Filter & No-Trade Bias
+            if SETTINGS.ai_advisor_enabled:
+                if ai_advice.get("no_trade_bias"):
+                    continue
+                # If AI allows specific strategies, only allow those + extreme_fade
+                allowed = ai_advice.get("allow_strategies", [])
+                if allowed and not any(a in name for a in allowed) and "extreme_price_fade" not in name:
+                    continue
+
         # VPN Safe Mode: Block if secs_left < 150
         if SETTINGS.vpn_safe_mode and secs_left is not None and secs_left < SETTINGS.vpn_entry_min_secs_left:
             continue
 
         side = s_result.side if hasattr(s_result, "side") else s_result.get("side")
+        price = float(up if side == "UP" else down)
+
+        # 15m Value Entry Bands & No-Chase Rules
+        if SETTINGS.market_profile == "btc_15m":
+            if price > SETTINGS.hard_no_chase_above:
+                continue
+            # If price is in soft-no-chase zone, require very high probability
+            if price > SETTINGS.soft_no_chase_above:
+                prob = s_result.get("model_probability", 0)
+                if prob < 0.85:
+                    continue
+
+        # Apply AI Confidence Modifier
+        if SETTINGS.ai_advisor_enabled:
+            s_result["model_probability"] += ai_advice.get("confidence_modifier", 0.0)
+
         raw_edge = getattr(s_result, "raw_edge", None)
         if raw_edge is None:
             raw_edge = s_result.get("model_edge", 0.0)

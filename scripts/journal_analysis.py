@@ -81,9 +81,11 @@ def _market_end_dt_from_slug(slug: str | None) -> datetime | None:
         return None
     try:
         start_epoch = int(text.split("-")[-1])
+        # Abstracted duration from SETTINGS
+        duration = float(SETTINGS.market_duration_sec)
     except Exception:
         return None
-    return datetime.fromtimestamp(start_epoch + 300, tz=timezone.utc)
+    return datetime.fromtimestamp(start_epoch + duration, tz=timezone.utc)
 
 
 def _fetch_market_settlement(
@@ -440,9 +442,11 @@ class TradePairRow:
     opened_ts: str
     closed_ts: str
     entry_secs_left: float | None
-    entry_cost_usd: float
-    entry_shares: float
-    matched_cost_usd: float
+    market_profile: str = "btc_5m"
+    regime: str = "unknown"
+    entry_cost_usd: float = 0.0
+    entry_shares: float = 0.0
+    matched_cost_usd: float = 0.0
     matched_exit_shares: float
     exit_recovered_actual_usd: float | None
     exit_recovered_observed_usd: float | None
@@ -1357,6 +1361,9 @@ def _finalize_pair_row(
     if not lot.get("exit_count") and not settlement_applied:
         flags.append("no-exit")
     entry_secs_left = _maybe_float(entry_ev.get("secs_left"))
+    market_profile = str(entry_ev.get("market_profile") or "btc_5m")
+    regime = str(entry_ev.get("regime") or "unknown")
+    
     return TradePairRow(
         position_id=str(entry_ev.get("position_id") or key),
         token_id=token_id,
@@ -1373,6 +1380,8 @@ def _finalize_pair_row(
         opened_ts=str(entry_ev.get("ts") or ""),
         closed_ts=settlement_closed_ts or str(lot.get("closed_ts") or ""),
         entry_secs_left=entry_secs_left,
+        market_profile=market_profile,
+        regime=regime,
         entry_cost_usd=entry_cost,
         entry_shares=entry_shares,
         matched_cost_usd=matched_cost,
@@ -1572,12 +1581,35 @@ def summarize_trade_pairs(rows: list[TradePairRow]) -> dict[str, Any]:
         }
         bucket_gap_summary[bucket] = _summarize_actual_minus_observed(bucket_rows)
 
+    # Profile and Regime Summary
+    profile_summary: dict[str, Any] = {}
+    for prof in ["btc_5m", "btc_15m"]:
+        p_rows = [row for row in rows if row.market_profile == prof]
+        if p_rows:
+            profile_summary[prof] = {
+                "count": len(p_rows),
+                "actual_pnl": _summarize_values(p_rows, "actual_pnl_usd"),
+                "fee_adj_actual_pnl": _summarize_values(p_rows, "fee_adjusted_actual_pnl_usd"),
+            }
+
+    regime_summary: dict[str, Any] = {}
+    for reg in ["opening", "mid", "late", "unknown"]:
+        r_rows = [row for row in rows if row.regime == reg]
+        if r_rows:
+            regime_summary[reg] = {
+                "count": len(r_rows),
+                "actual_pnl": _summarize_values(r_rows, "actual_pnl_usd"),
+                "fee_adj_actual_pnl": _summarize_values(r_rows, "fee_adjusted_actual_pnl_usd"),
+            }
+
     return {
         "total_trades": total,
         "status_counts": dict(sorted(by_status.items())),
         "entry_quality_counts": dict(sorted(by_quality.items())),
         "close_reason_counts": dict(sorted(by_reason.items())),
         "close_bucket_counts": dict(sorted(by_bucket.items())),
+        "profile_summary": profile_summary,
+        "regime_summary": regime_summary,
         "entry_timing_summary": timing_summary,
         "execution_style_summary": execution_summary,
         "close_bucket_pnl": bucket_summary,
@@ -1631,6 +1663,23 @@ def summarize_trade_pairs(rows: list[TradePairRow]) -> dict[str, Any]:
             else "all rows have actual pnl",
             "fee_model": "fee_adjusted pnl applies assumed taker fees only to legs tagged taker/mixed; maker-like and unknown legs are treated as zero-fee, and expiry settlements pay no exit fee",
         },
+    }
+
+
+def summarize_shadow_signals(events: list[dict]) -> dict:
+    shadows = [ev for ev in events if ev.get("kind") == "shadow_signal"]
+    if not shadows:
+        return {"total_blocked": 0}
+    
+    by_reason = Counter(ev.get("reason") for ev in shadows)
+    by_strategy = Counter(ev.get("strategy") for ev in shadows)
+    by_profile = Counter(ev.get("market_profile") for ev in shadows)
+    
+    return {
+        "total_blocked": len(shadows),
+        "reasons": dict(by_reason.most_common()),
+        "strategies": dict(by_strategy.most_common()),
+        "profiles": dict(by_profile.most_common()),
     }
 
 

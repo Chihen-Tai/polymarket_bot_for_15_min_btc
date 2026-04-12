@@ -75,18 +75,17 @@ def _fetch_by_slug(slug: str):
 
 
 def _candidate_slugs_from_epoch(prefix: str):
-    # 使用者觀察：每 5 分鐘 +300
+    duration = int(SETTINGS.market_duration_sec)
     now = int(time.time())
-    base = (now // 300) * 300
+    base = (now // duration) * duration
     # 依序嘗試當前區間與前後幾檔
-    for d in [0, 300, -300, 600, -600, 900, -900]:
+    for d in [0, duration, -duration, duration*2, -duration*2, duration*3, -duration*3]:
         yield f"{prefix}{base + d}"
 
 
-def resolve_latest_btc_5m_token_ids() -> dict:
+def resolve_latest_btc_token_ids() -> dict:
     prefix = SETTINGS.market_slug_prefix
 
-    # 先走「5 分鐘 +300」規律（最穩）
     for slug in _candidate_slugs_from_epoch(prefix):
         got = _fetch_by_slug(slug)
         if got:

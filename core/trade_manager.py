@@ -294,6 +294,7 @@ def decide_exit(
     runner_drawdown_pct: float = 0.0,
     runner_peak_age_sec: Optional[float] = None,
     runner_peak_value_usd: float = 0.0,
+    entry_strategy: str = "",
 ) -> ExitDecision:
     # 0. VPN_EXPIRY_FIRST Short-circuit
     if SETTINGS.vpn_safe_mode and SETTINGS.vpn_expiry_first:
@@ -302,12 +303,18 @@ def decide_exit(
             pnl_pct, hold_sec, secs_left, has_extracted_principal, profit_pnl_pct
         )
         if res_expiry:
-            # In vpn mode, we only allow deadline exits if very close to end
             if "deadline" in res_expiry.reason:
                 if secs_left is not None and secs_left <= 45.0:
                     return res_expiry
             else:
                 return res_expiry
+
+        # 15m Specific: Suppress early exits for value/extreme-fade trades
+        if SETTINGS.market_profile == "btc_15m":
+            if SETTINGS.no_early_exit_if_value_entry and "value" in entry_strategy:
+                return ExitDecision(False, "value-entry-hold", pnl_pct, hold_sec)
+            if SETTINGS.extreme_fade_hold_to_expiry and "extreme_price_fade" in entry_strategy:
+                return ExitDecision(False, "extreme-fade-hold", pnl_pct, hold_sec)
 
         # Allow hard stop loss only
         if pnl_pct <= -SETTINGS.stop_loss_pct:

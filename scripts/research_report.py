@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import json
 import sys
-from collections import defaultdict
+from collections import defaultdict, Counter
 from pathlib import Path
 
 def get_bucket(val, thresholds, labels):
@@ -23,6 +23,7 @@ def analyze_journal(journal_path):
 
     # Global counters
     total_trades = 0
+    shadow_signals = []
 
     with open(journal_path, "r") as f:
         trades = {} # token_id -> entry_event
@@ -34,6 +35,10 @@ def analyze_journal(journal_path):
                 continue
                 
             kind = ev.get("kind")
+            if kind == "shadow_signal":
+                shadow_signals.append(ev)
+                continue
+
             token_id = ev.get("token_id")
             if not token_id: continue
 
@@ -44,16 +49,15 @@ def analyze_journal(journal_path):
                 exit_ev = ev
                 
                 strategy = entry.get("strategy_name") or entry.get("entry_reason") or "unknown"
+                profile = entry.get("market_profile") or "btc_5m"
+                regime = entry.get("regime") or "unknown"
                 price = float(entry.get("signal_price") or entry.get("entry_price") or 0.5)
                 secs_left = float(entry.get("secs_left") or 120)
                 slippage = float(exit_ev.get("slippage") or 0.0)
                 
-                # PnL (Simplified: 1.0 on win, 0.0 on loss for binary)
-                # Actually use realized_pnl if available
                 pnl = float(exit_ev.get("actual_realized_pnl_usd") or exit_ev.get("observed_realized_pnl_usd") or 0.0)
                 win = 1 if pnl > 0 else 0
                 
-                # Fees (Assume 0.1% per side for simulation if not present)
                 fees = float(exit_ev.get("fees_usd") or 0.0)
                 if fees == 0:
                     fees = (float(entry.get("cost_usd") or 0) + float(exit_ev.get("realized_cost_usd") or 0)) * 0.001
@@ -63,12 +67,16 @@ def analyze_journal(journal_path):
                 rtt_ms = float(entry.get("rtt_ms") or 0.0)
 
                 # Bucketing
-                price_bucket = get_bucket(price, [0.3, 0.7], ["<0.3", "0.3-0.7", ">0.7"])
-                time_bucket = get_bucket(secs_left, [60, 120], ["<60s", "60-120s", ">120s"])
-                latency_bucket = get_bucket(rtt_ms, [200, 500], ["<200ms", "200-500ms", ">500ms"])
+                price_bucket = get_bucket(price, [0.3, 0.5, 0.7, 0.85, 0.90], ["<0.3", "0.3-0.5", "0.5-0.7", "0.7-0.85", "0.85-0.90", ">0.90"])
                 
                 # Update Stats
-                for key in [("strategy", strategy), ("price", price_bucket), ("time", time_bucket), ("latency", latency_bucket)]:
+                group_keys = [
+                    ("strategy", strategy), 
+                    ("profile", profile), 
+                    ("regime", regime),
+                    ("price", price_bucket)
+                ]
+                for key in group_keys:
                     s = stats[key]
                     s["count"] += 1
                     s["wins"] += win
@@ -84,14 +92,21 @@ def analyze_journal(journal_path):
     print(f" RESEARCH ATTRIBUTION REPORT (Total Trades: {total_trades}) ")
     print(f"{'='*80}\n")
 
-    for category in ["strategy", "price", "time"]:
+    if shadow_signals:
+        print(f"--- Blocked Trades (Shadow Journal) ---")
+        reasons = Counter(s.get("reason") for s in shadow_signals)
+        print(f"Total Blocked: {len(shadow_signals)}")
+        for r, count in reasons.most_common(5):
+            print(f"  {r:<40}: {count}")
+        print()
+
+    for category in ["profile", "regime", "strategy", "price"]:
         print(f"--- By {category.capitalize()} ---")
         print(f"{'Key':<25} | {'Count':<5} | {'Win%':<6} | {'Gross PnL':<10} | {'Fee-Adj PnL':<10} | {'Slippage':<8}")
         print("-" * 80)
         
-        # Sort by gross pnl desc
         items = [item for item in stats.items() if item[0][0] == category]
-        items.sort(key=lambda x: x[1]["gross_pnl"], reverse=True)
+        items.sort(key=lambda x: x[1]["fee_adjusted_pnl"], reverse=True)
         
         for (cat, key), s in items:
             win_rate = (s["wins"] / s["count"] * 100) if s["count"] > 0 else 0

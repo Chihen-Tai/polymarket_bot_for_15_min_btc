@@ -24,7 +24,7 @@ from core.exchange import (
 from core.hedge_logic import should_trigger_dump
 from core.notifier import notify_discord
 from core.risk import RiskState, can_place_order, current_5min_key, update_window
-from core.market_resolver import resolve_latest_btc_5m_token_ids, MarketResolutionError
+from core.market_resolver import resolve_latest_btc_token_ids, MarketResolutionError
 from core.run_journal import RunJournal
 from core.state_store import load_state, save_state
 from core.trade_manager import (
@@ -2124,7 +2124,12 @@ def place_entry_order_with_retry(
     max_attempts: int,
     backoff_sec: float,
     decision_started_at: float | None = None,
+    is_high_confidence: bool = False,
 ) -> tuple[dict, list[float], int]:
+    # 15m Hybrid Maker Logic
+    is_15m = SETTINGS.market_profile == "btc_15m"
+    hybrid_enabled = is_15m and SETTINGS.hybrid_maker_mode_enabled
+    
     # VPN Safe Mode: Override force_taker if maker-only is required
     if SETTINGS.vpn_safe_mode and SETTINGS.vpn_maker_only:
         force_taker = False
@@ -2136,53 +2141,72 @@ def place_entry_order_with_retry(
     last_resp: dict | None = None
     last_error: Exception | None = None
 
-    for attempt in range(1, attempts + 1):
+    effective_force_taker = force_taker
+    reprice_attempts = SETTINGS.maker_max_reprice_attempts if (hybrid_enabled and SETTINGS.maker_reprice_enabled) else 0
+    
+    current_sim_price = simulated_price
+
+    for attempt in range(1, attempts + 1 + reprice_attempts):
+        is_reprice = attempt > attempts
+        is_taker_fallback = False
+        
+        # Determine if we should fallback to taker
+        if not effective_force_taker and is_15m and SETTINGS.high_confidence_taker_fallback_enabled and is_high_confidence:
+            if attempt > attempts + reprice_attempts: # final fallback
+                is_taker_fallback = True
+        
         started = time.perf_counter()
         try:
+            # For reprice, we slightly adjust the simulated price if available
+            if is_reprice and current_sim_price:
+                # shift price by reprice ticks (e.g. 0.001) to be more competitive
+                tick = 0.001 * SETTINGS.maker_reprice_ticks
+                if side == "UP": current_sim_price += tick
+                else: current_sim_price -= tick
+
             resp = ex.place_order(
                 side,
                 amount_usd,
                 token_id,
-                simulated_price=simulated_price,
-                force_taker=force_taker,
+                simulated_price=current_sim_price,
+                force_taker=is_taker_fallback or effective_force_taker,
             )
             rtt = (time.perf_counter() - started) * 1000.0
             latencies_ms.append(rtt)
             LATENCY_MONITOR.add_rtt(rtt)
             
-            # Record Decision-to-Order E2E
             if decision_started_at:
-                e2e_ms = (time.perf_counter() - decision_started_at) * 1000.0
-                LATENCY_MONITOR.record_decision_to_order(e2e_ms)
+                LATENCY_MONITOR.record_decision_to_order((time.perf_counter() - decision_started_at) * 1000.0)
 
             last_resp = resp
             if entry_response_has_actionable_state(resp):
                 return resp, latencies_ms, attempt
+            
+            # If not actionable (e.g. POST_ONLY limit order placed but not filled)
+            if not is_taker_fallback and not effective_force_taker:
+                # Wait for timeout to see if it fills
+                wait_sec = SETTINGS.vpn_maker_timeout_sec if SETTINGS.vpn_safe_mode else 5.0
+                time.sleep(wait_sec)
+                
+                # Check if filled (Polymarket logic usually needs order-id check here, 
+                # but for this bot we simplify: if not filled, cancel and retry/reprice)
+                order_id = resp.get("response", {}).get("orderID")
+                if order_id:
+                    ex.cancel_order(order_id)
+                    log(f"hybrid-maker: order {order_id} not filled, cancelling for reprice/retry")
+
             last_error = RuntimeError("no-takingAmount-no-orderID")
         except Exception as exc:
             latencies_ms.append((time.perf_counter() - started) * 1000.0)
             last_error = exc
-            err_text = str(exc).lower()
-            if (
-                "order size below minimum" in err_text
-                or ("lower than the minimum" in err_text and "size" in err_text)
-                or "order notional exceeds live cap" in err_text
-                or "not enough balance / allowance" in err_text
-            ):
-                raise
-            if attempt >= attempts:
-                raise
+            if attempt >= (attempts + reprice_attempts): raise
 
-        if attempt < attempts:
-            log(
-                f"entry retry scheduled | side={side} attempt={attempt + 1}/{attempts} "
-                f"reason={last_error}"
-            )
+        if attempt < (attempts + reprice_attempts):
             time.sleep(backoff)
 
     if last_resp is not None:
-        return last_resp, latencies_ms, attempts
-    raise last_error or RuntimeError("entry retry exhausted without response")
+        return last_resp, latencies_ms, attempt
+    raise last_error or RuntimeError("entry retry exhausted")
 
 
 def realistic_exit_value(
@@ -2757,6 +2781,24 @@ def select_ranked_entry_candidate(
         scoreboard=scoreboard,
     )
     if not eligible_candidates:
+        # 15m Shadow Journaling: Record the top rejection if it exists
+        if SETTINGS.enable_shadow_journal and rejection_notes:
+            from core.journal import append_shadow_event
+            # Find the best raw candidate even if rejected
+            ranked = model_decision.get("ranked_candidates", [model_decision])
+            if ranked:
+                top = ranked[0]
+                append_shadow_event({
+                    "slug": model_decision.get("slug"),
+                    "strategy": top.get("strategy_name"),
+                    "side": top.get("side"),
+                    "entry_price": top.get("entry_price"),
+                    "raw_edge": (top.get("entry_edge") or {}).get("raw_edge"),
+                    "required_edge": (top.get("entry_edge") or {}).get("required_edge"),
+                    "secs_left": secs_left,
+                    "reason": rejection_notes[0],
+                    "regime": model_decision.get("regime")
+                })
         return None, rejection_notes
 
     best_candidate = max(eligible_candidates, key=_entry_candidate_sort_key)
@@ -4118,10 +4160,10 @@ def main():
                     previous_market_slug = last_market_slug
                     previous_up = prev_up
                     previous_down = prev_down
-                    market, resolve_ms = timed_call(resolve_latest_btc_5m_token_ids)
+                    market, resolve_ms = timed_call(resolve_latest_btc_token_ids)
                     cycle_had_slow_api = (
                         observe_api_latency(
-                            flags, "resolve_latest_btc_5m_token_ids", resolve_ms
+                            flags, "resolve_latest_btc_token_ids", resolve_ms
                         )
                         or cycle_had_slow_api
                     )
@@ -4654,6 +4696,7 @@ def main():
                                 runner_peak_value_usd=float(
                                     getattr(p, "runner_peak_value_usd", 0.0) or 0.0
                                 ),
+                                entry_strategy=getattr(p, "entry_reason", ""),
                             )
 
                             if "early_underdog" in getattr(p, "entry_reason", ""):

@@ -41,6 +41,7 @@ def append_event(event: dict) -> dict:
     journal_path = _journal_path()
     row = {
         **_JOURNAL_CONTEXT,
+        "market_profile": SETTINGS.market_profile,
         "ts": _now_iso(),
         "event_id": event.get("event_id")
         or new_event_id(str(event.get("kind") or "evt")),
@@ -49,6 +50,15 @@ def append_event(event: dict) -> dict:
     with journal_path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
     return row
+
+
+def append_shadow_event(event: dict) -> dict:
+    """Record a signal that was blocked by execution filters or risk rules."""
+    if not SETTINGS.enable_shadow_journal:
+        return event
+    
+    event["kind"] = "shadow_signal"
+    return append_event(event)
 
 
 def read_events(limit: int = 500) -> list[dict]:

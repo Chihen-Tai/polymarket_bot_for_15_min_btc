@@ -17,7 +17,7 @@ if str(BOOTSTRAP_ROOT) not in sys.path:
     sys.path.insert(0, str(BOOTSTRAP_ROOT))
 
 from core.exchange import PolymarketExchange, _to_float
-from core.market_resolver import resolve_latest_btc_5m_token_ids
+from core.market_resolver import resolve_latest_btc_token_ids
 from core.runtime_paths import ROOT_DIR, trade_journal_path
 from core.ws_binance import BINANCE_WS
 
@@ -332,7 +332,7 @@ def main() -> int:
 
         if loop_ts - last_latest_refresh >= max(2.0, args.poll_sec):
             try:
-                latest_market = resolve_latest_btc_5m_token_ids()
+                latest_market = resolve_latest_btc_token_ids()
             except Exception:
                 latest_market = None
             if latest_market and latest_market.get("slug"):
