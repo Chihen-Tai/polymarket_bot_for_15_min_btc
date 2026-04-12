@@ -6,20 +6,20 @@ A high-frequency, event-driven trading bot designed specifically for **Polymarke
 
 ## 🇹🇼 中文說明 (Chinese Documentation)
 
-這個機器人專注於高頻率的 5 分鐘二元期權市場，藉由同步與 **幣安 (Binance) WebSocket** 的訂單流數據，進行極短線的動能預測與套利。請把目前版本視為**持續硬化中的策略研究系統**，不是已被證明穩定正收益的成品；任何「變好」都必須以 `actual`、`fee-adjusted` 與 `observed` 差異一起驗證，而不是只看表面勝率或 mark-to-market 報酬。
+這個機器人專注於高頻率的 5 分鐘二元期權市場，藉由同步與 **幣安 (Binance) WebSocket** 的訂單流數據，進行極短線的動能預測與套利。請把目前版本視為**持續硬化中的策略研究系統**，不是已被證明穩定正收益的成品；任何改善都必須以 `actual`、`fee-adjusted` 與 `observed` 差異一起驗證，而不是只看表面勝率或 mark-to-market 報酬。
 
 ### 🚀 核心殺手鐧 (Core Strategies)
 
 *   **WS Flash Snipe (常規動能狙擊)**：監控幣安的資金流與報價陡升，配合計分板 (Scoreboard) 動態評估勝率，自動進場勝率 > 60% 的標的。
-*   **Early Underdog Sniper (開局逆勢樂透)**：專注於開局 4 分鐘內的市場，當 Polymarket 報價滯後且低於 $0.35 時，若幣安出現強烈反轉動能 (Velocity Spike)，直接買入便宜的「樂透單」並啟動 3 分鐘死區鎖定 (Lock Mode)，只接受 1.5 倍以上的暴利！
+*   **Early Underdog Sniper (開局逆勢樂透)**：專注於開局 4 分鐘內的市場，當 Polymarket 報價滯後且低於 $0.35 時，若幣安出現強烈反轉動能 (Velocity Spike)，直接買入便宜的「樂透單」並啟動 3 分鐘死區鎖定 (Lock Mode)，只接受高度不對稱的報酬。
 
 ### 🛡️ 極致風控與結算 (Risk & Ev-Optimization)
 
-為了避免在薄弱流動性中被造市商扒皮，我們的風控捨棄了傳統的「分批停損利」，改採**核彈級的一波流策略**：
+為了避免在薄弱流動性中被造市商扒皮，我們的風控捨棄了傳統的「分批停損利」，改採**偏保守的一波流策略**：
 1.  **100% 全壘打 (Force Full Exit)**：廢除提早賣一半保本的舊機制。一旦達到 40% 或 50% 獲利目標，機器人直接 100% 倉位套現，把手續費與滑價磨損降到最低。
 2.  **大逃殺獲利線 (45s Profit Deadline)**：倒數 45 秒時，只要帳面獲利，無條件市價全砸，避免最後關頭的洗盤。
-3.  **空城死守機制 (30s Ghost Town Lock)**：倒數 30 秒時如果帳面虧損或打平，強制裝死抱到結算，絕對不丟 FAK 單去撞無法成交的空城訂單簿，保留吃「死貓反彈」翻盤的機會。
-4.  **65% 霸王停損 (Wide Stop Loss)**：容忍高達 65% 的洗盤震幅，只在方向完全死亡時才斷頭。
+3.  **空城死守機制 (30s Ghost Town Lock)**：倒數 30 秒時如果帳面虧損或打平，避免把單子強行丟進幾乎沒有流動性的訂單簿，保留結算前少量修正空間。
+4.  **65% 霸王停損 (Wide Stop Loss)**：容忍高達 65% 的洗盤震幅，只在方向明顯失效時才斷頭。
 
 ### 📦 安裝與啟動
 
@@ -66,15 +66,15 @@ This bot specializes in high-frequency trading for Polymarket's 5-minute binary 
 ### 🚀 Advanced Strategies
 
 *   **WS Flash Snipe**: Monitors Binance order flow and velocity to execute dynamic entries on high-probability setups (>60% model confidence), guided by a real-time strategy scoreboard.
-*   **Early Underdog Sniper**: Operates exclusively in the first minute of the market. It buys deeply underpriced options (<= $0.35) when Binance spikes aggressively. These "lottery tickets" are locked for 3 minutes to ride out volatility, targeting a strict 150% profit.
+*   **Early Underdog Sniper**: Operates in the early part of the market. It buys deeply underpriced options (<= $0.35) when Binance spikes aggressively. These "lottery tickets" are locked briefly to ride out volatility and are only used when the setup is sufficiently asymmetric.
 
 ### 🛡️ EV-Optimized Risk Management
 
-To prevent being bled dry by LP fees and slippage in low-liquidity 5-minute markets, we abandoned traditional scaling methods in favor of aggressive, all-or-nothing execution:
+To prevent being bled dry by LP fees and slippage in low-liquidity 5-minute markets, we abandoned traditional scaling methods in favor of a conservative, execution-aware approach:
 1.  **Force Full Exits**: Disables partial scaling. Once the 40% or 50% profit target is hit, the bot dumps 100% of the position via market taker orders to minimize fee drag and eliminate unfillable dust/residuals.
-2.  **45s Profit Deadline**: Automatically market-sells any profitable position exactly at 45 seconds remaining to secure bags before market makers pull order book liquidity.
-3.  **30s Ghost Town Lock**: Prevents the bot from attempting to panic-dump losing positions in the final 30 seconds when the order book is empty. Losing trades are forced to ride to expiration, preserving the chance of a massive last-second reversal win!
-4.  **65% Wide Stop-Loss**: Ignores standard 10-20% volatility, only cutting losses during definitive market death spirals.
+2.  **45s Profit Deadline**: Automatically closes profitable positions late in the window to reduce end-of-market liquidity risk.
+3.  **30s Ghost Town Lock**: Avoids forcing losing positions into an almost empty order book in the final 30 seconds.
+4.  **65% Wide Stop-Loss**: Tolerates ordinary volatility and only exits when the market has clearly failed.
 
 ### 📦 Installation & Execution
 
