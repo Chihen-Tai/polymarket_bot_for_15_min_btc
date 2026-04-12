@@ -2,11 +2,8 @@ from datetime import datetime, timezone
 import json
 import time
 
-import requests
-import urllib3
-urllib3.disable_warnings()
-
 from core.config import SETTINGS
+from core.http import request_json
 
 
 class MarketResolutionError(Exception):
@@ -44,14 +41,14 @@ def _extract_token_pair(m: dict) -> tuple[str, str] | tuple[None, None]:
 
 
 def _fetch_by_slug(slug: str):
-    r = requests.get(
-        "https://gamma-api.polymarket.com/markets",
-        params={"slug": slug},
-        timeout=12,
-        verify=False
+    arr = (
+        request_json(
+            "https://gamma-api.polymarket.com/markets",
+            params={"slug": slug},
+            timeout=12,
+        )
+        or []
     )
-    r.raise_for_status()
-    arr = r.json() or []
     if not arr:
         return None
     m = arr[0]
@@ -63,7 +60,7 @@ def _fetch_by_slug(slug: str):
     if events and isinstance(events, list) and len(events) > 0:
         event_metadata = events[0].get("eventMetadata", {})
         strike_price = event_metadata.get("priceToBeat")
-        
+
     return {
         "question": m.get("question"),
         "slug": m.get("slug") or slug,
@@ -96,18 +93,15 @@ def resolve_latest_btc_5m_token_ids() -> dict:
             return got
 
     # 後備：掃 active markets 用 prefix contains
-    r = requests.get(
+    data = request_json(
         "https://gamma-api.polymarket.com/markets",
         params={"active": "true", "closed": "false", "limit": 500},
         timeout=12,
-        verify=False
     )
-    r.raise_for_status()
-    data = r.json()
 
     candidates = []
     for m in data:
-        slug = (m.get("slug") or "")
+        slug = m.get("slug") or ""
         if prefix.lower() not in slug.lower():
             continue
         token_up, token_down = _extract_token_pair(m)
