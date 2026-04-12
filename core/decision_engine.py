@@ -8,6 +8,8 @@ from core.config import SETTINGS
 from core.indicators import calc_zlsma, calc_chandelier_exit, compute_buy_sell_pressure
 from core.strategies.ws_order_flow import get_ofi_signal
 from core.strategies.ws_flash_snipe import get_flash_snipe_signal
+from core.strategies import mean_reversion
+from core.latency_monitor import LATENCY_MONITOR
 
 
 from core.strategies.base import StrategyResult
@@ -91,27 +93,6 @@ def _check_imbalance(ob: dict) -> float:
     if bids + asks == 0:
         return 0.5
     return bids / (bids + asks)
-
-
-def mean_reversion_signal(
-    yes_price: Optional[float], yes_window: deque
-) -> tuple[Optional[str], Optional[float]]:
-    if (
-        yes_price is None or len(yes_window) < 10
-    ):  # Require at least 10 ticks (~150s of data) for stability
-        return None, None
-    vals = list(yes_window)
-    mean = sum(vals) / len(vals)
-    var = sum((x - mean) ** 2 for x in vals) / len(vals)
-    std = var**0.5
-    if std <= 1e-9:
-        return None, None
-    z = (yes_price - mean) / std
-    if z > SETTINGS.zscore_threshold:
-        return "DOWN", z
-    if z < -SETTINGS.zscore_threshold:
-        return "UP", z
-    return None, z
 
 
 def _has_momentum(side: str, up_window: deque, down_window: deque, min_move: float | None = None) -> bool:
@@ -563,42 +544,27 @@ def explain_choose_side(
         pass
 
     # Mean Reversion
-    mr, mr_zscore = mean_reversion_signal(up, yes_window)
-    base_result["mr_side"] = mr
-    base_result["mr_zscore"] = mr_zscore
-    if mr:
-        side = mr
-        entry_price = up if side == "UP" else down
-        if (side == "UP" and regular_valid_up) or (
-            side == "DOWN" and regular_valid_down
-        ):
-            mr_confidence = _confidence_from_signal(
-                abs(float(mr_zscore or 0.0)),
-                float(SETTINGS.zscore_threshold),
-                float(SETTINGS.zscore_threshold) * 2.0,
-            )
-            mr_probability = _probability_from_confidence(
-                mr_confidence, floor=0.52, ceiling=0.68
-            )
-            r = _build_candidate(
-                base_result,
-                side=side,
-                strategy_key="mean_reversion_signal",
-                entry_price=float(entry_price),
-                model_probability=mr_probability,
-                signal_confidence=mr_confidence,
-                extras={"mr_zscore": mr_zscore},
-            )
-            candidates["mean_reversion_signal"] = r
+    mr_res = mean_reversion.run(up, yes_window, SETTINGS)
+    if mr_res:
+        candidates["mean_reversion"] = mr_res
 
-    # Apply Momentum Confirmation and Time Locks
+    # Apply Momentum Confirmation and Edge Filters
+    latency_penalty = LATENCY_MONITOR.get_edge_penalty()
     filtered_candidates = {}
+    
     for name, s_result in candidates.items():
         if not time_valid:
             continue
 
         side = s_result.side if hasattr(s_result, "side") else s_result.get("side")
+        raw_edge = getattr(s_result, "raw_edge", None)
+        if raw_edge is None:
+            raw_edge = s_result.get("model_edge", 0.0)
             
+        required_edge = getattr(s_result, "required_edge", 0.05)
+        effective_required_edge = required_edge + latency_penalty
+
+        # 1. Price Bounds Filter
         is_snipe = name.startswith("ws_flash_snipe") or name.startswith("strike_cross_snipe") or name.startswith("theta_bleed")
         if side == "UP":
             if is_snipe:
@@ -611,16 +577,22 @@ def explain_choose_side(
             elif not regular_valid_down:
                 continue
 
+        # 2. Momentum Filter
         if up_window is not None and down_window is not None:
             if not _has_momentum(side, up_window, down_window):
                 continue
+
+        # 3. Edge Filter (Latency Aware)
+        if raw_edge < effective_required_edge:
+            continue
+
         filtered_candidates[name] = s_result
 
     if not filtered_candidates:
         r = base_result.copy()
         if candidates:
             r["reason"] = (
-                f"flow_too_weak_{len(candidates)}{int(secs_left or 0)}"
+                f"flow_too_weak_{len(candidates)}_lat{latency_penalty:.3f}"
                 if time_valid
                 else r.get("reason", "too_late_in_market")
             )
@@ -628,6 +600,36 @@ def explain_choose_side(
             if not r.get("reason"):
                  r["reason"] = "no_valid_signals"
         return r
+
+    # Handle Aggressive Volume Mode (Return all candidates)
+    if getattr(SETTINGS, "aggressive_volume_mode", False):
+        ranked = _rank_candidates(filtered_candidates)
+        # Convert all to dicts for output
+        all_dicts = []
+        for c in ranked:
+            if isinstance(c, dict):
+                all_dicts.append(c)
+            else:
+                d = base_result.copy()
+                d.update({
+                    "ok": True,
+                    "side": c.side,
+                    "reason": c.trigger_reason,
+                    "strategy_name": c.strategy_name,
+                    "entry_price": float(c.entry_price),
+                    "market_probability": float(c.entry_price),
+                    "model_probability": _clamp(float(c.model_probability), 0.01, 0.99),
+                    "signal_confidence": _clamp(float(c.confidence), 0.0, 1.0),
+                    "model_edge": float(c.raw_edge),
+                })
+                if hasattr(c, "metadata") and c.metadata:
+                    d.update(c.metadata)
+                all_dicts.append(d)
+        
+        best = all_dicts[0].copy()
+        best["candidates"] = all_dicts
+        best["candidate_count"] = len(all_dicts)
+        return best
 
     best_decision = _select_best_candidate(filtered_candidates, base_result)
     if best_decision:

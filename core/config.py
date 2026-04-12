@@ -382,6 +382,13 @@ class Settings:
     entry_dual_velocity_confirm: bool = _b("ENTRY_DUAL_VELOCITY_CONFIRM", True)
     ws_stale_max_age_sec: float = _f("WS_STALE_MAX_AGE_SEC", 5.0)
 
+    # VPN-aware trading settings
+    vpn_safe_mode: bool = _b("VPN_SAFE_MODE", True)
+    max_vpn_latency_ms: float = _f("MAX_VPN_LATENCY_MS", 600.0)
+    aggressive_volume_mode: bool = _b("AGGRESSIVE_VOLUME_MODE", True)
+    max_concurrent_trades: int = _i("MAX_CONCURRENT_TRADES", 3)
+    latency_edge_buffer: float = _f("LATENCY_EDGE_BUFFER", 0.015)
+
     # Advanced Options Strategies (Theta Bleed & Strike Cross Front-run)
     theta_bleed_enabled: bool = _b("THETA_BLEED_ENABLED", True)
     theta_bleed_min_sec: float = _f("THETA_BLEED_MIN_SEC", 60.0)
