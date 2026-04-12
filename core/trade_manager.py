@@ -279,6 +279,58 @@ def _check_fresh_entry_state(
     return None
 
 
+def _decide_exit_15m(
+    *,
+    pnl_pct: float,
+    profit_pnl_pct: Optional[float] = None,
+    hold_sec: float,
+    secs_left: Optional[float] = None,
+    has_taken_partial: bool = False,
+    entry_strategy: str = "",
+) -> ExitDecision:
+    """
+    Simplified production-oriented 15m exit logic.
+    Prioritizes hold-to-expiry and hard stops.
+    """
+    # 1. Hard Stop Loss (Safety First)
+    if pnl_pct <= -SETTINGS.stop_loss_pct:
+        return ExitDecision(True, "hard-stop-loss", pnl_pct, hold_sec)
+
+    # 2. Hold to Expiry / Deadline Exit
+    if secs_left is not None:
+        # Absolute deadline exit
+        exit_deadline = float(getattr(SETTINGS, "exit_deadline_sec", 15.0))
+        if secs_left <= exit_deadline:
+            if pnl_pct <= 0:
+                return ExitDecision(True, "deadline-exit-loss", pnl_pct, hold_sec)
+            return ExitDecision(True, "deadline-exit-win", pnl_pct, hold_sec)
+
+        # Profit deadline (Take profit near expiry to avoid last-second volatility)
+        profit_deadline = float(getattr(SETTINGS, "exit_deadline_profit_sec", 45.0))
+        if pnl_pct > 0 and secs_left <= profit_deadline:
+             return ExitDecision(True, "deadline-take-profit-full", pnl_pct, hold_sec)
+
+    # 3. Simple Profit Protect (De-risk)
+    # If we have a decent profit, we might want to take half or protect some.
+    soft_tp = float(SETTINGS.take_profit_soft_pct)
+    take_profit_pnl = profit_pnl_pct if profit_pnl_pct is not None else pnl_pct
+    
+    if not has_taken_partial and take_profit_pnl >= soft_tp:
+        # For 15m, if it's a value entry, we might prefer holding to expiry more aggressively
+        if "value" in entry_strategy or "extreme_price_fade" in entry_strategy:
+             # Just take a partial if it's really high, otherwise hold
+             if take_profit_pnl >= soft_tp * 1.5:
+                 return ExitDecision(True, "take-profit-partial", take_profit_pnl, hold_sec)
+        else:
+            return ExitDecision(True, "take-profit-partial", take_profit_pnl, hold_sec)
+
+    # 4. Max Hold Failsafe
+    if hold_sec >= SETTINGS.max_hold_seconds and pnl_pct < 0:
+        return ExitDecision(True, "max-hold-loss", pnl_pct, hold_sec)
+
+    return ExitDecision(False, "hold", pnl_pct, hold_sec)
+
+
 def decide_exit(
     *,
     pnl_pct: float,
@@ -296,35 +348,19 @@ def decide_exit(
     runner_peak_value_usd: float = 0.0,
     entry_strategy: str = "",
 ) -> ExitDecision:
-    # 0. VPN_EXPIRY_FIRST Short-circuit
-    if SETTINGS.vpn_safe_mode and SETTINGS.vpn_expiry_first:
-        # Only allow emergency or absolute deadline exits
-        res_expiry = _check_expiry_hold_state(
-            pnl_pct, hold_sec, secs_left, has_extracted_principal, profit_pnl_pct
+    # 0. 15m Default Path
+    if SETTINGS.market_profile == "btc_15m":
+        return _decide_exit_15m(
+            pnl_pct=pnl_pct,
+            profit_pnl_pct=profit_pnl_pct,
+            hold_sec=hold_sec,
+            secs_left=secs_left,
+            has_taken_partial=has_taken_partial,
+            entry_strategy=entry_strategy,
         )
-        if res_expiry:
-            if "deadline" in res_expiry.reason:
-                if secs_left is not None and secs_left <= 45.0:
-                    return res_expiry
-            else:
-                return res_expiry
 
-        # 15m Specific: Suppress early exits for value/extreme-fade trades
-        if SETTINGS.market_profile == "btc_15m":
-            if SETTINGS.no_early_exit_if_value_entry and "value" in entry_strategy:
-                return ExitDecision(False, "value-entry-hold", pnl_pct, hold_sec)
-            if SETTINGS.extreme_fade_hold_to_expiry and "extreme_price_fade" in entry_strategy:
-                return ExitDecision(False, "extreme-fade-hold", pnl_pct, hold_sec)
-
-        # Allow hard stop loss only
-        if pnl_pct <= -SETTINGS.stop_loss_pct:
-            return ExitDecision(True, "hard-stop-loss", pnl_pct, hold_sec)
-        
-        # Allow max hold as a failsafe
-        if hold_sec >= SETTINGS.max_hold_seconds and pnl_pct < 0:
-            return ExitDecision(True, "max-hold-loss", pnl_pct, hold_sec)
-
-        return ExitDecision(False, "", pnl_pct, hold_sec)
+    # Legacy 5m / Non-15m Path
+    # 0. VPN_EXPIRY_FIRST Short-circuit
 
     # 1. EXPIRY_HOLD (Precedence)
     res_expiry = _check_expiry_hold_state(

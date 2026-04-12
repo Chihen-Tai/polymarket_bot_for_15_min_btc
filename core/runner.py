@@ -2526,6 +2526,8 @@ def required_trade_edge(
 
 
 def price_aware_kelly_fraction(win_rate: float, entry_price: float) -> float:
+    if not bool(getattr(SETTINGS, "use_kelly_sizing", False)):
+        return 0.0
     if entry_price <= 0.0 or entry_price >= 1.0:
         return 0.0
     raw_fraction = max(0.0, (win_rate - entry_price) / max(1.0 - entry_price, 1e-9))
@@ -6362,14 +6364,28 @@ def main():
                                                 
                                             fee_adj_pnl_pct = raw_pnl_pct - fee_penalty
 
-                                            SCOREBOARD.record_outcome(
-                                                strategy_name=p.entry_reason,
-                                                fee_adjusted_pnl_pct=fee_adj_pnl_pct,
-                                                timestamp=time.time(),
-                                                execution_style=exit_style,
-                                                price_bucket="unknown",
-                                                secs_left_bucket="unknown"
-                                            )
+                                            # High-confidence learning rule for production 15m
+                                            # Only learn from actual fills and confirmed outcomes.
+                                            can_learn = True
+                                            if str(getattr(p, "source", "")).strip().lower() == "observed-only":
+                                                can_learn = False
+                                            if actual_realized_return_pct is None:
+                                                can_learn = False
+                                            if exit_style == "unknown" and not SETTINGS.dry_run:
+                                                # In live, unknown exit style means we lack execution truth.
+                                                can_learn = False
+                                            
+                                            if can_learn:
+                                                SCOREBOARD.record_outcome(
+                                                    strategy_name=p.entry_reason,
+                                                    fee_adjusted_pnl_pct=fee_adj_pnl_pct,
+                                                    timestamp=time.time(),
+                                                    execution_style=exit_style,
+                                                    price_bucket="unknown",
+                                                    secs_left_bucket="unknown"
+                                                )
+                                            else:
+                                                log(f"learning: skipped recording outcome for {p.entry_reason} due to low confidence (source={p.source}, actual={actual_realized_return_pct is not None})")
                                         if (
                                             remaining_shares > LOT_EPS_SHARES
                                             and remaining_cost > LOT_EPS_COST_USD
@@ -7673,17 +7689,45 @@ def main():
                             _maker_wait_start = time.time()
                             _maker_filled = False
                             while time.time() - _maker_wait_start < maker_timeout_sec:
-                                time.sleep(0.5)
-                                # Check if the maker order filled by querying positions
+                                time.sleep(1.0) # slightly slower poll for safety
                                 try:
-                                    if ex.has_exit_liquidity(
-                                        token_override,
-                                        order_usd / max(float(sim_price or 0.5), 0.01),
-                                    ):
+                                    # 1. Authoritative: Check if position exists or increased
+                                    live_positions = ex.get_positions()
+                                    has_pos = any(
+                                        str(getattr(p, "token_id", "")).strip() == token_override
+                                        and float(getattr(p, "size", 0.0)) > LOT_EPS_SHARES
+                                        for p in live_positions
+                                    )
+                                    if has_pos:
                                         _maker_filled = True
                                         break
-                                except Exception:
-                                    pass
+
+                                    # 2. Authoritative: Check if order still exists in open orders
+                                    open_orders = ex.get_open_orders()
+                                    open_ids = {str(o.get("orderID") or "").strip() for o in open_orders if o.get("orderID")}
+                                    maker_id = str(maker_resp.get("response", {}).get("orderID") or "").strip()
+                                    
+                                    if maker_id and maker_id not in open_ids:
+                                        # Order is gone from CLOB. If we didn't cancel it, it filled.
+                                        # We wait one more brief moment to see if position appears.
+                                        time.sleep(1.0)
+                                        live_positions_retry = ex.get_positions()
+                                        has_pos_retry = any(
+                                            str(getattr(p, "token_id", "")).strip() == token_override
+                                            and float(getattr(p, "size", 0.0)) > LOT_EPS_SHARES
+                                            for p in live_positions_retry
+                                        )
+                                        if has_pos_retry:
+                                            _maker_filled = True
+                                        else:
+                                            # If still no position, it might be a race or a ghost order.
+                                            # For 15m production, we stay in pending confirmation.
+                                            log(f"⚠️ maker order {maker_id} disappeared but no position found yet")
+                                            _maker_filled = False 
+                                        break
+                                except Exception as e:
+                                    log(f"error checking maker fill: {e}")
+                            
                             if _maker_filled:
                                 log(
                                     f"✅ MAKER ENTRY confirmed | side={signal_side} style=maker-delayed"

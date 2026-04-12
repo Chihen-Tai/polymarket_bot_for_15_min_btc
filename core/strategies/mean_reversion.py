@@ -51,21 +51,21 @@ def run(
         threshold,
         threshold * 2.0,
     )
-    mr_probability = _probability_from_confidence(
-        mr_confidence, floor=0.52, ceiling=0.68
-    )
+    # signal_score represents the heuristic strength of the setup
+    # A z-score of 2.0+ starts at 0.55 score, up to 0.85 at z-score 4.0+
+    signal_score = 0.55 + (0.30 * mr_confidence)
     
-    # Required edge for momentum strategies in decision_engine.py was effectively 0.05
+    # Required edge baseline before dynamic fee evaluation
     required_edge = 0.05
     
     return StrategyResult(
         strategy_name="mean_reversion",
         side=side,
         entry_price=float(yes_price),
-        model_probability=mr_probability,
+        signal_score=signal_score,
         confidence=mr_confidence,
         required_edge=required_edge,
-        raw_edge=mr_probability - yes_price,
+        raw_edge=signal_score - yes_price,
         trigger_reason=f"zscore_{z:.2f}",
         metadata={"mr_zscore": z}
     )

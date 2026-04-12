@@ -7,9 +7,9 @@ class StrategyResult:
     side: str  # "UP" | "DOWN"
     trigger_reason: str
     entry_price: float
-    model_probability: float  # Unbiased raw probability
+    signal_score: float      # Heuristic strength (0.0 to 1.0)
     confidence: float         # 0.0 - 1.0
     required_edge: float
-    raw_edge: float          # model_probability - entry_price
+    raw_edge: float          # signal_score - entry_price (Heuristic edge)
     execution_preference: str = "hybrid"  # "maker" | "taker" | "hybrid"
     metadata: Dict[str, Any] = field(default_factory=dict)

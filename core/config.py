@@ -111,9 +111,21 @@ class Settings:
 
     # Auto market selection
     auto_market_selection: bool = _b("AUTO_MARKET_SELECTION", True)
-    market_profile: str = os.getenv("MARKET_PROFILE", "btc_5m")
-    market_duration_sec: float = _f("MARKET_DURATION_SEC", 300.0)
-    market_slug_prefix: str = os.getenv("MARKET_SLUG_PREFIX", "btc-updown-5m-")
+    market_profile: str = os.getenv("MARKET_PROFILE", "btc_15m")
+    market_duration_sec: float = _f("MARKET_DURATION_SEC", 900.0)
+    market_slug_prefix: str = os.getenv("MARKET_SLUG_PREFIX", "btc-updown-15m-")
+
+    # Strategy Default Enables (15m oriented)
+    theta_bleed_enabled: bool = _b("THETA_BLEED_ENABLED", False)
+    strike_cross_snipe_enabled: bool = _b("STRIKE_CROSS_SNIPE_ENABLED", False)
+    ws_flash_snipe_enabled: bool = _b("WS_FLASH_SNIPE_ENABLED", False)
+    liquidation_fade_enabled: bool = _b("LIQUIDATION_FADE_ENABLED", False)
+    early_underdog_enabled: bool = _b("EARLY_UNDERDOG_ENABLED", False)
+
+    # Core 15m Strategies
+    extreme_price_fade_enabled: bool = _b("EXTREME_PRICE_FADE_ENABLED", True)
+    mean_reversion_enabled: bool = _b("MEAN_REVERSION_ENABLED", True)
+
 
     # 15m Value Entry Band Settings
     value_entry_min_price: float = _f("VALUE_ENTRY_MIN_PRICE", 0.05)
@@ -309,7 +321,7 @@ class Settings:
     use_dynamic_thresholds: bool = _b("USE_DYNAMIC_THRESHOLDS", True)
 
     # Advanced Risk
-    use_kelly_sizing: bool = _b("USE_KELLY_SIZING", True)
+    use_kelly_sizing: bool = _b("USE_KELLY_SIZING", False)
     max_bet_cap_usd: float = _f("MAX_BET_CAP_USD", 50.0)
 
     # Market Maker Settings
@@ -454,10 +466,8 @@ class Settings:
     latency_edge_buffer: float = _f("LATENCY_EDGE_BUFFER", 0.02)
 
     # Advanced Options Strategies (Theta Bleed & Strike Cross Front-run)
-    theta_bleed_enabled: bool = _b("THETA_BLEED_ENABLED", True)
     theta_bleed_min_sec: float = _f("THETA_BLEED_MIN_SEC", 60.0)
     theta_bleed_distance: float = _f("THETA_BLEED_DISTANCE", 120.0)
-    strike_cross_snipe_enabled: bool = _b("STRIKE_CROSS_SNIPE_ENABLED", True)
     strike_cross_gap: float = _f("STRIKE_CROSS_GAP", 20.0)
 
     ws_stale_fail_safe_streak: int = _i("WS_STALE_FAIL_SAFE_STREAK", 2)
@@ -475,7 +485,8 @@ class Settings:
     def __post_init__(self) -> None:
         if self.market_profile == "btc_15m":
             self.market_duration_sec = 900.0
-            if os.getenv("MARKET_SLUG_PREFIX") is None:
+            # Force 15m prefix if it still says 5m or is None
+            if self.market_slug_prefix == "btc-updown-5m-" or os.getenv("MARKET_SLUG_PREFIX") is None:
                 self.market_slug_prefix = "btc-updown-15m-"
             
             # 15m Default overrides for value-entry / expiry-first

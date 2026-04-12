@@ -126,7 +126,7 @@ def _build_candidate(
     side: str,
     strategy_key: str,
     entry_price: float,
-    model_probability: float,
+    signal_score: float,
     signal_confidence: float,
     extras: Optional[dict] = None,
 ) -> dict:
@@ -138,13 +138,14 @@ def _build_candidate(
             "reason": f"model-{strategy_key}",
             "strategy_name": f"model-{strategy_key}",
             "entry_price": float(entry_price),
-            "market_probability": float(entry_price),
-            "model_probability": _clamp(float(model_probability), 0.01, 0.99),
-            "probability_source": "heuristic",
+            "signal_score": _clamp(float(signal_score), 0.01, 1.0),
             "signal_confidence": _clamp(float(signal_confidence), 0.0, 1.0),
+            "metadata": extras or {},
         }
     )
-    result["model_edge"] = result["model_probability"] - result["market_probability"]
+    # Edge is now purely heuristic: signal_score - entry_price
+    # For production 15m, strategies should ideally provide a better edge estimate.
+    result["model_edge"] = result["signal_score"] - float(entry_price)
     if extras:
         result.update(extras)
     return result
@@ -158,13 +159,13 @@ def _rank_candidates(candidates: dict[str, Any]) -> list[Any]:
         if isinstance(c, dict):
             return (
                 c.get("model_edge", float("-inf")),
-                c.get("model_probability", 0.5),
+                c.get("signal_score", 0.0),
                 c.get("signal_confidence", 0.0),
             )
         # StrategyResult
         return (
             getattr(c, "raw_edge", float("-inf")),
-            getattr(c, "model_probability", 0.5),
+            getattr(c, "signal_score", 0.0),
             getattr(c, "confidence", 0.0),
         )
 
@@ -187,10 +188,10 @@ def _select_best_candidate(candidates: dict[str, Any], base_result: dict) -> Opt
             "reason": c.trigger_reason,
             "strategy_name": c.strategy_name,
             "entry_price": float(c.entry_price),
-            "market_probability": float(c.entry_price),
-            "model_probability": _clamp(float(c.model_probability), 0.01, 0.99),
+            "signal_score": _clamp(float(c.signal_score), 0.01, 1.0),
             "signal_confidence": _clamp(float(c.confidence), 0.0, 1.0),
             "model_edge": float(c.raw_edge),
+            "metadata": c.metadata if hasattr(c, "metadata") else {},
         })
         if hasattr(c, "metadata") and c.metadata:
             d.update(c.metadata)
@@ -364,7 +365,7 @@ def explain_choose_side(
                                     side="UP",
                                     strategy_key="theta_bleed_up",
                                     entry_price=float(up),
-                                    model_probability=0.99,  # Extremely high probability
+                                    signal_score=0.95,  # Heuristic strength
                                     signal_confidence=1.0,
                                     extras={
                                         "binance_mid": binance_mid,
@@ -381,7 +382,7 @@ def explain_choose_side(
                                     side="DOWN",
                                     strategy_key="theta_bleed_down",
                                     entry_price=float(down),
-                                    model_probability=0.99,
+                                    signal_score=0.95,  # Heuristic strength
                                     signal_confidence=1.0,
                                     extras={
                                         "binance_mid": binance_mid,
@@ -421,7 +422,7 @@ def explain_choose_side(
                                 side="UP",
                                 strategy_key="strike_cross_snipe_up",
                                 entry_price=float(up),
-                                model_probability=0.99,  # High, exempts from stabilization
+                                signal_score=0.99,  # High, exempts from stabilization
                                 signal_confidence=0.95,
                                 extras={
                                     "oldest": oldest,
@@ -442,7 +443,7 @@ def explain_choose_side(
                                 side="DOWN",
                                 strategy_key="strike_cross_snipe_down",
                                 entry_price=float(down),
-                                model_probability=0.99,  # High, exempts from stabilization
+                                signal_score=0.99,  # High, exempts from stabilization
                                 signal_confidence=0.95,
                                 extras={
                                     "oldest": oldest,
@@ -497,7 +498,7 @@ def explain_choose_side(
                 side="UP",
                 strategy_key="poly_ob_imbalance_up",
                 entry_price=float(up),
-                model_probability=imbalance_probability,
+                signal_score=imbalance_probability,
                 signal_confidence=imbalance_confidence,
                 extras={"orderbook_imbalance": imbalance_up},
             )
@@ -514,7 +515,7 @@ def explain_choose_side(
                 side="DOWN",
                 strategy_key="poly_ob_imbalance_down",
                 entry_price=float(down),
-                model_probability=imbalance_probability,
+                signal_score=imbalance_probability,
                 signal_confidence=imbalance_confidence,
                 extras={"orderbook_imbalance": imbalance_down},
             )
@@ -551,7 +552,7 @@ def explain_choose_side(
                             side="UP",
                             strategy_key="liquidation_fade_up",
                             entry_price=float(up),
-                            model_probability=0.75,
+                            signal_score=0.70,  # Strength score
                             signal_confidence=fade_confidence,
                             extras={"long_liq_usd": long_liq_usd},
                         )
@@ -565,7 +566,7 @@ def explain_choose_side(
                             side="DOWN",
                             strategy_key="liquidation_fade_down",
                             entry_price=float(down),
-                            model_probability=0.75,
+                            signal_score=0.70,  # Strength score
                             signal_confidence=fade_confidence,
                             extras={"short_liq_usd": short_liq_usd},
                         )
@@ -593,7 +594,7 @@ def explain_choose_side(
                                 side="UP",
                                 strategy_key="early_underdog_up",
                                 entry_price=float(up),
-                                model_probability=0.76,
+                                signal_score=0.72, # Strength
                                 signal_confidence=0.8,
                                 extras={"secs_left": secs_left, "vel": vel},
                             )
@@ -608,7 +609,7 @@ def explain_choose_side(
                                 side="DOWN",
                                 strategy_key="early_underdog_down",
                                 entry_price=float(down),
-                                model_probability=0.76,
+                                signal_score=0.72, # Strength
                                 signal_confidence=0.8,
                                 extras={"secs_left": secs_left, "vel": vel},
                             )
@@ -626,7 +627,7 @@ def explain_choose_side(
                     side="DOWN",
                     strategy_key="extreme_price_fade_down",
                     entry_price=float(down),
-                    model_probability=0.68,
+                    signal_score=0.65, # Strength
                     signal_confidence=0.8,
                     extras={"fade_target": "UP", "price": up, "regime": regime}
                 )
@@ -639,7 +640,7 @@ def explain_choose_side(
                     side="UP",
                     strategy_key="extreme_price_fade_up",
                     entry_price=float(up),
-                    model_probability=0.68,
+                    signal_score=0.65, # Strength
                     signal_confidence=0.8,
                     extras={"fade_target": "DOWN", "price": down, "regime": regime}
                 )
@@ -660,7 +661,7 @@ def explain_choose_side(
         
         # 15m Strategy Blacklist (Disable latency-sensitive 5m strategies)
         if SETTINGS.market_profile == "btc_15m":
-            if any(k in name for k in ["ws_flash_snipe", "strike_cross_snipe", "theta_bleed"]):
+            if any(k in name for k in ["ws_flash_snipe", "strike_cross_snipe", "theta_bleed", "liquidation_fade", "early_underdog"]):
                 continue
             
             # AI Advisor Strategy Filter & No-Trade Bias
@@ -683,15 +684,15 @@ def explain_choose_side(
         if SETTINGS.market_profile == "btc_15m":
             if price > SETTINGS.hard_no_chase_above:
                 continue
-            # If price is in soft-no-chase zone, require very high probability
+            # If price is in soft-no-chase zone, require very high signal_score
             if price > SETTINGS.soft_no_chase_above:
-                prob = s_result.get("model_probability", 0)
-                if prob < 0.85:
+                score = s_result.get("signal_score", 0)
+                if score < 0.85:
                     continue
 
         # Apply AI Confidence Modifier
         if SETTINGS.ai_advisor_enabled:
-            s_result["model_probability"] += ai_advice.get("confidence_modifier", 0.0)
+            s_result["signal_score"] += ai_advice.get("confidence_modifier", 0.0)
 
         raw_edge = getattr(s_result, "raw_edge", None)
         if raw_edge is None:
@@ -748,24 +749,7 @@ def explain_choose_side(
         # Convert all to dicts for output
         all_dicts = []
         for c in ranked:
-            if isinstance(c, dict):
-                all_dicts.append(c)
-            else:
-                d = base_result.copy()
-                d.update({
-                    "ok": True,
-                    "side": c.side,
-                    "reason": c.trigger_reason,
-                    "strategy_name": c.strategy_name,
-                    "entry_price": float(c.entry_price),
-                    "market_probability": float(c.entry_price),
-                    "model_probability": _clamp(float(c.model_probability), 0.01, 0.99),
-                    "signal_confidence": _clamp(float(c.confidence), 0.0, 1.0),
-                    "model_edge": float(c.raw_edge),
-                })
-                if hasattr(c, "metadata") and c.metadata:
-                    d.update(c.metadata)
-                all_dicts.append(d)
+            all_dicts.append(to_dict(c))
         
         best = all_dicts[0].copy()
         best["candidates"] = all_dicts

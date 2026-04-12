@@ -1369,9 +1369,14 @@ class PolymarketExchange:
             if remaining > 0.0001 and attempts < attempt_limit and retry_sleep > 0:
                 time.sleep(retry_sleep)
 
-        cash_after = None
-        cash_delta = None
-        cash_delta_source = "cash_balance_unavailable"
+        try:
+            cash_after = self._get_cash_balance()
+            cash_delta = cash_after - cash_before
+            cash_delta_source = "cash_balance_delta"
+        except Exception:
+            cash_after = None
+            cash_delta = None
+            cash_delta_source = "cash_balance_unavailable"
 
         ok = sold_total > 0 and (last_resp is not None)
         best_exit_value, best_exit_source = select_live_close_exit_value(

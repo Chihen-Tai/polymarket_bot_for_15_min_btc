@@ -1,0 +1,89 @@
+<h2>策略系統重構提案 (Polymarket Bot)</h2>
+<p class="subtitle">將「特例拼湊」轉向「標準化研究框架」</p>
+
+<div class="section">
+  <h3>1. 現狀架構批判 (Architecture Critique)</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>優點</h4>
+      <ul>
+        <li><b>信號多樣性：</b> 涵蓋了訂單流、Binance 聯動、清算等多個維度。</li>
+        <li><b>保護機制：</b> 具備時間鎖、流動性評估、Kelly 分倉等風險控制。</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>嚴重缺陷 (核心問題)</h4>
+      <ul>
+        <li><b>邏輯過度耦合：</b> <code>decision_engine.py</code> 變成了一個巨大的 <code>if/else</code> 迷宮，難以獨立測試單一策略。</li>
+        <li><b>概率膨脹 (Probability Inflation)：</b> 為了通過門檻，硬性調整 <code>model_probability</code>，導致真實期望值被掩蓋。</li>
+        <li><b>退出邏輯混亂：</b> <code>trade_manager.py</code> 包含過多重疊的退出規則（例：各種 deadline 和 TP/SL 衝突）。</li>
+        <li><b>缺乏量化歸因：</b> 無法精確判斷哪個策略在扣除手續費與滑點後真正獲利。</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>2. 過度擬合 (Overfit) vs. 潛力組件 (Promising)</h3>
+  <div class="split">
+    <div class="card">
+      <div class="card-body">
+        <h4 style="color: #ff4d4f;">疑似過度擬合 (需嚴格審核)</h4>
+        <ul>
+          <li><b>Early Underdog:</b> 包含過多硬編碼的價格與時間閾值。</li>
+          <li><b>Theta Bleed:</b> 距離 strike price 的判斷過於簡單，易受噪音干擾。</li>
+          <li><b>Time-based Snipe:</b> 過於模式化，容易被反向交易 (Adverse Selection)。</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <h4 style="color: #52c41a;">具備真實潛力 (核心 Edge)</h4>
+        <ul>
+          <li><b>WS Order Flow (OFI):</b> 具備微觀結構邏輯，透過 Binance 訂單流預測短線方向。</li>
+          <li><b>WS Flash Snipe:</b> 捕捉劇烈波動的反應速度。</li>
+          <li><b>Poly Orderbook Imbalance:</b> 利用 Polymarket 自身深度不對稱。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>3. 重構優先順序 (Refactor Priority)</h3>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="refactor-engine" onclick="toggleSelect(this)">
+      <div class="letter">1</div>
+      <div class="content">
+        <h3>策略層解耦 (Strategy Decoupling)</h3>
+        <p>將 <code>decision_engine</code> 拆分為獨立模組，規範標準輸出 (Probability, Edge, Confidence)。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="remove-inflation" onclick="toggleSelect(this)">
+      <div class="letter">2</div>
+      <div class="content">
+        <h3>移除概率膨脹 (Unbias Models)</h3>
+        <p>替換掉 <code>model_probability += 0.05</code> 之類的硬調整，回歸原始信號強度。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="exit-sm" onclick="toggleSelect(this)">
+      <div class="letter">3</div>
+      <div class="content">
+        <h3>簡化退出狀態機 (Exit State Machine)</h3>
+        <p>將 30+ 條退出規則縮減為 5 個明確狀態。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="research-harness" onclick="toggleSelect(this)">
+      <div class="letter">4</div>
+      <div class="content">
+        <h3>建立歸因日誌管道 (Attribution Pipeline)</h3>
+        <p>每筆交易記錄策略、秒級滑點、對沖費用，產出真實績效報告。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="subtitle">請在瀏覽器中查看架構分析，並在終端機告知您的決定或進一步要求。</p>
+  <p>URL: http://localhost:58059</p>
+</div>
