@@ -5703,8 +5703,22 @@ def main():
                 if _total > 0:
                     current_ofi = _bv / _total
 
-            # 新增風險管理冷卻與集中度檢查
-            rm_ok, rm_reason = RISK_MANAGER.can_trade(acct.equity, acct.open_exposure)
+            # 1. 數據獲取與抖動採樣
+            from core.resolution_source import get_chainlink_btc_price
+            chainlink_p = get_chainlink_btc_price() or 0.0
+            binance_p = float(binance_1m.get("c", 0)) if binance_1m else 0.0
+            
+            # 記錄當前延遲樣本供 RiskManager 計算抖動
+            last_rtt = LATENCY_MONITOR.get_last_rtt()
+            if last_rtt: RISK_MANAGER.add_latency_sample(last_rtt)
+
+            # 2. 新增風險管理檢查 (抖動 + 分歧 + 基礎風控)
+            rm_ok, rm_reason = RISK_MANAGER.can_trade(
+                acct.equity, 
+                acct.open_exposure,
+                binance_p=binance_p,
+                chainlink_p=chainlink_p
+            )
             if not rm_ok:
                 maybe_record_cycle_label(
                     state,

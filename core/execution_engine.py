@@ -27,6 +27,15 @@ def get_vwap_from_ladder(ladder: List[Dict[str, Any]], size_usd: float) -> float
         
     return 999.0
 
+def calculate_polymarket_fee(price: float, size_usd: float) -> float:
+    """
+    官方費率公式: Fee = Amount * feeRate * p * (1-p)
+    feeRate 固定為 0.0156 (156 bps)。
+    """
+    fee_rate = 0.0156
+    # p * (1-p) 在 0.5 時達到最大值 0.25
+    return float(size_usd * fee_rate * price * (1.0 - price))
+
 def calculate_committed_edge(
     fair_value: float, 
     ob_up: Dict[str, Any], 
@@ -36,26 +45,29 @@ def calculate_committed_edge(
 ) -> float:
     """
     計算「承諾邊際」。
-    假設進場付 Taker 費（保守估計），出場持有到期（0 費用）。
+    邊際 = 期望價值 - 入場成本 - (進場費 + 出場費) - 延遲緩衝
     """
-    taker_fee_rate = 0.0156
-    safety_buffer = 0.01  # 1% 額外滑點/延遲緩衝
+    safety_buffer = 0.01 # 1% 靜態緩衝
     
     if side == "UP":
-        # 進場成本：從 UP 的 Ask 梯次計算
-        entry_vwap = get_vwap_from_ladder(ob_up.get('asks', []), order_size_usd)
-        if entry_vwap > 1.0: return -1.0
+        entry_price = get_vwap_from_ladder(ob_up.get('asks', []), order_size_usd)
+        if entry_price > 1.0: return -1.0
         
-        # 預期價值：FV (機率 * $1.00)
+        # 官方費率計算 (進場與預期出場)
+        entry_fee = calculate_polymarket_fee(entry_price, order_size_usd) / order_size_usd
+        # 出場假設到期 (費率為 0)，若非到期則需額外計算
+        total_fees = entry_fee 
+        
         ev_expiry = fair_value
-        edge = ev_expiry - entry_vwap - (entry_vwap * taker_fee_rate) - safety_buffer
+        edge = ev_expiry - entry_price - total_fees - safety_buffer
     else:
-        # 進場成本：從 DOWN 的 Ask 梯次計算
-        entry_vwap = get_vwap_from_ladder(ob_down.get('asks', []), order_size_usd)
-        if entry_vwap > 1.0: return -1.0
+        entry_price = get_vwap_from_ladder(ob_down.get('asks', []), order_size_usd)
+        if entry_price > 1.0: return -1.0
         
-        # DOWN 的 FV 是 (1 - YES_FV)
+        entry_fee = calculate_polymarket_fee(entry_price, order_size_usd) / order_size_usd
+        total_fees = entry_fee
+        
         ev_expiry = 1.0 - fair_value
-        edge = ev_expiry - entry_vwap - (entry_vwap * taker_fee_rate) - safety_buffer
+        edge = ev_expiry - entry_price - total_fees - safety_buffer
         
     return float(edge)
