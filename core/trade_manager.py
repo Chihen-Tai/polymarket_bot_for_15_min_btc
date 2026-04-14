@@ -25,52 +25,32 @@ def _decide_exit_15m(
     pnl_pct: float,
     hold_sec: float,
     secs_left: Optional[float] = None,
-    fair_value: float = 0.5, # 傳入當前的公平價值 (YES)
+    fair_value: float = 0.5,
     side: str = "UP",
     ob_bids: list = None,
     shares: float = 0.0,
 ) -> ExitDecision:
     """
-    15m 執行優先出場邏輯。
-    原則：除非有緊急危險或提前平倉的 EV 顯著優於持有到期，否則持有。
+    Sniper 模式出場邏輯：持倉到期 (Hold-to-Expiry)。
+    我們在高邊際進場，目標是獲取全額賠付。
     """
-    # 1. 強制止損 (保護生存)
-    if pnl_pct <= -SETTINGS.stop_loss_pct:
-        return ExitDecision(True, "hard-stop-loss", pnl_pct, hold_sec)
+    # 1. 災難性止損 (30%) - 針對極端波動的寬鬆止損
+    if pnl_pct <= -0.30:
+        return ExitDecision(True, "catastrophic-reversal-stop", pnl_pct, hold_sec)
 
-    # 2. Expiry-First Certainty Hold
-    # 如果剩餘時間極短且勝率極高，即使達到 deadline 也優先持有到期。
+    # 2. 確定性持倉 (Expiry-First Certainty Hold)
+    # 如果已經快到期，且勝率極高，絕對不平倉。
     pos_fv = fair_value if side == "UP" else (1.0 - fair_value)
-    
-    if bool(getattr(SETTINGS, "expiry_first_certainty_hold_enabled", True)):
-        max_secs = float(getattr(SETTINGS, "expiry_first_hold_max_secs_left", 10.0))
-        min_fv = float(getattr(SETTINGS, "expiry_first_hold_min_fair_value", 0.92))
-        if secs_left is not None and secs_left <= max_secs:
-            if pos_fv >= min_fv:
-                return ExitDecision(False, "expiry-first-certainty-hold", pnl_pct, hold_sec)
-
-    # 3. 到期前強制清理 (避開結算不確定性)
     if secs_left is not None and secs_left <= 15.0:
+        if pos_fv >= 0.90:
+            return ExitDecision(False, "sniper-hold-to-settle", pnl_pct, hold_sec)
+        
+        # 否則在最後 15 秒清理不確定部位
         reason = "deadline-exit-loss" if pnl_pct <= 0 else "deadline-exit-win"
         return ExitDecision(True, reason, pnl_pct, hold_sec)
 
-    # 4. EV 比較：持有到期 vs. 提前平倉
-    if ob_bids and shares > 0:
-        from core.execution_engine import get_vwap_from_ladder
-        # 真實可執行出場價格 (VWAP based on actual shares)
-        executable_bid = get_vwap_from_ladder(ob_bids, shares * 0.5) 
-        taker_fee = 0.0156
-        
-        # 提前平倉的淨價值 (扣除 Taker 費)
-        ev_sell = executable_bid * (1.0 - taker_fee)
-        # 持有到期的價值 (假設 0 費用)
-        ev_hold = pos_fv
-        
-        # 只有當提前賣出的價值比持有到期高出指定邊際時，才平倉
-        min_advantage = float(getattr(SETTINGS, "strategic_exit_min_ev_advantage", 0.03))
-        if ev_sell > (ev_hold + min_advantage):
-            return ExitDecision(True, "strategic-take-profit", pnl_pct, hold_sec)
-
+    # 3. 預設：持有到期
+    # 移除所有中間的 strategic-take-profit，因為 Taker 費與價差會吃掉優勢。
     return ExitDecision(False, "hold", pnl_pct, hold_sec)
 
 

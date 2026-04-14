@@ -11,7 +11,7 @@ class TestBTC15mRefactorV2(unittest.TestCase):
         # Fair value 0.95, secs_left 5 -> Should hold
         res = _decide_exit_15m(pnl_pct=0.15, hold_sec=100, secs_left=5, fair_value=0.95, side="UP")
         self.assertFalse(res.should_close)
-        self.assertEqual(res.reason, "expiry-first-certainty-hold")
+        self.assertEqual(res.reason, "sniper-hold-to-settle")
 
         # Fair value 0.80, secs_left 5 -> Should deadline exit
         res = _decide_exit_15m(pnl_pct=0.15, hold_sec=100, secs_left=5, fair_value=0.80, side="UP")

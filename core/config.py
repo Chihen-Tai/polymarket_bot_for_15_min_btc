@@ -102,15 +102,17 @@ class Settings:
     expiry_first_hold_min_fair_value: float = _f("EXPIRY_FIRST_HOLD_MIN_FAIR_VALUE", 0.92)
     strategic_exit_min_ev_advantage: float = _f("STRATEGIC_EXIT_MIN_EV_ADVANTAGE", 0.03)
 
-    # 15m Low-Frequency Value Entry Settings
-    POLL_SECONDS: int = _i("POLL_SECONDS", 15) # 降低頻率，減少無謂 API 消耗與雜訊
-    MIN_EXECUTABLE_EDGE: float = _f("MIN_EXECUTABLE_EDGE", 0.05) # 至少 5% 淨邊際才進場
-    NO_TRADE_ZONE_LOW: float = 0.45
-    NO_TRADE_ZONE_HIGH: float = 0.55
-    DAILY_MAX_LOSS_USD: float = _f("DAILY_MAX_LOSS_USD", 5.0)
+    # --- Sniper Mode: Behavioral Alpha Settings ---
+    MIN_SNIPER_EDGE: float = _f("MIN_SNIPER_EDGE", 0.08) # 嚴格要求 8% 以上淨邊際
+    SNIPER_EXTREME_UPPER: float = 0.75 # 只在 > 0.75 時考慮做反向
+    SNIPER_EXTREME_LOWER: float = 0.25 # 只在 < 0.25 時考慮做反向
+    SNIPER_MID_ZONE_LOW: float = 0.40
+    SNIPER_MID_ZONE_HIGH: float = 0.60
     
-    # 執行優先參數
-    MAKER_ENTRY_TIMEOUT_SEC: float = _f("MAKER_ENTRY_TIMEOUT_SEC", 10.0) # 給 Maker 更多時間成交
+    # 執行與風險
+    LATENCY_BUFFER_USD: float = 0.02 # 針對日本 VPN 的額外延遲補償
+    MAX_CONCURRENT_TRADES: int = 1 # 嚴格限制 1 筆部位
+    COOLDOWN_AFTER_TRADE: int = 900 # 交易後冷卻 15 分鐘
     
     poll_seconds: int = _i("POLL_SECONDS", 15)
     live_account_cache_ttl_sec: float = _f("LIVE_ACCOUNT_CACHE_TTL_SEC", 5.0)

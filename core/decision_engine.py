@@ -244,49 +244,62 @@ def explain_choose_side(
         base_result["reason"] = "missing_market_data"
         return base_result
 
-    # 2. 公平價值計算 (Dynamic Vol BS Model)
+    # 2. 公平價值估算 (BS Model)
     strike_price = market.get("strike_price") or _extract_strike_price(market.get("question", ""))
-    if strike_price is None:
-        base_result["reason"] = "missing_strike_price"
+    if strike_price is None or binance_1m is None:
+        base_result["reason"] = "missing_valuation_inputs"
         return base_result
 
     price_history = [float(k.get('c', 0)) for k in (binance_5m or [])]
     btc_price = float(binance_1m.get("c", 0))
     fv_yes = get_fair_value(btc_price, strike_price, secs_left, price_history=price_history)
 
-    # 3. 執行策略：無交易區 (No-Trade Zone)
-    # 避免在接近 0.5 的高競爭/低優勢區域交易
-    mid_price = (float(observed_up or 0.5) + (1.0 - float(observed_down or 0.5))) / 2.0
-    if SETTINGS.NO_TRADE_ZONE_LOW < mid_price < SETTINGS.NO_TRADE_ZONE_HIGH:
-        base_result["reason"] = f"no_trade_zone_{mid_price:.3f}"
+    # 3. Sniper 核心過濾：只交易極端區域
+    up_price = float(observed_up or 0.5)
+    
+    # 規則 A: 避開中間區域 (0.40 - 0.60)
+    if SETTINGS.SNIPER_MID_ZONE_LOW < up_price < SETTINGS.SNIPER_MID_ZONE_HIGH:
+        base_result["reason"] = f"sniper_mid_zone_avoidance_{up_price:.3f}"
         return base_result
 
-    # 4. 承諾邊際 (Ladder-Aware Committed Edge)
+    # 規則 B: 必須是極端定價 (>0.75 或 <0.25)
+    is_extreme = up_price > SETTINGS.SNIPER_EXTREME_UPPER or up_price < SETTINGS.SNIPER_EXTREME_LOWER
+    if not is_extreme:
+        base_result["reason"] = "not_extreme_enough"
+        return base_result
+
+    # 4. 承諾邊際 (Committed Edge) 與 延遲補償
     order_size = float(getattr(SETTINGS, "min_live_order_usd", 1.0))
     edge_up = calculate_committed_edge(fv_yes, poly_ob_up, poly_ob_down, order_size, "UP")
     edge_down = calculate_committed_edge(fv_yes, poly_ob_up, poly_ob_down, order_size, "DOWN")
+    
+    # 額外扣除延遲緩衝 (2%)
+    edge_up -= float(getattr(SETTINGS, "LATENCY_BUFFER_USD", 0.02))
+    edge_down -= float(getattr(SETTINGS, "LATENCY_BUFFER_USD", 0.02))
 
     candidates = {}
-    threshold = float(SETTINGS.MIN_EXECUTABLE_EDGE)
+    threshold = float(SETTINGS.MIN_SNIPER_EDGE)
 
     if edge_up >= threshold:
-        candidates["unified_fv_up"] = _build_candidate(
-            base_result, side="UP", strategy_key="unified_fv",
+        reason = "fade_retail_panic" if up_price < 0.25 else "fade_retail_fomo"
+        candidates["sniper_fade_up"] = _build_candidate(
+            base_result, side="UP", strategy_key=reason,
             entry_price=get_vwap_from_ladder(poly_ob_up.get('asks', []), order_size),
             signal_score=fv_yes, signal_confidence=1.0,
-            extras={"committed_edge": edge_up}
+            extras={"sniper_edge": edge_up, "behavioral_alpha": reason}
         )
 
     if edge_down >= threshold:
-        candidates["unified_fv_down"] = _build_candidate(
-            base_result, side="DOWN", strategy_key="unified_fv",
+        reason = "fade_retail_panic" if (1.0 - up_price) < 0.25 else "fade_retail_fomo"
+        candidates["sniper_fade_down"] = _build_candidate(
+            base_result, side="DOWN", strategy_key=reason,
             entry_price=get_vwap_from_ladder(poly_ob_down.get('asks', []), order_size),
             signal_score=1.0 - fv_yes, signal_confidence=1.0,
-            extras={"committed_edge": edge_down}
+            extras={"sniper_edge": edge_down, "behavioral_alpha": reason}
         )
 
     if not candidates:
-        base_result["reason"] = "insufficient_edge"
+        base_result["reason"] = "edge_below_sniper_threshold"
         return base_result
 
     return _select_best_candidate(candidates, base_result)
