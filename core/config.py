@@ -103,7 +103,7 @@ class Settings:
     same_direction_entry_cooldown_sec: int = 300
     stop_loss_pct: float = 0.10
     taker_snipe_velocity: float = 0.001
-    use_cex_oracle: bool = False
+    use_cex_oracle: bool = _b("USE_CEX_ORACLE", True)
     use_dynamic_thresholds: bool = False
 
     # --- Exits ---
