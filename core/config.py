@@ -82,6 +82,10 @@ class Settings:
     vpn_neutral_zone_width: float = _f("VPN_NEUTRAL_ZONE_WIDTH", 0.05)
     min_volatility_gate_bps: float = _f("MIN_VOLATILITY_GATE_BPS", 15.0)
 
+    # --- Legacy Signal Compatibility ---
+    zscore_window: int = _i("ZSCORE_WINDOW", 10)
+    zscore_threshold: float = _f("ZSCORE_THRESHOLD", 2.0)
+
     # --- Exits ---
     # We strictly hold to expiry if EV is high, or emergency close only
     expiry_first_certainty_hold_enabled: bool = True
