@@ -85,6 +85,8 @@ class Settings:
     # --- Legacy Signal Compatibility ---
     zscore_window: int = _i("ZSCORE_WINDOW", 10)
     zscore_threshold: float = _f("ZSCORE_THRESHOLD", 2.0)
+    momentum_ticks: int = _i("MOMENTUM_TICKS", 5)
+    momentum_min_move: float = _f("MOMENTUM_MIN_MOVE", 0.02)
 
     # --- Exits ---
     # We strictly hold to expiry if EV is high, or emergency close only
