@@ -6,9 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
-
 from core.runtime_paths import trade_journal_path
-
+from core.config import SETTINGS
 
 def _journal_path():
     return trade_journal_path()
