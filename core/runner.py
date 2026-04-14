@@ -35,6 +35,7 @@ from core.trade_manager import (
 )
 from core.risk_manager import RISK_MANAGER
 from core.ws_binance import BINANCE_WS
+from core.latency_monitor import LATENCY_MONITOR
 from core.indicators import compute_buy_sell_pressure
 from core.journal import (
     LOT_EPS_COST_USD,

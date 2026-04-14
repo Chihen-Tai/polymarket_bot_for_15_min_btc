@@ -443,32 +443,32 @@ class TradePairRow:
     opened_ts: str
     closed_ts: str
     entry_secs_left: float | None
+    matched_exit_shares: float = 0.0
     market_profile: str = "btc_5m"
     regime: str = "unknown"
     entry_cost_usd: float = 0.0
     entry_shares: float = 0.0
     matched_cost_usd: float = 0.0
-    matched_exit_shares: float
-    exit_recovered_actual_usd: float | None
-    exit_recovered_observed_usd: float | None
-    actual_pnl_usd: float | None
-    observed_pnl_usd: float | None
-    fee_adjusted_actual_pnl_usd: float | None
-    fee_adjusted_observed_pnl_usd: float | None
-    estimated_total_fees_actual_usd: float | None
-    estimated_total_fees_observed_usd: float | None
-    actual_source: str
-    actual_source_tier: str
-    entry_execution_style: str
-    exit_execution_style: str
-    close_bucket: str
-    close_reason: str
-    entry_quality: str
-    remaining_shares: float
-    unmatched_entry_cost_usd: float
-    unmatched_entry_shares: float
-    mae_pnl_usd: float | None
-    mfe_pnl_usd: float | None
+    exit_recovered_actual_usd: float | None = None
+    exit_recovered_observed_usd: float | None = None
+    actual_pnl_usd: float | None = None
+    observed_pnl_usd: float | None = None
+    fee_adjusted_actual_pnl_usd: float | None = None
+    fee_adjusted_observed_pnl_usd: float | None = None
+    estimated_total_fees_actual_usd: float | None = None
+    estimated_total_fees_observed_usd: float | None = None
+    actual_source: str = ""
+    actual_source_tier: str = ""
+    entry_execution_style: str = ""
+    exit_execution_style: str = ""
+    close_bucket: str = ""
+    close_reason: str = ""
+    entry_quality: str = ""
+    remaining_shares: float = 0.0
+    unmatched_entry_cost_usd: float = 0.0
+    unmatched_entry_shares: float = 0.0
+    mae_pnl_usd: float | None = None
+    mfe_pnl_usd: float | None = None
     flags: list[str]
     legs: list[TradeLeg]
 
