@@ -2541,7 +2541,7 @@ def required_trade_edge(
     ):
         required += float(getattr(SETTINGS, "entry_neutral_edge_penalty", 0.0))
     if center_distance <= float(getattr(SETTINGS, "entry_micro_band_half_width", 0.0)):
-    # ... (existing penalties)
+        required += float(getattr(SETTINGS, "entry_micro_edge_penalty", 0.0))
     
     # Network Quality Penalty
     if network_tier == "DEGRADED":

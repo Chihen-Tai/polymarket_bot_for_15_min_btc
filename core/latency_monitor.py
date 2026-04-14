@@ -1,7 +1,7 @@
 import collections
 import statistics
 import time
-from typing import Dict, Deque
+from typing import Dict, Deque, Optional
 from core.config import SETTINGS
 
 class LatencyMonitor:
@@ -20,7 +20,7 @@ class LatencyMonitor:
     def add_rtt(self, rtt_ms: float):
         self.rtts.append(rtt_ms)
 
-    def get_last_rtt(self) -> float | None:
+    def get_last_rtt(self) -> Optional[float]:
         if not self.rtts:
             return None
         return self.rtts[-1]
