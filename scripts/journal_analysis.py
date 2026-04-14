@@ -469,8 +469,8 @@ class TradePairRow:
     unmatched_entry_shares: float = 0.0
     mae_pnl_usd: float | None = None
     mfe_pnl_usd: float | None = None
-    flags: list[str]
-    legs: list[TradeLeg]
+    flags: list[str] = field(default_factory=list)
+    legs: list[TradeLeg] = field(default_factory=list)
 
 
 def load_trade_events(
