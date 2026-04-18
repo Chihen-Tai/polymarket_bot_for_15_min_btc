@@ -306,16 +306,16 @@ def explain_choose_side(
         if poly_ob_up:
             bids_up = poly_ob_up.get("bids", [])[:3]
             asks_up = poly_ob_up.get("asks", [])[:3]
-            bid_vol_up = sum(float(b.get("size", 0)) for b in bids_up)
-            ask_vol_up = sum(float(a.get("size", 0)) for a in asks_up)
+            bid_vol_up = sum(float(b.size or 0) if hasattr(b, "size") else float(b.get("size", 0)) for b in bids_up)
+            ask_vol_up = sum(float(a.size or 0) if hasattr(a, "size") else float(a.get("size", 0)) for a in asks_up)
             tv_up = bid_vol_up + ask_vol_up
             if tv_up > 1e-9:
                 poly_ofi_up = (bid_vol_up - ask_vol_up) / tv_up
         if poly_ob_down:
             bids_dn = poly_ob_down.get("bids", [])[:3]
             asks_dn = poly_ob_down.get("asks", [])[:3]
-            bid_vol_dn = sum(float(b.get("size", 0)) for b in bids_dn)
-            ask_vol_dn = sum(float(a.get("size", 0)) for a in asks_dn)
+            bid_vol_dn = sum(float(b.size or 0) if hasattr(b, "size") else float(b.get("size", 0)) for b in bids_dn)
+            ask_vol_dn = sum(float(a.size or 0) if hasattr(a, "size") else float(a.get("size", 0)) for a in asks_dn)
             tv_dn = bid_vol_dn + ask_vol_dn
             if tv_dn > 1e-9:
                 poly_ofi_down = (bid_vol_dn - ask_vol_dn) / tv_dn
