@@ -252,13 +252,25 @@ def validate_live_startup_requirements() -> tuple[bool, list[str]]:
     ]
     if any(clob_values) and not all(clob_values):
         notes.append(
-            "live startup preflight warning | partial CLOB_API_* detected; "
-            "client will ignore incomplete creds and derive fresh API creds from wallet"
+            "live startup preflight failed | incomplete CLOB_API_* settings detected"
         )
-    elif not any(clob_values):
         notes.append(
-            "live startup preflight | CLOB_API_* not set; client will derive API creds from wallet"
+            "live startup preflight hint | set all three CLOB_API_KEY, CLOB_API_SECRET, and CLOB_API_PASSPHRASE in .env.local or .env.secrets"
         )
+        return False, notes
+    elif not any(clob_values):
+        if bool(getattr(SETTINGS, "allow_clob_cred_derivation", False)):
+            notes.append(
+                "live startup preflight | CLOB_API_* not set; ALLOW_CLOB_CRED_DERIVATION=true so client will derive API creds from wallet"
+            )
+        else:
+            notes.append(
+                "live startup preflight failed | missing required settings: CLOB_API_KEY, CLOB_API_SECRET, CLOB_API_PASSPHRASE"
+            )
+            notes.append(
+                "live startup preflight hint | put CLOB_API_* in .env.local or .env.secrets to avoid startup-time credential derivation over VPN"
+            )
+            return False, notes
 
     return True, notes
 

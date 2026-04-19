@@ -2,8 +2,21 @@ import os
 import sys
 import time
 from datetime import datetime
+from types import ModuleType, SimpleNamespace
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+if "requests" not in sys.modules:
+    requests_stub = ModuleType("requests")
+    requests_stub.get = lambda *args, **kwargs: None
+    requests_stub.post = lambda *args, **kwargs: None
+    requests_stub.exceptions = SimpleNamespace(RequestException=Exception)
+    sys.modules["requests"] = requests_stub
+
+if "websocket" not in sys.modules:
+    websocket_stub = ModuleType("websocket")
+    websocket_stub.WebSocketApp = object
+    sys.modules["websocket"] = websocket_stub
 
 import core.runner as runner_mod
 import core.journal as journal_mod
@@ -668,6 +681,9 @@ def main():
     original_clob_api_key = runner_mod.SETTINGS.clob_api_key
     original_clob_api_secret = runner_mod.SETTINGS.clob_api_secret
     original_clob_api_passphrase = runner_mod.SETTINGS.clob_api_passphrase
+    original_allow_clob_cred_derivation = getattr(
+        runner_mod.SETTINGS, "allow_clob_cred_derivation", False
+    )
     try:
         runner_mod.SETTINGS.dry_run = False
         runner_mod.SETTINGS.private_key = ""
@@ -675,6 +691,7 @@ def main():
         runner_mod.SETTINGS.clob_api_key = ""
         runner_mod.SETTINGS.clob_api_secret = ""
         runner_mod.SETTINGS.clob_api_passphrase = ""
+        runner_mod.SETTINGS.allow_clob_cred_derivation = False
         live_preflight_ok_missing, live_preflight_notes_missing = (
             validate_live_startup_requirements()
         )
@@ -684,13 +701,20 @@ def main():
         runner_mod.SETTINGS.clob_api_key = ""
         runner_mod.SETTINGS.clob_api_secret = ""
         runner_mod.SETTINGS.clob_api_passphrase = ""
-        live_preflight_ok_derivation, live_preflight_notes_derivation = (
+        runner_mod.SETTINGS.allow_clob_cred_derivation = False
+        live_preflight_ok_missing_clob, live_preflight_notes_missing_clob = (
+            validate_live_startup_requirements()
+        )
+
+        runner_mod.SETTINGS.allow_clob_cred_derivation = True
+        live_preflight_ok_derivation_opt_in, live_preflight_notes_derivation_opt_in = (
             validate_live_startup_requirements()
         )
 
         runner_mod.SETTINGS.clob_api_key = "api-key"
         runner_mod.SETTINGS.clob_api_secret = ""
         runner_mod.SETTINGS.clob_api_passphrase = "api-pass"
+        runner_mod.SETTINGS.allow_clob_cred_derivation = False
         live_preflight_ok_partial, live_preflight_notes_partial = (
             validate_live_startup_requirements()
         )
@@ -701,6 +725,9 @@ def main():
         runner_mod.SETTINGS.clob_api_key = original_clob_api_key
         runner_mod.SETTINGS.clob_api_secret = original_clob_api_secret
         runner_mod.SETTINGS.clob_api_passphrase = original_clob_api_passphrase
+        runner_mod.SETTINGS.allow_clob_cred_derivation = (
+            original_allow_clob_cred_derivation
+        )
 
     cases.extend(
         [
@@ -880,18 +907,30 @@ def main():
                 and ".env.local or .env.secrets" in live_preflight_notes_missing[1],
             ),
             (
-                "live_preflight_allows_wallet_based_clob_derivation",
-                live_preflight_ok_derivation is True
-                and live_preflight_notes_derivation
+                "live_preflight_blocks_missing_clob_creds_by_default",
+                live_preflight_ok_missing_clob is False
+                and live_preflight_notes_missing_clob
                 == [
-                    "live startup preflight | CLOB_API_* not set; client will derive API creds from wallet"
+                    "live startup preflight failed | missing required settings: CLOB_API_KEY, CLOB_API_SECRET, CLOB_API_PASSPHRASE",
+                    "live startup preflight hint | put CLOB_API_* in .env.local or .env.secrets to avoid startup-time credential derivation over VPN",
                 ],
             ),
             (
-                "live_preflight_warns_on_partial_clob_creds",
-                live_preflight_ok_partial is True
-                and len(live_preflight_notes_partial) == 1
-                and "partial CLOB_API_* detected" in live_preflight_notes_partial[0],
+                "live_preflight_allows_wallet_based_clob_derivation_only_when_opted_in",
+                live_preflight_ok_derivation_opt_in is True
+                and live_preflight_notes_derivation_opt_in
+                == [
+                    "live startup preflight | CLOB_API_* not set; ALLOW_CLOB_CRED_DERIVATION=true so client will derive API creds from wallet"
+                ],
+            ),
+            (
+                "live_preflight_blocks_partial_clob_creds",
+                live_preflight_ok_partial is False
+                and live_preflight_notes_partial
+                == [
+                    "live startup preflight failed | incomplete CLOB_API_* settings detected",
+                    "live startup preflight hint | set all three CLOB_API_KEY, CLOB_API_SECRET, and CLOB_API_PASSPHRASE in .env.local or .env.secrets",
+                ],
             ),
             (
                 "pending_orders_poll_every_second",

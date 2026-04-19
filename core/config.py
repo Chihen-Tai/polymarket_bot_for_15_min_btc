@@ -178,6 +178,7 @@ class Settings:
     clob_api_key: str = os.getenv("CLOB_API_KEY", "")
     clob_api_secret: str = os.getenv("CLOB_API_SECRET", "")
     clob_api_passphrase: str = os.getenv("CLOB_API_PASSPHRASE", "")
+    allow_clob_cred_derivation: bool = _b("ALLOW_CLOB_CRED_DERIVATION", False)
     enable_arbitrage: bool = _b("ENABLE_ARBITRAGE", False)
     arbitrage_max_cost: float = _f("ARBITRAGE_MAX_COST", 0.98)
     regime_opening_end_sec: float = _f("REGIME_OPENING_END_SEC", 300.0)

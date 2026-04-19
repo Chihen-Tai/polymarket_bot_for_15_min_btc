@@ -581,6 +581,11 @@ class PolymarketExchange:
             )
             return
 
+        if not bool(getattr(SETTINGS, "allow_clob_cred_derivation", False)):
+            raise ValueError(
+                "CLOB_API_* credentials are required in live mode when ALLOW_CLOB_CRED_DERIVATION is false"
+            )
+
         temp_client = ClobClient(
             SETTINGS.clob_host,
             key=SETTINGS.private_key,

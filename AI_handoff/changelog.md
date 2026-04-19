@@ -189,3 +189,24 @@ Limitation:
 Rollback:
 
 - Remove the cache fallback logic from `scripts/replay_harness.py`, delete `tests/test_phase6_replay_harness.py`, and delete `AI_handoff/phase6_baseline.md`.
+
+## 2026-04-19 - Live startup CLOB credential guard
+
+- Added `ALLOW_CLOB_CRED_DERIVATION` in `core/config.py`, default `false`.
+- Changed `core/runner.py` live preflight to fail fast when `CLOB_API_*` is missing or partial.
+- Changed `core/exchange.py` to block eager `create_or_derive_api_creds()` in live mode unless derivation is explicitly opted in.
+- Added `tests/test_phase_live_clob_creds.py`.
+- Added `AI_handoff/live_startup_clob_creds.md`.
+
+Why:
+
+- Live startup was able to hit `create_or_derive_api_creds()` during `PolymarketExchange.__init__`, which makes bot startup depend on a VPN-sensitive CLOB API call before the normal loop even begins.
+
+Verification:
+
+- `python3 tests/test_runtime_paths.py`
+- `python3 -m unittest tests.test_phase_live_clob_creds`
+
+Rollback:
+
+- Remove `ALLOW_CLOB_CRED_DERIVATION`, restore the old preflight messages in `core/runner.py`, restore eager derivation in `core/exchange.py`, delete `tests/test_phase_live_clob_creds.py`, and delete `AI_handoff/live_startup_clob_creds.md`.
