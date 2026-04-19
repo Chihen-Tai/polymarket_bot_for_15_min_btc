@@ -4537,7 +4537,7 @@ def main():
                                     poly_ob_up=poly_ob_up,
                                     poly_ob_down=poly_ob_down,
                                 )
-                            no_entry_reason = model_decision.get("reason")
+                                no_entry_reason = model_decision.get("reason")
                             _entry_ws_vel = 0.0
                             _entry_ws_vel_now = 0.0
                             try:
