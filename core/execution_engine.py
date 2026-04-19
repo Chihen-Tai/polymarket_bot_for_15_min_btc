@@ -48,11 +48,12 @@ def get_vwap_from_ladder(ladder: List[Any], size_usd: float) -> float:
 #
 # Correct formula:  fee = rate * p^exponent * (1-p)^exponent * shares
 # For btc-updown-15m markets:  rate=0.072, exponent=1, takerOnly=True
-# With 20% rebate (until 2026-04-30):  effective = rate * (1 - rebateRate)
+# Maker rebates are distributed separately and are not a deterministic
+# per-fill discount on taker fees, so they are excluded from protocol-fee math.
 # Maker fee is always 0 (post-only, confirmed by takerOnly=True).
 # ---------------------------------------------------------------------------
 
-_CONSERVATIVE_FALLBACK_RATE = 0.018  # 1.80% at p=0.50 with no rebate
+_CONSERVATIVE_FALLBACK_RATE = 0.072  # BTC 15m crypto fallback
 _REBATE_EXPIRY_EPOCH = 1746057600    # 2026-05-01 00:00:00 UTC
 
 
@@ -125,19 +126,28 @@ class PolymarketFeeModel:
 
     @property
     def effective_taker_rate_after_rebate(self) -> float:
-        return self.rate * (1.0 - self.rebate_rate)
+        return self.rate
+
+    def calculate_taker_fee_per_share(self, price: float) -> float:
+        if price <= 0 or price >= 1.0:
+            return 0.0
+        return float(
+            self.rate
+            * (price ** self.exponent)
+            * ((1.0 - price) ** self.exponent)
+        )
+
+    def calculate_maker_rebate_per_share(self, price: float) -> float:
+        # Maker rebates are pool-based and not guaranteed per fill.
+        # Keep the entry gate conservative until realized maker rebate data is tracked.
+        return 0.0
 
     def calculate_taker_fee(self, price: float, size_usd: float, secs_left: float = 600.0) -> float:
-        """Fee = effective_rate * p^exp * (1-p)^exp * shares."""
+        """Fee = protocol_rate * p^exp * (1-p)^exp * shares."""
         if price <= 0 or price >= 1.0:
             return 0.0
         shares = size_usd / price
-        fee = (
-            self.effective_taker_rate_after_rebate
-            * (price ** self.exponent)
-            * ((1.0 - price) ** self.exponent)
-            * shares
-        )
+        fee = self.calculate_taker_fee_per_share(price) * shares
         return float(fee)
 
     def calculate_maker_fee(self, price: float, size_usd: float) -> float:

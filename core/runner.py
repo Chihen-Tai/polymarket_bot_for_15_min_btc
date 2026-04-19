@@ -5,6 +5,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, replace
 from datetime import datetime
+from math import isfinite
 from random import uniform
 
 from core.config import SETTINGS
@@ -21,7 +22,11 @@ from core.exchange import (
     order_below_minimum_shares,
     plan_live_order,
 )
-from core.hedge_logic import should_trigger_dump
+from core.hedge_logic import (
+    finalize_structured_hedge_after_fill,
+    plan_structured_hedge_entry,
+    should_trigger_dump,
+)
 from core.notifier import notify_discord
 from core.risk import RiskState, can_place_order, current_5min_key, update_window
 from core.market_resolver import resolve_latest_btc_token_ids, MarketResolutionError
@@ -42,11 +47,13 @@ from core.journal import (
     LOT_EPS_SHARES,
     STALE_HOURS,
     append_event,
+    append_shadow_csv_row,
     set_journal_context,
     replay_open_positions,
     read_events,
     format_exit_summary,
 )
+from core.resolution_source import get_chainlink_oracle_age_s
 
 
 def smart_sleep(seconds: float):
@@ -2451,6 +2458,96 @@ def current_ws_age() -> float:
         return float("inf")
 
 
+def _format_metric(value: float | None, *, precision: int = 1) -> str:
+    if value is None:
+        return "na"
+    try:
+        numeric = float(value)
+    except Exception:
+        return "na"
+    if not isfinite(numeric):
+        return "na"
+    return f"{numeric:.{precision}f}"
+
+
+def _format_clob_timestamp(raw_timestamp: object, clob_ts_ms: float | None) -> str:
+    text = str(raw_timestamp or "").strip()
+    if text:
+        return text
+    if clob_ts_ms is None or not isfinite(float(clob_ts_ms)):
+        return ""
+    return datetime.utcfromtimestamp(float(clob_ts_ms) / 1000.0).isoformat(
+        timespec="milliseconds"
+    ) + "Z"
+
+
+def latest_clob_snapshot_details(*books: dict | None) -> tuple[str, float | None]:
+    snapshots: list[tuple[float, float, object]] = []
+    for book in books:
+        if not isinstance(book, dict):
+            continue
+        clob_ts_ms = book.get("clob_ts_ms")
+        fetched_at_ms = book.get("fetched_at_ms")
+        if clob_ts_ms is None or fetched_at_ms is None:
+            continue
+        try:
+            clob_ts = float(clob_ts_ms)
+            fetched_at = float(fetched_at_ms)
+        except Exception:
+            continue
+        if not isfinite(clob_ts) or not isfinite(fetched_at):
+            continue
+        snapshots.append((clob_ts, fetched_at, book.get("timestamp")))
+    if not snapshots:
+        return "", None
+    clob_ts, fetched_at, raw_timestamp = max(snapshots, key=lambda item: item[0])
+    return _format_clob_timestamp(raw_timestamp, clob_ts), (clob_ts - fetched_at)
+
+
+def current_local_iso_ts() -> str:
+    return datetime.utcnow().isoformat(timespec="milliseconds") + "Z"
+
+
+def current_shadow_network_block_reason() -> str:
+    if not bool(getattr(SETTINGS, "vpn_safe_mode", False)):
+        return ""
+    try:
+        blocked, reason = LATENCY_MONITOR.is_blocked()
+    except Exception:
+        blocked, reason = False, ""
+    if blocked:
+        return f"VPN_LATENCY_BLOCK({reason})"
+    try:
+        ws_age = float(BINANCE_WS.get_last_update_age())
+    except Exception:
+        ws_age = float("inf")
+    max_age = float(getattr(SETTINGS, "vpn_max_ws_age_sec", 0.0) or 0.0)
+    if max_age > 0.0 and ws_age > max_age:
+        return f"VPN_WS_STALE_BLOCK({ws_age:.2f}s > {max_age}s)"
+    return ""
+
+
+def format_cycle_metrics_line(
+    *,
+    market_slug: str,
+    rtt_http_ms: float | None,
+    rtt_ws_ms: float | None,
+    ws_age_ms: float | None,
+    clob_skew_ms: float | None,
+    binance_ws_age_ms: float | None,
+    chainlink_oracle_age_s: float | None,
+) -> str:
+    return (
+        f"cycle metrics | slug={market_slug or 'n/a'} "
+        f"rtt_http_ms={_format_metric(rtt_http_ms)} "
+        f"rtt_ws_ms={_format_metric(rtt_ws_ms)} "
+        f"ws_age_ms={_format_metric(ws_age_ms)} "
+        f"clob_skew_ms={_format_metric(clob_skew_ms)} "
+        f"binance_ws_age_ms={_format_metric(binance_ws_age_ms)} "
+        f"chainlink_oracle_age_s={_format_metric(chainlink_oracle_age_s)}"
+    )
+
+
 def observe_api_latency(flags: RuntimeFlags, label: str, elapsed_ms: float) -> bool:
     flags.last_api_latency_ms = max(
         float(getattr(flags, "last_api_latency_ms", 0.0) or 0.0), float(elapsed_ms)
@@ -2632,7 +2729,8 @@ def summarize_entry_edge(
     secs_left: float | None,
     history_count: int = 0,
     fee_rate: float = 0.0,  # Was 0.0156 — maker-only pays 0% fee
-    network_tier: str = "NORMAL"
+    network_tier: str = "NORMAL",
+    assume_maker: bool = True,
 ) -> dict:
     # 1. Neutral-Zone block (0.45 - 0.55 is toxic for fees/spread)
     neutral_width = float(getattr(SETTINGS, "vpn_neutral_zone_width", 0.05) or 0.05)
@@ -2644,13 +2742,40 @@ def summarize_entry_edge(
     )
     
     raw_edge = win_rate - entry_price
-    blocked_reason = "neutral-no-trade-zone" if neutral_hard_block else ""
+    from core.execution_engine import FEE_MODEL
+
+    if assume_maker:
+        breakeven_prob = max(
+            0.0,
+            float(entry_price)
+            - float(FEE_MODEL.calculate_maker_rebate_per_share(entry_price)),
+        )
+    else:
+        taker_fee_per_share = float(FEE_MODEL.calculate_taker_fee_per_share(entry_price))
+        if taker_fee_per_share <= 0.0 and fee_rate > 0.0:
+            taker_fee_per_share = max(0.0, float(entry_price) * float(fee_rate))
+        breakeven_prob = float(entry_price) + taker_fee_per_share
+
+    fee_buffer = max(0.02, float(getattr(SETTINGS, "fee_buffer", 0.02) or 0.02))
+    fee_aware_required = max(0.0, breakeven_prob - float(entry_price)) + fee_buffer
+    required = max(required, fee_aware_required)
+
+    blocked_reason = ""
+    if neutral_hard_block:
+        blocked_reason = "neutral-no-trade-zone"
+    elif raw_edge <= fee_aware_required:
+        blocked_reason = "fee-aware-breakeven"
+    elif raw_edge < required:
+        blocked_reason = "edge"
     return {
         "win_rate": win_rate,
         "entry_price": entry_price,
         "raw_edge": raw_edge,
         "required_edge": required,
-        "ok": (raw_edge >= required) and not neutral_hard_block,
+        "breakeven_prob": breakeven_prob,
+        "fee_buffer": fee_buffer,
+        "fee_aware_required": fee_aware_required,
+        "ok": not blocked_reason,
         "history_count": history_count,
         "blocked_reason": blocked_reason,
     }
@@ -2691,6 +2816,10 @@ def score_entry_candidate(
     entry_price = float(candidate.get("entry_price") or 0.0)
     model_probability = candidate.get("model_probability")
     probability_source = str(candidate.get("probability_source") or "").strip()
+    preferred_execution_style = str(
+        candidate.get("preferred_execution_style")
+        or ("maker" if bool(getattr(SETTINGS, "vpn_maker_only", False)) else "taker")
+    ).strip().lower()
     signal_probability = (
         float(model_probability) if model_probability is not None else None
     )
@@ -2759,6 +2888,7 @@ def score_entry_candidate(
         secs_left=secs_left,
         history_count=strategy_decisive_trade_count,
         fee_rate=fee_rate,
+        assume_maker=preferred_execution_style != "taker",
     )
     return {
         "ok": bool(
@@ -2779,6 +2909,7 @@ def score_entry_candidate(
         "strategy_decisive_trade_count": strategy_decisive_trade_count,
         "effective_probability": effective_probability,
         "entry_edge": entry_edge,
+        "preferred_execution_style": preferred_execution_style,
         "aux_blocked": aux_blocked,
         "block_reason": "low-auxWR-hard-block" if aux_blocked else "",
     }
@@ -2853,9 +2984,10 @@ def select_ranked_entry_candidate(
     current_ws_velocity: float | None = None,
     secs_left: float | None,
     scoreboard=None,
+    ignore_network_gate: bool = False,
 ) -> tuple[dict | None, list[str]]:
     # 0. VPN Safe Mode: Hard latency block
-    if SETTINGS.vpn_safe_mode:
+    if SETTINGS.vpn_safe_mode and not ignore_network_gate:
         is_lat_blocked, lat_reason = LATENCY_MONITOR.is_blocked()
         if is_lat_blocked:
             return None, [f"VPN_LATENCY_BLOCK({lat_reason})"]
@@ -4313,6 +4445,25 @@ def main():
                         ws_bba = None
                         ws_trades = None
 
+                    clob_ts, clob_skew_ms = latest_clob_snapshot_details(
+                        poly_ob_up, poly_ob_down
+                    )
+                    log(
+                        format_cycle_metrics_line(
+                            market_slug=market["slug"],
+                            rtt_http_ms=float(
+                                getattr(flags, "last_api_latency_ms", 0.0) or 0.0
+                            ),
+                            rtt_ws_ms=BINANCE_WS.get_last_event_latency_ms(),
+                            ws_age_ms=(cycle_ws_age * 1000.0)
+                            if isfinite(float(cycle_ws_age))
+                            else None,
+                            clob_skew_ms=clob_skew_ms,
+                            binance_ws_age_ms=BINANCE_WS.get_bba_age_ms(),
+                            chainlink_oracle_age_s=get_chainlink_oracle_age_s(),
+                        )
+                    )
+
                     if SETTINGS.use_dynamic_thresholds and binance_1m:
                         change_abs = abs(binance_1m.get("change", 0.0))
                         if change_abs > 30.0:
@@ -4409,6 +4560,9 @@ def main():
                                     ws_velocity=_entry_ws_vel,
                                     current_ws_velocity=_entry_ws_vel_now,
                                     secs_left=secs_left,
+                                    ignore_network_gate=bool(
+                                        getattr(SETTINGS, "shadow_mode", False)
+                                    ),
                                 )
                             )
                             if chosen_candidate:
@@ -4482,6 +4636,59 @@ def main():
                                 signal_probability_source = ""
                                 if candidate_rejections:
                                     no_entry_reason = candidate_rejections[0]
+
+                            if (
+                                chosen_candidate
+                                and bool(getattr(SETTINGS, "shadow_mode", False))
+                            ):
+                                shadow_row = append_shadow_csv_row(
+                                    {
+                                        "clob_ts": clob_ts or current_local_iso_ts(),
+                                        "local_ts": current_local_iso_ts(),
+                                        "market_slug": market["slug"],
+                                        "side": chosen_candidate.get("side") or "",
+                                        "strategy_name": chosen_candidate.get(
+                                            "strategy_name"
+                                        )
+                                        or "",
+                                        "entry_price": chosen_candidate.get(
+                                            "entry_price"
+                                        )
+                                        or "",
+                                        "model_probability": chosen_candidate.get(
+                                            "signal_probability"
+                                        )
+                                        or "",
+                                        "effective_probability": chosen_candidate.get(
+                                            "effective_probability"
+                                        )
+                                        or "",
+                                        "raw_edge": (
+                                            chosen_candidate.get("entry_edge") or {}
+                                        ).get("raw_edge", ""),
+                                        "required_edge": (
+                                            chosen_candidate.get("entry_edge") or {}
+                                        ).get("required_edge", ""),
+                                        "network_block_reason": current_shadow_network_block_reason(),
+                                        "reason": chosen_candidate.get("reason")
+                                        or "",
+                                        "regime": model_decision.get("regime") or "",
+                                    }
+                                )
+                                log(
+                                    f"shadow decision recorded | strategy={shadow_row['strategy_name']} "
+                                    f"side={shadow_row['side']} clob_ts={shadow_row['clob_ts']}"
+                                )
+                                signal_side = None
+                                signal_origin = ""
+                                signal_probability = None
+                                signal_probability_source = ""
+                                strategy_win_rate = 0.5
+                                strategy_trade_count = 0
+                                strategy_decisive_trade_count = 0
+                                effective_probability = None
+                                entry_edge = None
+                                no_entry_reason = "shadow_mode_recorded"
 
                             if (
                                 signal_side is None
@@ -5771,6 +5978,31 @@ def main():
                 smart_sleep(SETTINGS.poll_seconds)
                 continue
 
+            hedge_entry_decision = plan_structured_hedge_entry(
+                cash_balance_usd=float(acct.cash or 0.0),
+                primary_order_usd=float(order_usd or 0.0),
+                hedge_ratio=float(getattr(SETTINGS, "hedge_ratio", 0.0) or 0.0),
+                reserve_usd=float(getattr(SETTINGS, "hedge_reserve_usd", 0.50) or 0.50),
+                min_order_usd=float(getattr(SETTINGS, "min_live_order_usd", 1.0) or 1.0),
+                low_cash_policy=str(
+                    getattr(SETTINGS, "hedge_low_cash_policy", "skip_entry") or "skip_entry"
+                ),
+            )
+            if not hedge_entry_decision.entry_allowed:
+                maybe_record_cycle_label(
+                    state,
+                    "signal-blocked",
+                    slug=last_market_slug,
+                    side=signal_side,
+                    reason=hedge_entry_decision.reason,
+                )
+                log(
+                    f"skip entry: {hedge_entry_decision.reason} | cash=${acct.cash:.4f} "
+                    f"order_usd=${order_usd:.4f} reserve=${float(getattr(SETTINGS, 'hedge_reserve_usd', 0.50) or 0.50):.2f}"
+                )
+                smart_sleep(SETTINGS.poll_seconds)
+                continue
+
             # 計算當前 OFI 供風控判斷（與 decision_engine 共用 ws_trades 資料）
             current_ofi = 0.0
             if ws_trades:
@@ -5873,6 +6105,12 @@ def main():
                     f"price={float(entry_price):.3f} raw_edge={entry_edge['raw_edge']:.3f} "
                     f"required={entry_edge['required_edge']:.3f}"
                 )
+                if hedge_entry_decision.reason == "hedge_disabled_low_cash_policy":
+                    log(
+                        f"primary-only entry policy | cash=${acct.cash:.4f} "
+                        f"reserve=${float(getattr(SETTINGS, 'hedge_reserve_usd', 0.50) or 0.50):.2f} "
+                        "structured hedge disabled for this cycle"
+                    )
 
             try:
                 sim_price = float(canonical_entry_price) if canonical_entry_price is not None else None
@@ -6077,16 +6315,29 @@ def main():
                 risk.consec_losses = flags.live_consec_losses
 
                 # Hedge Logic
-                hedge_ratio = getattr(SETTINGS, "hedge_ratio", 0.0)
-                if hedge_ratio > 0.0 and market:
+                if (
+                    hedge_entry_decision.should_place_hedge
+                    and hedge_entry_decision.hedge_size_usd > 0.0
+                    and market
+                ):
                     hedge_side = "DOWN" if signal_side == "UP" else "UP"
-                    hedge_usd = order_usd * hedge_ratio
                     hedge_token_id = (
                         market.get("token_down")
                         if signal_side == "UP"
                         else market.get("token_up")
                     )
-                    if hedge_token_id and hedge_usd >= 0.5:
+                    hedge_decision = finalize_structured_hedge_after_fill(
+                        cash_balance_usd=float(acct.cash or 0.0),
+                        primary_fill_cost_usd=float(resp.get("amount_usd", order_usd) or order_usd),
+                        planned_hedge_usd=float(hedge_entry_decision.hedge_size_usd or 0.0),
+                        reserve_usd=float(getattr(SETTINGS, "hedge_reserve_usd", 0.50) or 0.50),
+                        min_order_usd=float(getattr(SETTINGS, "min_live_order_usd", 1.0) or 1.0),
+                        primary_filled=bool(entry_response_has_actionable_state(resp)),
+                    )
+                    if hedge_decision.reason == "hedge_disabled_low_cash_policy":
+                        log("structured hedge disabled by low-cash policy for this cycle")
+                    if hedge_token_id and hedge_decision.should_place_hedge:
+                        hedge_usd = float(hedge_decision.hedge_size_usd or 0.0)
                         log(
                             f"executing structured hedge | side={hedge_side} cost=${hedge_usd:.4f}"
                         )
@@ -6130,6 +6381,8 @@ def main():
                                 )
                         except Exception as e:
                             log(f"hedge parsing error: {e}")
+                    elif hedge_decision.reason:
+                        log(hedge_decision.reason)
                 try:
                     r = resp.get("response", {}) if isinstance(resp, dict) else {}
                     actual_entry_cost_usd = extract_entry_cost_usd(resp, order_usd)

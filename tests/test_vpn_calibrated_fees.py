@@ -1,4 +1,3 @@
-import pytest
 from core.execution_engine import FEE_MODEL, PolymarketFeeModel, calculate_committed_edge
 from core.config import SETTINGS
 
@@ -34,18 +33,18 @@ def test_fee_model_taker_correct_formula():
     assert abs(fee - 5.76) < 1e-4
 
 
-def test_fee_model_with_rebate():
-    """Rebate reduces the effective rate."""
+def test_fee_model_with_rebate_does_not_reduce_taker_fee():
+    """Maker rebates do not reduce the protocol taker fee."""
     model = PolymarketFeeModel()
     model.rate = 0.072
     model.rebate_rate = 0.2  # 20% rebate
 
-    assert abs(model.effective_taker_rate_after_rebate - 0.0576) < 1e-6
+    assert abs(model.effective_taker_rate_after_rebate - 0.072) < 1e-6
 
     # At p=0.5, size_usd=100: shares = 200
-    # fee = 0.0576 * 0.5 * 0.5 * 200 = 2.88
+    # fee remains 0.072 * 0.5 * 0.5 * 200 = 3.60
     fee = model.calculate_taker_fee(0.5, 100.0)
-    assert abs(fee - 2.88) < 1e-4
+    assert abs(fee - 3.60) < 1e-4
 
 
 def test_fee_model_edge_prices():
@@ -57,12 +56,12 @@ def test_fee_model_edge_prices():
 
 
 def test_fee_model_fallback_rate():
-    """Default fallback is conservative 1.80%."""
+    """Default fallback matches BTC 15m crypto taker fees."""
     model = PolymarketFeeModel()
-    # Default rate = 0.018, no rebate
+    # Default rate = 0.072, no rebate
     fee = model.calculate_taker_fee(0.5, 100.0)
     fee_pct = fee / 100.0
-    assert fee_pct < 0.02  # conservative but not insane
+    assert abs(fee_pct - 0.036) < 1e-9
 
 
 def test_committed_edge_with_new_fee_model():
