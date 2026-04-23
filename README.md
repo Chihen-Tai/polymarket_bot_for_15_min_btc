@@ -1,3 +1,4 @@
+##Due to personal reasons, there will be no updates for a while, as I currently have no access to real market trading data. However, providing me with trading data is highly welcome.##
 # Polymarket BTC 15-Minute Trading Bot
 
 This bot is a production-oriented execution system for **Polymarket 15-minute BTC markets**. It is optimized for **maker-first** entry, **expiry-first** settlement, and **execution-truth** accounting.
